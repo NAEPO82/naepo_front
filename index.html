@@ -6,6 +6,7 @@
   <meta http-equiv="X-Frame-Options" content="DENY" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Referrer-Policy" content="no-referrer" />
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
   <title>내포농기계 거래명세서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -305,6 +306,25 @@
     <div style="display:flex; gap:8px;">
       <button class="btn btn-o" id="btn-pwd-cancel" style="flex:1;">취소</button>
       <button class="btn btn-p" id="btn-pwd-submit" style="flex:1; background:#0284c7;">변경 승인</button>
+    </div>
+  </div>
+</div>
+
+<!-- [신규] 접속 IP 로그 — 일반 메뉴에 노출되지 않음. Ctrl+Shift+L 단축키로만 열림 -->
+<div id="alog-overlay">
+  <div class="alog-box">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h2 style="font-size:16px;"><i class="fa-solid fa-user-secret"></i> 접속 IP 로그 (관리자 전용)</h2>
+      <button class="btn btn-o btn-sm" id="btn-alog-close"><i class="fa-solid fa-xmark"></i> 닫기</button>
+    </div>
+    <div class="tbl-wrap" style="max-height:70vh; overflow-y:auto;">
+      <table>
+        <colgroup><col style="width:16%"/><col style="width:8%"/><col style="width:8%"/><col style="width:30%"/><col style="width:8%"/><col/></colgroup>
+        <thead>
+          <tr><th>시간</th><th>IP</th><th>메서드</th><th>경로</th><th>상태</th><th>User-Agent</th></tr>
+        </thead>
+        <tbody id="alog-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
