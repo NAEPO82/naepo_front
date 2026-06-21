@@ -9,6 +9,7 @@
   <title>내포농기계 거래명세서</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <link rel="stylesheet" href="styles.min.css" />
 </head>
 <body>
@@ -56,6 +57,7 @@
       <nav class="wrap">
         <button class="tab on" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
         <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
+        <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
       </nav>
     </div>
   </header>
@@ -202,6 +204,45 @@
         </div>
         <div class="preview-card" style="position:relative;">
           <div id="premium-injected-frame"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="page-inventory" style="display:none">
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fa-solid fa-circle-plus"></i> 부품(품목) 신규 등록</div>
+        <p class="hint" style="margin-bottom:12px;">⚠️ 품목명은 거래명세서 작성 시 입력하는 <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로 차감됩니다.</p>
+        <div class="g4e">
+          <div class="field"><label>품목명 *</label><input type="text" id="part-name" placeholder="예: 오일"/></div>
+          <div class="field"><label>기본 단가</label><input type="number" id="part-price" placeholder="0" min="0"/></div>
+          <div class="field"><label>초기 재고수량</label><input type="number" id="part-stock" placeholder="0" min="0"/></div>
+          <div class="field"><label>최소 재고 (경고기준)</label><input type="number" id="part-minstock" placeholder="0" min="0"/></div>
+        </div>
+        <button class="btn btn-p" id="btn-add-part" style="margin-top:12px;"><i class="fa-solid fa-plus"></i> 부품 등록</button>
+        <span class="ferr" id="e-part"></span>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fa-solid fa-boxes-stacked"></i> 재고 현황</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>품목명</th><th>단가</th><th>현재 재고</th><th>최소 재고</th><th>상태</th><th>관리</th></tr>
+            </thead>
+            <tbody id="parts-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-clipboard-list"></i> 입출고 대장</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>날짜</th><th>품목명</th><th>구분</th><th>수량</th><th>단가</th><th>비고</th></tr>
+            </thead>
+            <tbody id="inv-log-body"></tbody>
+          </table>
         </div>
       </div>
     </div>
