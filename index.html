@@ -166,6 +166,7 @@
       <div class="sumbar">
         <div id="sum-text">검색 결과가 없습니다.</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-o btn-sm" id="btn-records-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
           <button class="btn btn-o btn-sm" id="btn-sel-excel" style="color:#10b981; border-color:#bbf7d0; background:#f0fdf4;"><i class="fa-solid fa-square-check"></i> 선택항목 엑셀저장</button>
           <button class="btn btn-o btn-sm" id="btn-excel" style="color:#047857;border-color:#a7f3d0; background: #f0fdf4;"><i class="fa-solid fa-file-csv"></i> 전체목록 CSV백업</button>
           <button class="btn btn-o btn-sm" id="btn-cloud-backup" style="color:#0369a1;border-color:#bae6fd; background:#f0f9ff;"><i class="fa-solid fa-cloud-arrow-down"></i> 전체 백업 다운로드</button>
@@ -202,6 +203,7 @@
           <div style="display:flex; gap:8px;">
             <button class="btn btn-o btn-sm" id="btn-print-live-excel" style="color:#047857; border-color:#cbd5e1;"><i class="fa-solid fa-print"></i> 브라우저 팝업 인쇄</button>
             <button class="btn btn-o btn-sm" id="btn-download-live-excel" style="color:#16a34a; border-color:#cbd5e1;"><i class="fa-solid fa-file-excel"></i> 전용 엑셀 즉시변환</button>
+            <button class="btn btn-o btn-sm" id="btn-close-live-preview" style="color:#64748b; border-color:#cbd5e1;"><i class="fa-solid fa-xmark"></i> 미리보기 닫기</button>
           </div>
         </div>
         <div class="preview-card" style="position:relative;">
@@ -216,8 +218,11 @@
         <p class="hint" style="margin-bottom:12px;">⚠️ 품목명은 거래명세서 작성 시 입력하는 <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로 차감됩니다.</p>
         <div class="g4e">
           <div class="field"><label>품목명 *</label><input type="text" id="part-name" placeholder="예: 오일"/></div>
+          <div class="field"><label>규격</label><input type="text" id="part-spec" placeholder="예: 1L"/></div>
           <div class="field"><label>기본 단가</label><input type="number" id="part-price" placeholder="0" min="0"/></div>
           <div class="field"><label>초기 재고수량</label><input type="number" id="part-stock" placeholder="0" min="0"/></div>
+        </div>
+        <div class="g4e" style="margin-top:12px;">
           <div class="field"><label>최소 재고 (경고기준)</label><input type="number" id="part-minstock" placeholder="0" min="0"/></div>
         </div>
         <button class="btn btn-p" id="btn-add-part" style="margin-top:12px;"><i class="fa-solid fa-plus"></i> 부품 등록</button>
@@ -226,10 +231,20 @@
 
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title"><i class="fa-solid fa-boxes-stacked"></i> 재고 현황</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <button class="btn btn-o btn-sm" id="btn-parts-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
+          <button class="btn btn-o btn-sm" id="btn-parts-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 재고현황 엑셀다운로드</button>
+        </div>
         <div class="tbl-wrap">
           <table>
+            <colgroup>
+              <col style="width:5%"/><col style="width:18%"/><col style="width:13%"/><col style="width:12%"/><col style="width:11%"/><col style="width:11%"/><col style="width:10%"/><col/>
+            </colgroup>
             <thead>
-              <tr><th>품목명</th><th>단가</th><th>현재 재고</th><th>최소 재고</th><th>상태</th><th>관리</th></tr>
+              <tr>
+                <th><input type="checkbox" id="parts-chk-all" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></th>
+                <th>품목명</th><th>규격</th><th style="text-align:right;">단가</th><th style="text-align:right;">현재 재고</th><th style="text-align:right;">최소 재고</th><th>상태</th><th>관리</th>
+              </tr>
             </thead>
             <tbody id="parts-body"></tbody>
           </table>
@@ -238,10 +253,20 @@
 
       <div class="card">
         <div class="card-title"><i class="fa-solid fa-clipboard-list"></i> 입출고 대장</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <button class="btn btn-o btn-sm" id="btn-invlog-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
+          <button class="btn btn-o btn-sm" id="btn-invlog-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 입출고대장 엑셀다운로드</button>
+        </div>
         <div class="tbl-wrap">
           <table>
+            <colgroup>
+              <col style="width:4%"/><col style="width:12%"/><col style="width:18%"/><col style="width:9%"/><col style="width:12%"/><col style="width:13%"/><col/>
+            </colgroup>
             <thead>
-              <tr><th>날짜</th><th>품목명</th><th>구분</th><th>수량</th><th>단가</th><th>비고</th></tr>
+              <tr>
+                <th><input type="checkbox" id="invlog-chk-all" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></th>
+                <th>날짜</th><th>품목명</th><th>구분</th><th style="text-align:right;">수량</th><th style="text-align:right;">단가</th><th>비고</th>
+              </tr>
             </thead>
             <tbody id="inv-log-body"></tbody>
           </table>
