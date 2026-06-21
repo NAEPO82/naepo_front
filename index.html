@@ -161,9 +161,12 @@
 
       <div class="sumbar">
         <div id="sum-text">검색 결과가 없습니다.</div>
-        <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
           <button class="btn btn-o btn-sm" id="btn-sel-excel" style="color:#10b981; border-color:#bbf7d0; background:#f0fdf4;"><i class="fa-solid fa-square-check"></i> 선택항목 엑셀저장</button>
           <button class="btn btn-o btn-sm" id="btn-excel" style="color:#047857;border-color:#a7f3d0; background: #f0fdf4;"><i class="fa-solid fa-file-csv"></i> 전체목록 CSV백업</button>
+          <button class="btn btn-o btn-sm" id="btn-cloud-backup" style="color:#0369a1;border-color:#bae6fd; background:#f0f9ff;"><i class="fa-solid fa-cloud-arrow-down"></i> 전체 백업 다운로드</button>
+          <button class="btn btn-o btn-sm" id="btn-cloud-restore" style="color:#b45309;border-color:#fde68a; background:#fffbeb;"><i class="fa-solid fa-cloud-arrow-up"></i> 백업 파일 복원</button>
+          <input type="file" id="restore-file-input" accept="application/json" style="display:none;"/>
         </div>
       </div>
 
