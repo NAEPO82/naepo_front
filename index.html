@@ -78,6 +78,10 @@
           <span class="dash-period-label" id="dash-period-label">-</span>
           <button class="dash-nav-btn" id="dash-period-next"><i class="fa-solid fa-chevron-right"></i></button>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:#475569;cursor:pointer;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:6px 12px;">
+          <input type="checkbox" id="dash-exclude-channel" style="accent-color:#065f46;width:14px;height:14px;"/>
+          계통매출 제외
+        </label>
       </div>
       <div class="dash-grid">
         <div class="dash-card dash-blue">
@@ -173,6 +177,17 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-title">결제 수단</div>
+        <div class="pills" id="payment-pills">
+          <button class="pill" data-pay="현금"><i class="fa-solid fa-money-bill-wave"></i> 현금</button>
+          <button class="pill" data-pay="카드"><i class="fa-solid fa-credit-card"></i> 카드</button>
+          <button class="pill" data-pay="계좌이체"><i class="fa-solid fa-building-columns"></i> 계좌이체</button>
+          <button class="pill" data-pay="외상"><i class="fa-solid fa-file-invoice-dollar"></i> 외상</button>
+        </div>
+        <span style="font-size:11px;color:#94a3b8;margin-top:6px;display:block;">다시 누르면 선택 해제됩니다. 선택하지 않으면 "미기재"로 저장됩니다.</span>
+      </div>
+
       <datalist id="parts-datalist"></datalist>
 
       <div class="card">
@@ -180,10 +195,17 @@
         
         <div class="items-builder-container" id="items-builder-root"></div>
 
-        <button class="btn btn-o btn-sm" id="btn-add-item-row" style="margin-bottom:14px; border-color:#cbd5e1; color:#047857;"><i class="fa-solid fa-plus"></i> 명세 품목 추가하기</button>
+        <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-o btn-sm" id="btn-add-item-row" style="border-color:#cbd5e1; color:#047857;"><i class="fa-solid fa-plus"></i> 명세 품목 추가하기</button>
+          <select id="group-apply-select" style="font-size:12.5px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;color:#334155;background:#fff;">
+            <option value="">그룹 선택하여 품목 일괄추가...</option>
+          </select>
+          <button class="btn btn-o btn-sm" id="btn-apply-group" style="color:#7c3aed;border-color:#c4b5fd;"><i class="fa-solid fa-layer-group"></i> 그룹 적용</button>
+        </div>
         <div class="preview" id="f-preview" style="display:none">최종 정산 합계 금액 (공급가액 총액 + 세액 총액): <strong id="f-total">0</strong>원</div>
       </div>
 
+      <div id="edit-mode-banner" style="display:none;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:600;margin-bottom:10px;"></div>
       <div class="actions">
         <button class="btn btn-o" id="btn-reset"><i class="fa-solid fa-rotate-left"></i> 양식 초기화</button>
         <button class="btn btn-p" id="save-btn"><i class="fa-solid fa-download"></i> 내역 데이터 저장</button>
@@ -212,6 +234,7 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;margin-left:auto;">
           <button class="btn btn-o btn-sm" id="btn-records-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
           <button class="btn btn-o btn-sm" id="btn-sel-excel" style="color:#10b981; border-color:#bbf7d0; background:#f0fdf4;"><i class="fa-solid fa-square-check"></i> 선택항목 엑셀저장</button>
+          <button class="btn btn-o btn-sm" id="btn-list-print" style="color:#0284c7;border-color:#bae6fd;background:#eff6ff;"><i class="fa-solid fa-print"></i> 선택 일괄인쇄 (공급자용)</button>
           <button class="btn btn-o btn-sm" id="btn-excel" style="color:#047857;border-color:#a7f3d0; background: #f0fdf4;"><i class="fa-solid fa-file-csv"></i> 전체목록 CSV백업</button>
           <button class="btn btn-o btn-sm" id="btn-cloud-backup" style="color:#0369a1;border-color:#bae6fd; background:#f0f9ff;"><i class="fa-solid fa-cloud-arrow-down"></i> 전체 백업 다운로드</button>
           <button class="btn btn-o btn-sm" id="btn-cloud-restore" style="color:#b45309;border-color:#fde68a; background:#fffbeb;"><i class="fa-solid fa-cloud-arrow-up"></i> 백업 파일 복원</button>
@@ -257,6 +280,19 @@
     </div>
 
     <div id="page-inventory" style="display:none">
+      <!-- 그룹 관리 카드 [신규4] -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fa-solid fa-layer-group"></i> 부품 그룹 관리</div>
+        <p class="hint" style="margin-bottom:12px;">그룹을 만들어 여러 부품을 묶어두면, 거래명세서 작성 시 그룹 선택 한 번으로 해당 부품들을 품목에 자동으로 추가할 수 있습니다.</p>
+        <div class="g2" style="margin-bottom:10px;">
+          <div class="field"><label>그룹명 *</label><input type="text" id="group-name" placeholder="예: 정기점검 기본세트"/></div>
+          <div style="display:flex;align-items:flex-end;gap:8px;">
+            <button class="btn btn-p btn-sm" id="btn-add-group"><i class="fa-solid fa-plus"></i> 그룹 생성</button>
+          </div>
+        </div>
+        <div id="group-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+      </div>
+
       <div class="card" style="margin-bottom:16px;">
         <div class="card-title"><i class="fa-solid fa-circle-plus"></i> 부품(품목) 신규 등록</div>
         <p class="hint" style="margin-bottom:12px;">⚠️ 품목명은 거래명세서 작성 시 입력하는 <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로 차감됩니다.</p>
