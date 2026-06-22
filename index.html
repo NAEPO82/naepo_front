@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="styles.min.css" />
 </head>
 <body>
@@ -60,6 +61,7 @@
         <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
         <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
         <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
+        <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 & 미수금</button>
       </nav>
     </div>
   </header>
@@ -100,8 +102,36 @@
           <div class="dash-label"><i class="fa-solid fa-building"></i> 전체 등록 거래처</div>
           <div class="dash-value" id="dash-company-count">0곳</div>
         </div>
+        <div class="dash-card" style="background:linear-gradient(135deg,#9f1239,#500724);">
+          <div class="dash-label"><i class="fa-solid fa-circle-exclamation"></i> 미수금 합계</div>
+          <div class="dash-value" id="dash-ar-total">0원</div>
+          <div style="font-size:11px;opacity:0.75;margin-top:4px;" id="dash-ar-count">0건</div>
+        </div>
       </div>
-      <div class="card" style="margin-top:20px;">
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title"><i class="fa-solid fa-ranking-star"></i> 거래처별 매출 Top 5 <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">전체 기간 기준</span></div>
+        <div id="dash-customer-top" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title"><i class="fa-solid fa-chart-pie"></i> 분류파트별 매출 <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">선택 기간 기준 · 다중선택 가능</span></div>
+        <div id="dash-cat-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+        <div id="dash-cat-body" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-arrow-trend-up"></i> 부품 출고량 Top 5 <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:6px;">전체 기간 기준</span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="dash-ptab on" id="chart-type-bar" style="font-size:11px;padding:4px 12px;">막대</button>
+            <button class="dash-ptab" id="chart-type-doughnut" style="font-size:11px;padding:4px 12px;">도넛</button>
+          </div>
+        </div>
+        <div style="position:relative;height:220px;">
+          <canvas id="dash-turnover-chart"></canvas>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px;">
         <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> 최근 거래 5건</div>
         <div class="tbl-wrap">
           <table>
@@ -164,7 +194,7 @@
       <div class="card">
         <div class="card-title">공급받는자 (고객 정보)</div>
         <div class="g3">
-          <div class="field"><label>상호 (법인명)</label><input type="text" id="f-company" placeholder="개인 및 농업인은 공백 가능" maxlength="60"/></div>
+          <div class="field"><label>상호 (법인명)</label><input type="text" id="f-company" list="customer-datalist" placeholder="개인 및 농업인은 공백 가능" maxlength="60"/><datalist id="customer-datalist"></datalist></div>
           <div class="field"><label>고객 성명</label><input type="text" id="f-name" placeholder="고객 성명 입력(선택)" maxlength="30"/><span class="ferr" id="e-name"></span></div>
           <div class="field">
             <label>관할 지역</label>
@@ -238,7 +268,9 @@
           <button class="btn btn-o btn-sm" id="btn-excel" style="color:#047857;border-color:#a7f3d0; background: #f0fdf4;"><i class="fa-solid fa-file-csv"></i> 전체목록 CSV백업</button>
           <button class="btn btn-o btn-sm" id="btn-cloud-backup" style="color:#0369a1;border-color:#bae6fd; background:#f0f9ff;"><i class="fa-solid fa-cloud-arrow-down"></i> 전체 백업 다운로드</button>
           <button class="btn btn-o btn-sm" id="btn-cloud-restore" style="color:#b45309;border-color:#fde68a; background:#fffbeb;"><i class="fa-solid fa-cloud-arrow-up"></i> 백업 파일 복원</button>
+          <button class="btn btn-o btn-sm" id="btn-excel-import" style="color:#0369a1;border-color:#bae6fd;background:#eff6ff;"><i class="fa-solid fa-file-import"></i> 기존 엑셀 가져오기</button>
           <input type="file" id="restore-file-input" accept="application/json" style="display:none;"/>
+          <input type="file" id="excel-import-input" accept=".xlsx,.xls" style="display:none;"/>
         </div>
       </div>
 
@@ -262,6 +294,15 @@
         </table>
       </div>
 
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:8px;gap:6px;">
+        <span style="font-size:12px;color:#64748b;font-weight:500;">페이지당:</span>
+        <div class="perpage-pills" id="perpage-pills">
+          <button class="perpage-btn on" data-n="10">10</button>
+          <button class="perpage-btn" data-n="30">30</button>
+          <button class="perpage-btn" data-n="50">50</button>
+          <button class="perpage-btn" data-n="100">100</button>
+        </div>
+      </div>
       <div class="pagination-wrap" id="pagination-root"></div>
 
       <div class="preview-container" id="live-preview-space">
@@ -333,8 +374,25 @@
         <div class="card-title"><i class="fa-solid fa-clipboard-list"></i> 입출고 대장</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
           <button class="btn btn-o btn-sm" id="btn-invlog-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
-          <button class="btn btn-o btn-sm" id="btn-invlog-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 입출고대장 엑셀다운로드</button>
+          <button class="btn btn-o btn-sm" id="btn-invlog-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 엑셀다운로드</button>
+          <button class="btn btn-o btn-sm" id="btn-monthly-pdf" style="color:#7c3aed;border-color:#c4b5fd;background:#faf5ff;"><i class="fa-solid fa-file-pdf"></i> 월말정산 PDF</button>
+          <select id="invlog-filter-month" style="font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:8px;color:#475569;">
+            <option value="">전체 기간</option>
+          </select>
+          <select id="invlog-filter-part" style="font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:8px;color:#475569;">
+            <option value="">전체 품목</option>
+          </select>
+          <select id="invlog-filter-type" style="font-size:12px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:8px;color:#475569;">
+            <option value="">전체 구분</option>
+            <option value="in">입고만</option>
+            <option value="out">출고만</option>
+            <option value="adjust">보정만</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:#475569;cursor:pointer;">
+            <input type="checkbox" id="invlog-show-subtotal" style="accent-color:#047857;"/> 품목별 소계 표시
+          </label>
         </div>
+        <div id="invlog-summary-bar" style="display:none;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#065f46;font-weight:600;"></div>
         <div class="tbl-wrap">
           <table class="invlog-table">
             <colgroup>
@@ -351,6 +409,45 @@
         </div>
       </div>
     </div>
+
+    <!-- 거래처 & 미수금 탭 [신규] -->
+    <div id="page-customer" style="display:none">
+
+      <!-- 거래처 등록 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fa-solid fa-user-plus"></i> 거래처 신규 등록</div>
+        <div class="g3">
+          <div class="field"><label>상호명 (법인/농협 등)</label><input type="text" id="cust-company" placeholder="예: 갈산농협"/></div>
+          <div class="field"><label>담당자 성명</label><input type="text" id="cust-name" placeholder="예: 홍길동"/></div>
+          <div class="field"><label>지역</label><input type="text" id="cust-region" list="region-list2" placeholder="예: 갈산"/>
+            <datalist id="region-list2"><option value="구항"/><option value="홍동"/><option value="결성"/><option value="광천"/><option value="홍성읍"/><option value="갈산"/><option value="은하"/><option value="장곡"/></datalist>
+          </div>
+          <div class="field"><label>연락처</label><input type="text" id="cust-phone" placeholder="010-0000-0000"/></div>
+          <div class="field"><label>메모</label><input type="text" id="cust-memo" placeholder="참고사항 (선택)"/></div>
+        </div>
+        <button class="btn btn-p" id="btn-add-customer" style="margin-top:12px;"><i class="fa-solid fa-plus"></i> 거래처 등록</button>
+        <span class="ferr" id="e-customer"></span>
+      </div>
+
+      <!-- 미수금 현황 -->
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+        <div id="ar-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+
+      <!-- 거래처 목록 -->
+      <div class="card">
+        <div class="card-title"><i class="fa-solid fa-address-book"></i> 거래처 목록</div>
+        <div class="tbl-wrap">
+          <table>
+            <colgroup><col style="width:20%"/><col style="width:16%"/><col style="width:12%"/><col style="width:14%"/><col style="width:14%"/><col style="width:12%"/><col/></colgroup>
+            <thead><tr><th>상호명</th><th>성명</th><th>지역</th><th style="text-align:right;">총 거래금액</th><th style="text-align:right;">외상 잔액</th><th>연락처</th><th>관리</th></tr></thead>
+            <tbody id="customer-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
