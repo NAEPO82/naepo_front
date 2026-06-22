@@ -68,13 +68,24 @@
 
   <main class="wrap">
     <div id="page-dashboard">
+      <div class="dash-toolbar">
+        <div class="dash-period-toggle">
+          <button class="dash-ptab on" id="dash-period-week">주별</button>
+          <button class="dash-ptab" id="dash-period-month">월별</button>
+        </div>
+        <div class="dash-period-nav">
+          <button class="dash-nav-btn" id="dash-period-prev"><i class="fa-solid fa-chevron-left"></i></button>
+          <span class="dash-period-label" id="dash-period-label">-</span>
+          <button class="dash-nav-btn" id="dash-period-next"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
       <div class="dash-grid">
         <div class="dash-card dash-blue">
-          <div class="dash-label"><i class="fa-solid fa-coins"></i> 이번달 총 거래금액</div>
+          <div class="dash-label"><i class="fa-solid fa-coins"></i> <span id="dash-amount-label">총 거래금액</span></div>
           <div class="dash-value" id="dash-month-amount">0원</div>
         </div>
         <div class="dash-card dash-green">
-          <div class="dash-label"><i class="fa-solid fa-file-invoice"></i> 이번달 거래건수</div>
+          <div class="dash-label"><i class="fa-solid fa-file-invoice"></i> <span id="dash-count-label">거래건수</span></div>
           <div class="dash-value" id="dash-month-count">0건</div>
         </div>
         <div class="dash-card dash-red">
@@ -90,6 +101,7 @@
         <div class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> 최근 거래 5건</div>
         <div class="tbl-wrap">
           <table>
+            <colgroup><col style="width:18%"/><col style="width:30%"/><col style="width:22%"/><col/></colgroup>
             <thead><tr><th>날짜</th><th>거래처</th><th>지역</th><th style="text-align:right;">금액</th></tr></thead>
             <tbody id="dash-recent-body"></tbody>
           </table>
