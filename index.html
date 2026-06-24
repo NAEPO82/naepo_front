@@ -28,48 +28,62 @@
 <div id="auth-layer">
   <div class="auth-box">
     <div class="auth-logo">
-      <i class="fa-solid fa-wheat-awn"></i>
-      <h2>내포농기계 통합관리</h2>
-      <p>시스템 보호를 위해 비밀번호를 입력하세요</p>
+      <div class="auth-logo-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+      <h2>내포농기계</h2>
+      <p>동아아세아농기계 통합관리 시스템</p>
     </div>
     <div class="auth-field">
       <label for="auth-pw">마스터 비밀번호</label>
-      <input type="password" id="auth-pw" placeholder="••••••" autocomplete="current-password" maxlength="64"/>
+      <input type="password" id="auth-pw" placeholder="비밀번호를 입력하세요" autocomplete="current-password" maxlength="64"/>
     </div>
-    <button class="auth-btn" id="auth-submit">시스템 접속하기</button>
+    <button class="auth-btn" id="auth-submit">
+      <i class="fa-solid fa-right-to-bracket"></i> 접속하기
+    </button>
     <div class="auth-err" id="auth-err"></div>
     <div class="auth-lock" id="auth-lock"></div>
   </div>
 </div>
 
 <div id="main-content">
-  <header>
-    <div class="wrap">
-      <div class="header-top">
-        <i class="fa-solid fa-wheat-awn icon-leaf"></i>
-        <div>
-          <h1>내포농기계 거래명세서</h1>
-          <p>v2.5 · 다중 품목 일괄 정산 및 실시간 그리드 최적화 빌더</p>
-        </div>
-        <div class="header-btns">
-          <button class="pwchg-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i> 비밀번호 변경</button>
-          <button class="logout-btn" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i> 안전 로그아웃</button>
+  <!-- 좌측 사이드바 -->
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+      <div class="sb-logo-text">
+        <div class="sb-title">내포농기계</div>
+        <div class="sb-sub">통합관리 시스템</div>
+      </div>
+    </div>
+
+    <nav>
+      <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i><span>대시보드</span></button>
+      <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i><span>거래명세서 작성</span></button>
+      <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i><span>거래내역 조회</span></button>
+      <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i><span>재고관리</span></button>
+      <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i><span>거래처 & 미수금</span></button>
+    </nav>
+
+    <div class="sb-footer">
+      <button class="sb-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i><span>비밀번호 변경</span></button>
+      <button class="sb-btn sb-logout" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i><span>로그아웃</span></button>
+    </div>
+  </aside>
+
+  <!-- 우측 콘텐츠 -->
+  <div id="content-area">
+    <header>
+      <div class="header-inner">
+        <div class="header-breadcrumb" id="header-breadcrumb">대시보드</div>
+        <div class="header-right">
+          <span class="header-company">동아아세아 · 내포농기계</span>
         </div>
       </div>
-      <nav class="wrap">
-        <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i> 대시보드</button>
-        <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
-        <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
-        <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
-        <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 & 미수금</button>
-      </nav>
-    </div>
-  </header>
+    </header>
 
-  <div class="wrap"><div class="msg" id="msg"></div></div>
-
-  <main class="wrap">
-    <div id="page-dashboard">
+    <div class="content-body">
+      <div class="msg" id="msg"></div>
+      <main>
+      <div id="page-dashboard">
       <div class="dash-toolbar">
         <div class="dash-period-toggle">
           <button class="dash-ptab on" id="dash-period-week">주별</button>
@@ -150,6 +164,7 @@
         </div>
       </div>
     </div>
+    </div><!-- /page-dashboard -->
 
     <div id="page-form" style="display:none">
       <div class="card" style="margin-bottom:16px;">
@@ -231,6 +246,17 @@
             </datalist>
             <span class="ferr" id="e-region"></span>
           </div>
+          <div class="field"><label>전화번호</label><input type="tel" id="f-phone" placeholder="010-0000-0000 (선택)" maxlength="20"/></div>
+        </div>
+
+        <!-- 배송상태 -->
+        <div style="margin-top:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:600;color:#334155;">배송 상태:</span>
+          <div class="pills" id="delivery-pills">
+            <button class="pill g" data-delivery="완료" style="--pill-color:#047857;"><i class="fa-solid fa-circle-check"></i> 완료</button>
+            <button class="pill" data-delivery="미완료" style="--pill-color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> 미완료</button>
+          </div>
+          <span style="font-size:11px;color:#94a3b8;">※ 미완료: 명세서 작성 후 아직 물건 전달 전</span>
         </div>
       </div>
 
@@ -284,6 +310,13 @@
             </div>
           </div>
         </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:600;color:#64748b;">배송 상태:</span>
+          <button class="perpage-btn on" id="fl-delivery-all">전체</button>
+          <button class="perpage-btn" id="fl-delivery-done" style="color:#047857;">완료만</button>
+          <button class="perpage-btn" id="fl-delivery-pending" style="color:#dc2626;">미완료만</button>
+          <span style="font-size:11px;color:#94a3b8;margin-left:8px;">정렬: 헤더 클릭</span>
+        </div>
       </div>
 
       <div class="sumbar">
@@ -317,13 +350,15 @@
           <thead>
             <tr>
               <th><input type="checkbox" id="chk-all" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></th>
-              <th>작성일자</th>
-              <th>담당자</th>
-              <th>상호/성명</th>
-              <th>지역</th>
-              <th>분류 파트</th>
+              <th class="sortable-th" data-sort="date">작성일자 <span class="sort-icon">↕</span></th>
+              <th class="sortable-th" data-sort="author">담당자 <span class="sort-icon">↕</span></th>
+              <th class="sortable-th" data-sort="name">상호/성명 <span class="sort-icon">↕</span></th>
+              <th class="sortable-th" data-sort="region">지역 <span class="sort-icon">↕</span></th>
+              <th class="sortable-th" data-sort="part">분류 파트 <span class="sort-icon">↕</span></th>
               <th>대표 품목명 요약</th>
-              <th class="tr">공급가액</th>
+              <th>결제</th>
+              <th>배송</th>
+              <th class="tr sortable-th" data-sort="amount">공급가액 <span class="sort-icon">↕</span></th>
               <th class="tr">세액</th>
               <th>관리 액션</th>
             </tr>
@@ -472,7 +507,13 @@
 
       <!-- 미수금 현황 -->
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-o btn-sm" id="btn-ar-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 미수금 엑셀</button>
+            <button class="btn btn-o btn-sm" id="btn-ar-print" style="color:#7c3aed;border-color:#c4b5fd;background:#faf5ff;"><i class="fa-solid fa-print"></i> 미수금 인쇄</button>
+          </div>
+        </div>
         <div id="ar-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
 
@@ -489,8 +530,10 @@
       </div>
     </div>
 
-  </main>
-</div>
+      </main>
+    </div><!-- /content-body -->
+  </div><!-- /content-area -->
+</div><!-- /main-content -->
 
 <div id="print-overlay">
   <div class="psheet">
