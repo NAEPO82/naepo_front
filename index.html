@@ -12,7 +12,75 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="styles.min.css" />
+  <link rel="stylesheet" href="styles.css" />
+<!-- ★ 인라인 로그인 ★ -->
+<script>
+(function(){
+  var API='https://naepo-back.onrender.com';var TK='npo_session_token';
+  function init(){
+    var btn=document.getElementById('auth-submit'),pw=document.getElementById('auth-pw'),
+        err=document.getElementById('auth-err'),lck=document.getElementById('auth-lock');
+    if(!btn||!pw)return;
+    function go(){
+      var v=pw.value.trim();
+      if(!v){err.textContent='비밀번호를 입력해주세요.';return;}
+      btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+      err.textContent='';if(lck)lck.textContent='';
+      fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+        .then(function(res){
+          if(!res.ok){
+            if(res.status===429&&lck)lck.textContent=(res.data&&res.data.error)||'잠시 후 다시 시도하세요.';
+            else err.textContent=(res.data&&res.data.error)||'비밀번호가 틀렸습니다.';
+            btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';return;
+          }
+          sessionStorage.setItem(TK,res.data.token);window.location.reload();
+        })
+        .catch(function(e){
+          err.textContent='서버 연결 실패. 30초 후 재시도.';
+          btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+        });
+    }
+    btn.addEventListener('click',go);
+    pw.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go();}});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+<!-- ★ 인라인 로그인 ★ -->
+<script>
+(function(){
+  var API='https://naepo-back.onrender.com';var TK='npo_session_token';
+  function init(){
+    var btn=document.getElementById('auth-submit'),pw=document.getElementById('auth-pw'),
+        err=document.getElementById('auth-err'),lck=document.getElementById('auth-lock');
+    if(!btn||!pw)return;
+    function go(){
+      var v=pw.value.trim();
+      if(!v){err.textContent='비밀번호를 입력해주세요.';return;}
+      btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+      err.textContent='';if(lck)lck.textContent='';
+      fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+        .then(function(res){
+          if(!res.ok){
+            if(res.status===429&&lck)lck.textContent=(res.data&&res.data.error)||'잠시 후 다시 시도하세요.';
+            else err.textContent=(res.data&&res.data.error)||'비밀번호가 틀렸습니다.';
+            btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';return;
+          }
+          sessionStorage.setItem(TK,res.data.token);window.location.reload();
+        })
+        .catch(function(e){
+          err.textContent='서버 연결 실패. 30초 후 재시도.';
+          btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+        });
+    }
+    btn.addEventListener('click',go);
+    pw.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go();}});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
 </head>
 <body>
 
@@ -43,32 +111,38 @@
 </div>
 
 <div id="main-content">
-  <header>
-    <div class="wrap">
-      <div class="header-top">
-        <i class="fa-solid fa-wheat-awn icon-leaf"></i>
-        <div>
-          <h1>내포농기계 거래명세서</h1>
-          <p>v2.5 · 다중 품목 일괄 정산 및 실시간 그리드 최적화 빌더</p>
-        </div>
-        <div class="header-btns">
-          <button class="pwchg-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i> 비밀번호 변경</button>
-          <button class="logout-btn" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i> 안전 로그아웃</button>
-        </div>
+  <!-- 사이드바 -->
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+      <div>
+        <div class="sb-title">내포농기계</div>
+        <div class="sb-sub">통합관리 시스템</div>
       </div>
-      <nav class="wrap">
-        <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i> 대시보드</button>
-        <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
-        <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
-        <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
-        <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 & 미수금</button>
-      </nav>
     </div>
-  </header>
+    <nav>
+      <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i> 대시보드</button>
+      <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
+      <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회</button>
+      <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리</button>
+      <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 &amp; 미수금</button>
+    </nav>
+    <div class="sb-footer">
+      <button class="sb-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i> 비밀번호 변경</button>
+      <button class="sb-btn sb-logout" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i> 로그아웃</button>
+    </div>
+  </aside>
 
-  <div class="wrap"><div class="msg" id="msg"></div></div>
+  <!-- 콘텐츠 영역 -->
+  <div id="content-area">
+    <header>
+      <div class="header-breadcrumb" id="header-breadcrumb">대시보드</div>
+      <span class="header-company">동아아세아 · 내포농기계</span>
+    </header>
+    <div class="content-body">
+      <div id="msg" class="msg"></div>
+      <div class="wrap">
 
-  <main class="wrap">
     <div id="page-dashboard">
       <div class="dash-toolbar">
         <div class="dash-period-toggle">
@@ -231,6 +305,7 @@
             </datalist>
             <span class="ferr" id="e-region"></span>
           </div>
+          <div class="field"><label>전화번호</label><input type="tel" id="f-phone" placeholder="010-0000-0000 (선택)" maxlength="20"/></div>
         </div>
       </div>
 
@@ -261,6 +336,13 @@
         </div>
         <div class="preview" id="f-preview" style="display:none">최종 정산 합계 금액 (공급가액 총액 + 세액 총액): <strong id="f-total">0</strong>원</div>
       </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#444;">배송 상태:</span>
+          <div class="pills" id="delivery-pills">
+            <button class="pill g" data-delivery="완료" style="--pill-color:#047857;"><i class="fa-solid fa-circle-check"></i> 완료</button>
+            <button class="pill" data-delivery="미완료" style="--pill-color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> 미완료</button>
+          </div>
+        </div>
 
       <div id="edit-mode-banner" style="display:none;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:600;margin-bottom:10px;"></div>
       <div class="actions">
@@ -272,6 +354,31 @@
     <div id="page-list" style="display:none">
       <div class="card section-filter">
         <div class="card-title">스마트 필터링</div>
+
+      <!-- 정렬 컨트롤 -->
+      <div class="sort-bar">
+        <div class="sort-bar-group">
+          <span class="sort-bar-label">정렬 기준:</span>
+          <select id="fl-sort-key" class="sort-select">
+            <option value="date">📅 작성일자</option>
+            <option value="author">👤 담당자</option>
+            <option value="company">🏢 상호</option>
+            <option value="region">📍 지역</option>
+            <option value="part">📂 분류파트</option>
+            <option value="payMethod">💳 결제수단</option>
+            <option value="amount">💰 공급가액</option>
+            <option value="deliveryStatus">🚚 배송상태</option>
+          </select>
+          <button class="sort-dir-btn active" id="fl-sort-desc">↓ 최신순</button>
+          <button class="sort-dir-btn" id="fl-sort-asc">↑ 오름차순</button>
+        </div>
+        <div class="sort-bar-group">
+          <span class="sort-bar-label">배송:</span>
+          <button class="perpage-btn on" id="fl-delivery-all">전체</button>
+          <button class="perpage-btn" id="fl-delivery-done" style="color:#047857;">완료</button>
+          <button class="perpage-btn" id="fl-delivery-pending" style="color:#dc2626;">미완료</button>
+        </div>
+      </div>
         <div class="g3">
           <div class="field"><label>통합 키워드 검색</label><div class="iw"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="fl-search" placeholder="상호, 성명, 품목, 담당자, 분류 검색..." maxlength="50"/></div></div>
           <div class="field"><label>지역별 분류</label><div class="iw"><i class="fa-solid fa-location-dot"></i><input type="text" id="fl-region" placeholder="지역명 입력" maxlength="20"/></div></div>
@@ -395,7 +502,18 @@
           <button class="btn btn-o btn-sm" id="btn-parts-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
           <button class="btn btn-o btn-sm" id="btn-parts-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 재고현황 엑셀다운로드</button>
         </div>
-        <div class="tbl-wrap">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <div class="iw" style="flex:1;min-width:180px;"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="inv-search" placeholder="품목명, 규격 검색..." style="padding:8px 8px 8px 30px;width:100%;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"/></div>
+            <select id="inv-sort-key" style="padding:8px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;">
+              <option value="name">이름순</option>
+              <option value="stock">재고량순</option>
+              <option value="price">단가순</option>
+              <option value="minStock">최소재고순</option>
+            </select>
+            <button class="sort-dir-btn active" id="inv-sort-asc">↑ 오름차순</button>
+            <button class="sort-dir-btn" id="inv-sort-desc">↓ 내림차순</button>
+          </div>
+          <div class="tbl-wrap">
           <table class="parts-table">
             <colgroup>
               <col style="width:5%"/><col style="width:18%"/><col style="width:13%"/><col style="width:12%"/><col style="width:11%"/><col style="width:11%"/><col style="width:10%"/><col/>
@@ -403,7 +521,7 @@
             <thead>
               <tr>
                 <th><input type="checkbox" id="parts-chk-all" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></th>
-                <th>품목명</th><th>규격</th><th style="text-align:right;">단가</th><th style="text-align:right;">현재 재고</th><th style="text-align:right;">최소 재고</th><th>상태</th><th>관리</th>
+                <th class="sortable-th" data-sort="name" data-table="parts">품목명 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="spec" data-table="parts">규격 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="price" data-table="parts" style="text-align:right;">단가 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="stock" data-table="parts" style="text-align:right;">현재 재고 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="minStock" data-table="parts" style="text-align:right;">최소 재고 <span class="sort-icon">↕</span></th><th>상태</th><th>관리</th>
               </tr>
             </thead>
             <tbody id="parts-body"></tbody>
@@ -472,7 +590,13 @@
 
       <!-- 미수금 현황 -->
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-o btn-sm" id="btn-ar-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
+            <button class="btn btn-o btn-sm" id="btn-ar-print" style="color:#7c3aed;border-color:#c4b5fd;background:#faf5ff;"><i class="fa-solid fa-print"></i> 인쇄</button>
+          </div>
+        </div>
         <div id="ar-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
 
@@ -489,8 +613,12 @@
       </div>
     </div>
 
-  </main>
-</div>
+  
+      </div><!-- /wrap -->
+    </div><!-- /content-body -->
+  </div><!-- /content-area -->
+</div><!-- /main-content -->
+
 
 <div id="print-overlay">
   <div class="psheet">
