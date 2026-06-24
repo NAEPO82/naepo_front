@@ -16,6 +16,50 @@
 </head>
 <body>
 
+<!-- ★ 인라인 로그인 핸들러 — app.js 와 완전 독립 동작 ★ -->
+<script>
+(function(){
+  var API = 'https://naepo-back.onrender.com';
+  var TK  = 'npo_session_token';
+  function init(){
+    var btn = document.getElementById('auth-submit');
+    var pw  = document.getElementById('auth-pw');
+    var err = document.getElementById('auth-err');
+    var lck = document.getElementById('auth-lock');
+    if(!btn || !pw) return;
+    function doLogin(){
+      var v = pw.value.trim();
+      if(!v){ err.textContent='비밀번호를 입력해주세요.'; return; }
+      btn.disabled=true;
+      btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+      err.textContent=''; lck.textContent='';
+      fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};})})
+        .then(function(res){
+          if(!res.ok){
+            if(res.status===429){lck.textContent=(res.data&&res.data.error)||'잠시 후 다시 시도하세요.';}
+            else{err.textContent=(res.data&&res.data.error)||'비밀번호가 틀렸습니다.';}
+            btn.disabled=false;
+            btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+            return;
+          }
+          sessionStorage.setItem(TK, res.data.token);
+          window.location.reload();
+        })
+        .catch(function(e){
+          err.textContent='서버 연결 실패. Render가 잠들어 있으면 30초 후 재시도하세요.';
+          btn.disabled=false;
+          btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+        });
+    }
+    btn.addEventListener('click', doLogin);
+    pw.addEventListener('keydown', function(e){ if(e.key==='Enter'){e.preventDefault();doLogin();} });
+  }
+  if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); }
+  else { init(); }
+})();
+</script>
+
 <div id="pretty-modal-container">
   <div class="pretty-modal-box">
     <div class="pm-icon" id="pm-icon-slot"></div>
@@ -587,6 +631,6 @@
   </div>
 </div>
 
-<script src="app.min.js"></script>
+<script src="app.min.js?v=20250624"></script>
 </body>
 </html>
