@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta http-equiv="X-Frame-Options" content="DENY" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Referrer-Policy" content="no-referrer" />
@@ -13,10 +13,131 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="styles.min.css" />
+<!-- ★ 인라인 로그인 ★ -->
+<script>
+(function(){
+  var API='https://naepo-back.onrender.com';var TK='npo_session_token';
+  function init(){
+    var btn=document.getElementById('auth-submit'),pw=document.getElementById('auth-pw'),
+        err=document.getElementById('auth-err'),lck=document.getElementById('auth-lock');
+    if(!btn||!pw)return;
+    function go(){
+      var v=pw.value.trim();
+      if(!v){err.textContent='비밀번호를 입력해주세요.';return;}
+      btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+      err.textContent='';if(lck)lck.textContent='';
+      fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+        .then(function(res){
+          if(!res.ok){
+            if(res.status===429&&lck)lck.textContent=(res.data&&res.data.error)||'잠시 후 다시 시도하세요.';
+            else err.textContent=(res.data&&res.data.error)||'비밀번호가 틀렸습니다.';
+            btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';return;
+          }
+          sessionStorage.setItem(TK,res.data.token);window.location.reload();
+        })
+        .catch(function(e){
+          err.textContent='서버 연결 실패. 30초 후 재시도.';
+          btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+        });
+    }
+    btn.addEventListener('click',go);
+    pw.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go();}});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+<!-- ★ 인라인 로그인 ★ -->
+<script>
+(function(){
+  var API='https://naepo-back.onrender.com';var TK='npo_session_token';
+  function init(){
+    var btn=document.getElementById('auth-submit'),pw=document.getElementById('auth-pw'),
+        err=document.getElementById('auth-err'),lck=document.getElementById('auth-lock');
+    if(!btn||!pw)return;
+    function go(){
+      var v=pw.value.trim();
+      if(!v){err.textContent='비밀번호를 입력해주세요.';return;}
+      btn.disabled=true;btn.innerHTML='<i class="fa-solid fa-spinner fa-spin"></i> 확인 중...';
+      err.textContent='';if(lck)lck.textContent='';
+      fetch(API+'/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:v})})
+        .then(function(r){return r.json().then(function(d){return{ok:r.ok,status:r.status,data:d};});})
+        .then(function(res){
+          if(!res.ok){
+            if(res.status===429&&lck)lck.textContent=(res.data&&res.data.error)||'잠시 후 다시 시도하세요.';
+            else err.textContent=(res.data&&res.data.error)||'비밀번호가 틀렸습니다.';
+            btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';return;
+          }
+          sessionStorage.setItem(TK,res.data.token);window.location.reload();
+        })
+        .catch(function(e){
+          err.textContent='서버 연결 실패. 30초 후 재시도.';
+          btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-right-to-bracket"></i> 접속하기';
+        });
+    }
+    btn.addEventListener('click',go);
+    pw.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();go();}});
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+<style>
+/* ── Critical CSS: 외부 CSS 없어도 기본 레이아웃 작동 ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'Malgun Gothic','맑은 고딕',sans-serif;background:#f0f2ef;min-height:100vh}
+#auth-layer{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse 60% 40% at 70% 65%,rgba(200,140,20,.35) 0%,transparent 65%),
+  linear-gradient(160deg,#040d06 0%,#0a1f10 30%,#0f2a18 50%,#5c2e08 72%,#a85a10 86%,#162816 100%)}
+#auth-layer.hidden{display:none!important}
+#main-content{min-height:100vh;display:block}
+#main-content.visible{opacity:1!important}
+#main-header{position:sticky;top:0;z-index:200;background:#134228;box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.header-inner{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:44px;border-bottom:1px solid rgba(255,255,255,.1)}
+.header-title{font-size:13px;font-weight:800;color:#fff}
+.header-right{display:flex;gap:6px}
+.hdr-util-btn{padding:5px 11px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);border-radius:6px;color:rgba(255,255,255,.8);font-size:11px;font-weight:600;cursor:pointer}
+.main-nav{display:flex;gap:2px;padding:0 14px;height:50px;align-items:flex-end;overflow-x:auto}
+.main-nav::-webkit-scrollbar{display:none}
+.tab{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border:none;background:transparent;color:rgba(255,255,255,.6);font-size:13px;font-weight:500;border-radius:8px 8px 0 0;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent}
+.tab.on{background:#f0f2ef;color:#1a5c38;font-weight:700}
+#content-area{max-width:1400px;margin:0 auto;padding:20px 22px}
+.card{background:#fff;border:1px solid #d8e2d8;border-radius:11px;padding:18px 20px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.card-title{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.field label{display:block;font-size:11.5px;font-weight:700;color:#3a5244;margin-bottom:5px}
+input[type=text],input[type=password],input[type=number],input[type=date],select,textarea{width:100%;padding:9px 12px;background:#f8faf8;border:1.5px solid #d8e2d8;border-radius:7px;font-size:13px;font-family:inherit;outline:none}
+input:focus,select:focus{border-color:#1a5c38;background:#fff}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:#1a5c38;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-o{background:#fff;color:#1a5c38;border:1.5px solid #1a5c38}
+.auth-box{background:#fff;border-radius:16px;padding:40px 44px 36px;width:370px;max-width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.auth-logo{text-align:center;margin-bottom:28px}
+.auth-logo-icon{width:60px;height:60px;margin:0 auto 12px;background:#134228;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#7dd4a2}
+.auth-logo h2{font-size:18px;font-weight:800;color:#0e1a11}
+.auth-logo p{font-size:12px;color:#708c7e;margin-top:4px}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:11.5px;font-weight:700;color:#3a5244;margin-bottom:6px}
+.auth-field input{width:100%;padding:12px 14px;border:1.5px solid #d8e2d8;border-radius:7px;font-size:15px;background:#f8faf8;outline:none}
+.auth-btn{width:100%;padding:13px;background:#1a5c38;color:#fff;font-size:14px;font-weight:700;border:none;border-radius:7px;cursor:pointer;margin-top:4px}
+.auth-err{margin-top:8px;font-size:12px;color:#c0392b;text-align:center;font-weight:600;min-height:16px}
+.auth-lock{font-size:12px;color:#b45309;text-align:center;min-height:14px}
+.msg{display:none;padding:10px 16px;border-radius:7px;font-size:13px;font-weight:600;margin-bottom:14px}
+.msg.ok{background:#e8f5ee;color:#145c32;border:1px solid #a8d8b8;display:block}
+.msg.err{background:#fef2f2;color:#7f1d1d;border:1px solid #fecaca;display:block}
+.tbl-wrap{overflow-x:auto;border-radius:11px;border:1px solid #d8e2d8}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{padding:10px 12px;text-align:left;font-size:11.5px;font-weight:700;color:#3a5244;background:#f2f6f2;border-bottom:1.5px solid #d8e2d8}
+td{padding:9px 12px;border-bottom:1px solid #ecf0ea;vertical-align:middle}
+tbody tr:hover{background:#f6faf6}
+@media(max-width:640px){
+  #content-area{padding:10px}
+  .tab i{display:none}
+  .tab{padding:8px 10px;font-size:11px}
+  .card{padding:14px}
+}
+</style>
 </head>
 <body>
 
-<div id="pretty-modal-container">
+<div id="pretty-modal-container" style="display:none">
   <div class="pretty-modal-box">
     <div class="pm-icon" id="pm-icon-slot"></div>
     <div class="pm-title" id="pm-title-slot">안내</div>
@@ -42,33 +163,30 @@
   </div>
 </div>
 
-<div id="main-content">
-  <header>
-    <div class="wrap">
-      <div class="header-top">
-        <i class="fa-solid fa-wheat-awn icon-leaf"></i>
-        <div>
-          <h1>내포농기계 거래명세서</h1>
-          <p>v2.5 · 다중 품목 일괄 정산 및 실시간 그리드 최적화 빌더</p>
-        </div>
-        <div class="header-btns">
-          <button class="pwchg-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i> 비밀번호 변경</button>
-          <button class="logout-btn" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i> 안전 로그아웃</button>
-        </div>
+<div id="main-content" style="opacity:0">
+  <header id="main-header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <div class="header-logo-icon"><i class="fa-solid fa-wheat-awn"></i></div>
+        <span class="header-title">내포농기계 · 동아아세아농기계</span>
+        <span class="header-sep-dot">›</span>
+        <span id="header-breadcrumb" class="header-breadcrumb">대시보드</span>
       </div>
-      <nav class="wrap">
-        <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i> 대시보드</button>
-        <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성</button>
-        <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
-        <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
-        <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 & 미수금</button>
-      </nav>
+      <div class="header-right">
+        <button class="hdr-util-btn" id="hdr-pwchg"><i class="fa-solid fa-key"></i> 비밀번호</button>
+        <button class="hdr-util-btn hdr-logout-btn" id="hdr-logout"><i class="fa-solid fa-right-from-bracket"></i> 로그아웃</button>
+      </div>
     </div>
+    <nav class="main-nav">
+      <button class="tab on" id="tab-dashboard"><i class="fa-solid fa-chart-line"></i> 대시보드</button>
+      <button class="tab" id="tab-form"><i class="fa-solid fa-pen-to-square"></i> 명세서 작성</button>
+      <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회</button>
+      <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리</button>
+      <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 &amp; 미수금</button>
+    </nav>
   </header>
-
-  <div class="wrap"><div class="msg" id="msg"></div></div>
-
-  <main class="wrap">
+  <div id="content-area">
+    <div id="msg" class="msg"></div>
     <div id="page-dashboard">
       <div class="dash-toolbar">
         <div class="dash-period-toggle">
@@ -152,7 +270,19 @@
     </div>
 
     <div id="page-form" style="display:none">
-      <div class="card" style="margin-bottom:16px;">
+
+      <!-- 수정 모드 배너 -->
+      <div id="edit-mode-banner" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;color:#92400e;margin-bottom:18px;display:flex;align-items:center;gap:8px;">
+        <i class="fa-solid fa-pen-to-square"></i> 수정 모드 — 기존 거래명세서를 수정 중입니다.
+      </div>
+
+      <!-- 2컬럼: 왼쪽 입력 / 오른쪽 저장 패널 -->
+      <div class="form-layout">
+
+        <!-- 왼쪽: 입력 영역 -->
+        <div class="form-left">
+
+<div class="card" style="margin-bottom:16px;">
         <div class="card-title">공급자 선택 <span class="req">*</span></div>
         <div class="pills" id="supplier-pills">
           <button class="pill" data-supplier="naepo">내포농기계</button>
@@ -231,6 +361,7 @@
             </datalist>
             <span class="ferr" id="e-region"></span>
           </div>
+          <div class="field"><label>전화번호</label><input type="tel" id="f-phone" placeholder="010-0000-0000 (선택)" maxlength="20"/></div>
         </div>
       </div>
 
@@ -261,17 +392,66 @@
         </div>
         <div class="preview" id="f-preview" style="display:none">최종 정산 합계 금액 (공급가액 총액 + 세액 총액): <strong id="f-total">0</strong>원</div>
       </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;font-weight:700;color:#444;">배송 상태:</span>
+          <div class="pills" id="delivery-pills">
+            <button class="pill g" data-delivery="완료" style="--pill-color:#047857;"><i class="fa-solid fa-circle-check"></i> 완료</button>
+            <button class="pill" data-delivery="미완료" style="--pill-color:#dc2626;"><i class="fa-solid fa-circle-xmark"></i> 미완료</button>
+          </div>
+        </div>
 
-      <div id="edit-mode-banner" style="display:none;background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;border-radius:10px;padding:10px 14px;font-size:12.5px;font-weight:600;margin-bottom:10px;"></div>
-      <div class="actions">
-        <button class="btn btn-o" id="btn-reset"><i class="fa-solid fa-rotate-left"></i> 양식 초기화</button>
-        <button class="btn btn-p" id="save-btn"><i class="fa-solid fa-download"></i> 내역 데이터 저장</button>
-      </div>
+      
+
+        </div><!-- /form-left -->
+
+        <!-- 오른쪽: sticky 저장 패널 -->
+        <div class="form-right">
+          <div class="save-panel">
+            <div id="edit-mode-badge" style="display:none;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#92400e;margin-bottom:14px;text-align:center;">
+              <i class="fa-solid fa-pen"></i> 수정 모드
+            </div>
+            <button class="btn btn-p save-btn-main" id="save-btn">
+              <i class="fa-solid fa-floppy-disk"></i> 내역 저장
+            </button>
+            <button class="btn btn-o reset-btn-main" id="btn-reset">
+              <i class="fa-solid fa-rotate-left"></i> 양식 초기화
+            </button>
+            <div class="save-panel-hint">저장 후 거래내역 조회에서 확인하세요</div>
+          </div>
+        </div><!-- /form-right -->
+
+      </div><!-- /form-layout -->
     </div>
+
 
     <div id="page-list" style="display:none">
       <div class="card section-filter">
         <div class="card-title">스마트 필터링</div>
+
+      <!-- 정렬 컨트롤 -->
+      <div class="sort-bar">
+        <div class="sort-bar-group">
+          <span class="sort-bar-label">정렬 기준:</span>
+          <select id="fl-sort-key" class="sort-select">
+            <option value="date">📅 작성일자</option>
+            <option value="author">👤 담당자</option>
+            <option value="company">🏢 상호</option>
+            <option value="region">📍 지역</option>
+            <option value="part">📂 분류파트</option>
+            <option value="payMethod">💳 결제수단</option>
+            <option value="amount">💰 공급가액</option>
+            <option value="deliveryStatus">🚚 배송상태</option>
+          </select>
+          <button class="sort-dir-btn active" id="fl-sort-desc">↓ 최신순</button>
+          <button class="sort-dir-btn" id="fl-sort-asc">↑ 오름차순</button>
+        </div>
+        <div class="sort-bar-group">
+          <span class="sort-bar-label">배송:</span>
+          <button class="perpage-btn on" id="fl-delivery-all">전체</button>
+          <button class="perpage-btn" id="fl-delivery-done" style="color:#047857;">완료</button>
+          <button class="perpage-btn" id="fl-delivery-pending" style="color:#dc2626;">미완료</button>
+        </div>
+      </div>
         <div class="g3">
           <div class="field"><label>통합 키워드 검색</label><div class="iw"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="fl-search" placeholder="상호, 성명, 품목, 담당자, 분류 검색..." maxlength="50"/></div></div>
           <div class="field"><label>지역별 분류</label><div class="iw"><i class="fa-solid fa-location-dot"></i><input type="text" id="fl-region" placeholder="지역명 입력" maxlength="20"/></div></div>
@@ -376,6 +556,7 @@
         <div class="card-title"><i class="fa-solid fa-circle-plus"></i> 부품(품목) 신규 등록</div>
         <p class="hint" style="margin-bottom:12px;">⚠️ 품목명은 거래명세서 작성 시 입력하는 <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로 차감됩니다.</p>
         <div class="g5e">
+          
           <div class="field"><label>품목명 *</label><input type="text" id="part-name" placeholder="예: 오일"/></div>
           <div class="field"><label>규격</label><input type="text" id="part-spec" placeholder="예: 1L"/></div>
           <div class="field"><label>기본 단가</label><input type="number" id="part-price" placeholder="0" min="0"/></div>
@@ -395,7 +576,18 @@
           <button class="btn btn-o btn-sm" id="btn-parts-del-sel" style="color:#dc2626;border-color:#fecaca;background:#fef2f2;"><i class="fa-solid fa-trash"></i> 선택삭제</button>
           <button class="btn btn-o btn-sm" id="btn-parts-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 재고현황 엑셀다운로드</button>
         </div>
-        <div class="tbl-wrap">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <div class="iw" style="flex:1;min-width:180px;"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="inv-search" placeholder="품목명, 규격 검색..." style="padding:8px 8px 8px 30px;width:100%;border:1px solid #d1d5db;border-radius:6px;font-size:13px;"/></div>
+            <select id="inv-sort-key" style="padding:8px;font-size:12px;border:1px solid #d1d5db;border-radius:6px;">
+              <option value="name">이름순</option>
+              <option value="stock">재고량순</option>
+              <option value="price">단가순</option>
+              <option value="minStock">최소재고순</option>
+            </select>
+            <button class="sort-dir-btn active" id="inv-sort-asc">↑ 오름차순</button>
+            <button class="sort-dir-btn" id="inv-sort-desc">↓ 내림차순</button>
+          </div>
+          <div class="tbl-wrap">
           <table class="parts-table">
             <colgroup>
               <col style="width:5%"/><col style="width:18%"/><col style="width:13%"/><col style="width:12%"/><col style="width:11%"/><col style="width:11%"/><col style="width:10%"/><col/>
@@ -403,7 +595,7 @@
             <thead>
               <tr>
                 <th><input type="checkbox" id="parts-chk-all" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></th>
-                <th>품목명</th><th>규격</th><th style="text-align:right;">단가</th><th style="text-align:right;">현재 재고</th><th style="text-align:right;">최소 재고</th><th>상태</th><th>관리</th>
+                <th class="sortable-th" data-sort="name" data-table="parts">품목명 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="spec" data-table="parts">규격 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="price" data-table="parts" style="text-align:right;">단가 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="stock" data-table="parts" style="text-align:right;">현재 재고 <span class="sort-icon">↕</span></th><th class="sortable-th" data-sort="minStock" data-table="parts" style="text-align:right;">최소 재고 <span class="sort-icon">↕</span></th><th>상태</th><th>관리</th>
               </tr>
             </thead>
             <tbody id="parts-body"></tbody>
@@ -472,7 +664,13 @@
 
       <!-- 미수금 현황 -->
       <div class="card" style="margin-bottom:16px;">
-        <div class="card-title"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div class="card-title" style="margin:0;"><i class="fa-solid fa-circle-exclamation" style="color:#dc2626;"></i> 미수금 현황 <span id="ar-total-badge" style="font-size:12px;font-weight:600;color:#dc2626;margin-left:8px;"></span></div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-o btn-sm" id="btn-ar-excel" style="color:#047857;border-color:#a7f3d0;background:#f0fdf4;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
+            <button class="btn btn-o btn-sm" id="btn-ar-print" style="color:#7c3aed;border-color:#c4b5fd;background:#faf5ff;"><i class="fa-solid fa-print"></i> 인쇄</button>
+          </div>
+        </div>
         <div id="ar-list" style="display:flex;flex-direction:column;gap:8px;"></div>
       </div>
 
@@ -489,10 +687,16 @@
       </div>
     </div>
 
-  </main>
+  
+      </div><!-- /wrap -->
+    </div><!-- /content-body -->
+  </div><!-- /content-area -->
+  </div>
 </div>
 
-<div id="print-overlay">
+
+
+<div id="print-overlay" style="display:none">
   <div class="psheet">
     <div class="pbtns">
       <button class="btn btn-p" id="btn-print-submit"><i class="fa-solid fa-print"></i> 용지 인쇄 실행</button>
@@ -503,7 +707,7 @@
   </div>
 </div>
 
-<div id="pwd-overlay">
+<div id="pwd-overlay" style="display:none">
   <div class="pwd-box">
     <div class="auth-logo" style="margin-bottom:20px;">
       <i class="fa-solid fa-shield-halved" style="color:#0284c7; font-size:36px;"></i>
@@ -526,7 +730,7 @@
 </div>
 
 <!-- [신규] 접속 IP 로그 — 일반 메뉴에 노출되지 않음. Ctrl+Shift+L 단축키로만 열림 -->
-<div id="alog-overlay">
+<div id="alog-overlay" style="display:none">
   <div class="alog-box">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
       <h2 style="font-size:16px;"><i class="fa-solid fa-user-secret"></i> 접속 IP 로그 (관리자 전용)</h2>
