@@ -13,7 +13,14 @@
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="styles.min.css" />
-</head>
+<style>
+#auth-layer{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+background:radial-gradient(ellipse 55% 35% at 72% 62%,rgba(210,145,18,.38) 0%,transparent 62%),
+linear-gradient(158deg,#030a05 0%,#071410 12%,#0b2018 28%,#0d2a1c 42%,#4a2206 58%,#8c4a0c 72%,#a85e14 82%,#0a1e0e 92%,#061008 100%)}
+#auth-layer.hidden{display:none!important}
+#main-content{display:block}
+#main-content.visible{opacity:1!important}
+</style></head>
 <body>
 
 <div id="pretty-modal-container">
@@ -343,7 +350,7 @@
       </div>
       <div class="pagination-wrap" id="pagination-root"></div>
 
-      <div class="preview-container" id="live-preview-space">
+      <div class="preview-container" id="live-preview-space" style="display:none">
         <div class="preview-header-bar">
           <h3><i class="fa-solid fa-eye"></i> 실시간 거래명세표 프리미엄 양식 미리보기 슬롯</h3>
           <div style="display:flex; gap:8px;">
@@ -544,6 +551,6 @@
   </div>
 </div>
 
-<script src="app.min.js"></script>
+<script src="app.min.js?v=20250625c"></script>
 </body>
 </html>
