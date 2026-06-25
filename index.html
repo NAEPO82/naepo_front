@@ -523,13 +523,13 @@ tbody tr:hover{background:#f6faf6}
       </div>
       <div class="pagination-wrap" id="pagination-root"></div>
 
-      <div class="preview-container" id="live-preview-space">
+      <div class="preview-container" id="live-preview-space" style="display:none">
         <div class="preview-header-bar">
           <h3><i class="fa-solid fa-eye"></i> 실시간 거래명세표 프리미엄 양식 미리보기 슬롯</h3>
           <div style="display:flex; gap:8px;">
             <button class="btn btn-o btn-sm" id="btn-print-live-excel" style="color:#047857; border-color:#cbd5e1;"><i class="fa-solid fa-print"></i> 브라우저 팝업 인쇄</button>
             <button class="btn btn-o btn-sm" id="btn-download-live-excel" style="color:#16a34a; border-color:#cbd5e1;"><i class="fa-solid fa-file-excel"></i> 전용 엑셀 즉시변환</button>
-            <button class="btn btn-o btn-sm" id="btn-close-live-preview" style="color:#64748b; border-color:#cbd5e1;"><i class="fa-solid fa-xmark"></i> 미리보기 닫기</button>
+            <button id="btn-close-preview" class="btn btn-o btn-sm" style="color:#64748b; border-color:#cbd5e1;"><i class="fa-solid fa-xmark"></i> 미리보기 닫기</button>
           </div>
         </div>
         <div class="preview-card" style="position:relative;">
