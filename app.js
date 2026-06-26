@@ -888,7 +888,8 @@
     _(Math.max(300, window.innerHeight - 80 - 24));
   }
   function X(t) {
-    ((document.getElementById("print-target-area").innerHTML = N(t)),
+    (document.body.classList.add("print-record-mode"),
+      (document.getElementById("print-target-area").innerHTML = N(t)),
       (e = t),
       document.getElementById("print-overlay").classList.add("show"),
       P(),
@@ -1390,6 +1391,7 @@
       list: "page-list",
       inventory: "page-inventory",
       customer: "page-customer",
+      order: "page-order",
     };
     (Object.keys(n).forEach((e) => {
       (document.getElementById("tab-" + e).classList.toggle("on", e === t),
@@ -1411,6 +1413,7 @@
   (window.addEventListener("beforeprint", D),
     window.addEventListener("afterprint", function () {
       const t = document.getElementById("print-target-area");
+      document.body.classList.remove("print-record-mode");
       t &&
         (t.style.setProperty("--pscale", "1"), t.classList.remove("pf-active"));
     }),
@@ -2133,6 +2136,7 @@
           "</div>";
       }
       ((document.getElementById("print-target-area").innerHTML = o),
+        document.body.classList.add("print-record-mode"),
         document.getElementById("print-overlay").classList.add("show"),
         setTimeout(() => window.print(), 200));
     }),
@@ -3704,6 +3708,9 @@
   const TOKEN_KEY = "npo_session_token";
   let currentOrder = null;
   let orders = [];
+  let orderParts = [];
+  let orderGroups = [];
+  let pickerTargetRow = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -3753,6 +3760,231 @@
     return data;
   }
 
+
+  async function loadOrderInventoryRefs() {
+    try {
+      const [parts, groups] = await Promise.all([api("/api/parts"), api("/api/groups")]);
+      orderParts = Array.isArray(parts) ? parts : [];
+      orderGroups = Array.isArray(groups) ? groups : [];
+    } catch (error) {
+      orderParts = [];
+      orderGroups = [];
+    }
+  }
+
+  function findPartByOrderItem(item) {
+    if (item.partId) {
+      const found = orderParts.find((p) => p.id === item.partId);
+      if (found) return found;
+    }
+    const iname = String(item.item || "").trim();
+    const ispec = String(item.spec || "").trim();
+    return orderParts.find((p) => String(p.name || "").trim() === iname && String(p.spec || "").trim() === ispec)
+      || orderParts.find((p) => String(p.name || "").trim() === iname)
+      || null;
+  }
+
+  function ensurePartPickerModal() {
+    let modal = $("order-part-picker-modal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "order-part-picker-modal";
+    modal.className = "order-modal-overlay";
+    modal.innerHTML = `
+      <div class="order-modal-box order-part-picker-box">
+        <div class="order-modal-head">
+          <strong><i class="fa-solid fa-boxes-stacked"></i> 재고 품목 선택</strong>
+          <button type="button" class="ibtn" id="order-part-picker-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="text" id="order-part-picker-search" class="order-modal-search" placeholder="품목명 / 규격 / 그룹 검색" />
+        <div id="order-part-picker-list" class="order-part-picker-list"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closePartPicker();
+    });
+    modal.querySelector("#order-part-picker-close").addEventListener("click", closePartPicker);
+    modal.querySelector("#order-part-picker-search").addEventListener("input", renderPartPicker);
+    return modal;
+  }
+
+  function closePartPicker() {
+    const modal = $("order-part-picker-modal");
+    if (modal) modal.classList.remove("show");
+    pickerTargetRow = null;
+  }
+
+  function renderPartPicker() {
+    const modal = ensurePartPickerModal();
+    const q = String(modal.querySelector("#order-part-picker-search").value || "").toLowerCase().trim();
+    const list = modal.querySelector("#order-part-picker-list");
+    const used = new Set();
+    const blocks = [];
+    function partMatches(part, groupName) {
+      if (!q) return true;
+      return [part.name, part.spec, groupName].some((v) => String(v || "").toLowerCase().includes(q));
+    }
+    orderGroups.forEach((group) => {
+      const parts = (group.partIds || [])
+        .map((id) => orderParts.find((part) => part.id === id))
+        .filter(Boolean)
+        .filter((part) => partMatches(part, group.name));
+      if (!parts.length) return;
+      blocks.push(`<div class="order-part-group"><div class="order-part-group-title"><i class="fa-solid fa-layer-group"></i> ${escapeHtml(group.name)}</div>${parts.map((part) => {
+        used.add(part.id);
+        return partPickCard(part);
+      }).join("")}</div>`);
+    });
+    const ungrouped = orderParts.filter((part) => !used.has(part.id)).filter((part) => partMatches(part, "미분류"));
+    if (ungrouped.length) {
+      blocks.push(`<div class="order-part-group"><div class="order-part-group-title"><i class="fa-solid fa-box"></i> 미분류 품목</div>${ungrouped.map(partPickCard).join("")}</div>`);
+    }
+    list.innerHTML = blocks.join("") || '<div class="empty-td">검색 결과가 없습니다.</div>';
+    list.querySelectorAll(".order-part-pick").forEach((button) => {
+      button.addEventListener("click", () => {
+        const part = orderParts.find((p) => p.id === button.dataset.pid);
+        if (part && pickerTargetRow) fillOrderRowFromPart(pickerTargetRow, part);
+        closePartPicker();
+      });
+    });
+  }
+
+  function partPickCard(part) {
+    return `
+      <button type="button" class="order-part-pick" data-pid="${escapeHtml(part.id)}">
+        <span><strong>${escapeHtml(part.name)}</strong><small>${escapeHtml(part.spec || "규격 없음")}</small></span>
+        <em>재고 ${money(part.stock || 0)}</em>
+      </button>`;
+  }
+
+  async function openPartPicker(row) {
+    pickerTargetRow = row;
+    await loadOrderInventoryRefs();
+    const modal = ensurePartPickerModal();
+    modal.classList.add("show");
+    modal.querySelector("#order-part-picker-search").value = "";
+    renderPartPicker();
+  }
+
+  function fillOrderRowFromPart(row, part) {
+    row.dataset.partId = part.id || "";
+    row.querySelector(".order-item-name").value = part.name || "";
+    row.querySelector(".order-item-spec").value = part.spec || "";
+    updatePreview();
+  }
+
+  function ensureNewPartModal() {
+    let modal = $("order-new-part-modal");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "order-new-part-modal";
+    modal.className = "order-modal-overlay";
+    modal.innerHTML = `
+      <div class="order-modal-box order-new-part-box">
+        <div class="order-modal-head">
+          <strong><i class="fa-solid fa-circle-plus"></i> 새 재고 품목 등록</strong>
+          <button type="button" class="ibtn" id="order-new-part-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p class="order-modal-desc">재고현황에 없는 발주 품목입니다. 등록 후 발주 수량을 자동 입고합니다.</p>
+        <div class="g2">
+          <div class="field"><label>품목명</label><input type="text" id="order-new-part-name"></div>
+          <div class="field"><label>규격</label><input type="text" id="order-new-part-spec"></div>
+          <div class="field"><label>기본단가</label><input type="number" id="order-new-part-price" min="0" step="1" value="0"></div>
+          <div class="field"><label>초기 재고수량</label><input type="number" id="order-new-part-stock" min="0" step="any" value="0"></div>
+          <div class="field"><label>최소 재고</label><input type="number" id="order-new-part-min" min="0" step="any" value="0"></div>
+          <div class="field"><label>그룹 선택</label><select id="order-new-part-group"></select></div>
+        </div>
+        <div class="field" style="margin-top:10px"><label>새 그룹 생성</label><input type="text" id="order-new-part-newgroup" placeholder="새 그룹명 입력 시 이 그룹으로 등록"></div>
+        <div class="order-modal-actions">
+          <button type="button" class="btn btn-o" id="order-new-part-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="order-new-part-save"><i class="fa-solid fa-check"></i> 등록 후 입고</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector("#order-new-part-close").addEventListener("click", () => modal.classList.remove("show"));
+    modal.querySelector("#order-new-part-cancel").addEventListener("click", () => modal.classList.remove("show"));
+    return modal;
+  }
+
+  function promptNewPartFromOrderItem(item) {
+    return new Promise(async (resolve, reject) => {
+      await loadOrderInventoryRefs();
+      const modal = ensureNewPartModal();
+      modal.querySelector("#order-new-part-name").value = item.item || "";
+      modal.querySelector("#order-new-part-spec").value = item.spec || "";
+      modal.querySelector("#order-new-part-price").value = item.unitPrice || 0;
+      modal.querySelector("#order-new-part-stock").value = 0;
+      modal.querySelector("#order-new-part-min").value = 0;
+      const select = modal.querySelector("#order-new-part-group");
+      select.innerHTML = '<option value="">그룹 없음</option>' + orderGroups.map((g) => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join("");
+      modal.querySelector("#order-new-part-newgroup").value = "";
+      const save = modal.querySelector("#order-new-part-save");
+      const handler = async () => {
+        try {
+          const name = modal.querySelector("#order-new-part-name").value.trim();
+          const spec = modal.querySelector("#order-new-part-spec").value.trim();
+          const unitPrice = number(modal.querySelector("#order-new-part-price").value);
+          const stock = number(modal.querySelector("#order-new-part-stock").value);
+          const minStock = number(modal.querySelector("#order-new-part-min").value);
+          const groupId = select.value;
+          const newGroupName = modal.querySelector("#order-new-part-newgroup").value.trim();
+          if (!name) throw new Error("품목명을 입력해주세요.");
+          const part = await api("/api/parts", { method: "POST", body: JSON.stringify({ name, spec, unitPrice, stock, minStock, note: "발주 택배 도착 등록" }) });
+          if (newGroupName) {
+            await api("/api/groups", { method: "POST", body: JSON.stringify({ name: newGroupName, partIds: [part.id] }) });
+          } else if (groupId) {
+            const group = orderGroups.find((g) => g.id === groupId);
+            if (group && !(group.partIds || []).includes(part.id)) {
+              await api(`/api/groups/${encodeURIComponent(group.id)}`, { method: "PUT", body: JSON.stringify({ name: group.name, partIds: [...(group.partIds || []), part.id] }) });
+            }
+          }
+          save.removeEventListener("click", handler);
+          modal.classList.remove("show");
+          resolve(part);
+        } catch (error) {
+          alert(error.message);
+        }
+      };
+      save.replaceWith(save.cloneNode(true));
+      modal.querySelector("#order-new-part-save").addEventListener("click", handler);
+      modal.classList.add("show");
+    });
+  }
+
+  async function receiveOrderItem(orderId, itemIndex) {
+    const order = findOrder(orderId);
+    if (!order || !Array.isArray(order.items) || !order.items[itemIndex]) return;
+    const item = order.items[itemIndex];
+    if (item.receivedAt || item.inventoryAddedAt) {
+      alert("이미 도착 처리된 품목입니다.");
+      return;
+    }
+    if (!confirm(`${order.orderDate} ${order.title}\n${item.item} ${item.qty || 0}개를 재고에 입고할까요?`)) return;
+    try {
+      await loadOrderInventoryRefs();
+      let part = findPartByOrderItem(item);
+      if (!part) part = await promptNewPartFromOrderItem(item);
+      await api(`/api/parts/${encodeURIComponent(part.id)}/stock-in`, {
+        method: "POST",
+        body: JSON.stringify({
+          qty: number(item.qty) || 1,
+          unitPrice: number(item.unitPrice) || number(part.unitPrice) || 0,
+          date: today(),
+          note: "발주 택배 도착",
+        }),
+      });
+      const updated = JSON.parse(JSON.stringify(order));
+      updated.items[itemIndex].partId = part.id;
+      updated.items[itemIndex].receivedAt = new Date().toISOString();
+      updated.items[itemIndex].inventoryAddedAt = new Date().toISOString();
+      await api(`/api/orders/${encodeURIComponent(order.id)}`, { method: "PUT", body: JSON.stringify(updated) });
+      alert("재고 입고 처리되었습니다.");
+      await loadOrders();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
   function blankRow() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -3761,11 +3993,12 @@
       <td><input type="number" class="order-item-qty" min="0" step="any" value="1" /></td>
       <td><input type="number" class="order-item-unit" min="0" step="1" value="0" /></td>
       <td><input type="number" class="order-item-amount" min="0" step="1" value="0" /></td>
-      <td><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i></button></td>
+      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i></button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i></button></td>
     `;
     tr.querySelectorAll("input").forEach((input) =>
       input.addEventListener("input", handleItemInput),
     );
+    tr.querySelector(".order-row-pick").addEventListener("click", () => openPartPicker(tr));
     tr.querySelector(".order-row-remove").addEventListener("click", () => {
       tr.remove();
       if (!$("order-item-body").children.length) addRow();
@@ -3780,6 +4013,7 @@
     const tr = blankRow();
     body.appendChild(tr);
     if (item) {
+      tr.dataset.partId = item.partId || "";
       tr.querySelector(".order-item-name").value = item.item || "";
       tr.querySelector(".order-item-spec").value = item.spec || "";
       tr.querySelector(".order-item-qty").value = item.qty || 0;
@@ -3792,6 +4026,9 @@
   function handleItemInput(event) {
     const tr = event.target.closest("tr");
     if (!tr) return;
+    if (event.target.classList.contains("order-item-name") || event.target.classList.contains("order-item-spec")) {
+      tr.dataset.partId = "";
+    }
     if (
       event.target.classList.contains("order-item-qty") ||
       event.target.classList.contains("order-item-unit")
@@ -3806,6 +4043,7 @@
   function readItems() {
     return Array.from(document.querySelectorAll("#order-item-body tr"))
       .map((tr) => ({
+        partId: tr.dataset.partId || "",
         item: tr.querySelector(".order-item-name").value.trim(),
         spec: tr.querySelector(".order-item-spec").value.trim(),
         qty: number(tr.querySelector(".order-item-qty").value),
@@ -3914,11 +4152,13 @@
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #fff; }
       body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #111827; }
+      .order-print-page { width: 210mm; height: 297mm; overflow: hidden; margin: 0 auto; background:#fff; }
       .order-sheet {
         width: 210mm;
-        min-height: 297mm;
-        margin: 0 auto;
-        padding: 16mm 17mm 13mm;
+        min-height: auto;
+        margin: 0;
+        padding: 13mm 14mm 10mm;
+        transform-origin: top left;
         background: #fff;
         color: #111827;
         border: 0;
@@ -3926,7 +4166,7 @@
         font-size: 10.5pt;
         line-height: 1.32;
       }
-      .order-doc-title { text-align: center; font-size: 20pt; font-weight: 800; letter-spacing: 0.42em; margin: 3mm 0 8mm; padding-left: 0.42em; }
+      .order-doc-title { text-align: center; font-size: 18pt; font-weight: 800; letter-spacing: 0.36em; margin: 2mm 0 5mm; padding-left: 0.36em; }
       .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 3mm; }
       .order-approval-table { width: 62mm; border-collapse: collapse; table-layout: fixed; font-size: 10pt; }
       .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1px solid #111827; padding: 2.2mm 2mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
@@ -3942,21 +4182,21 @@
       .order-total-cell { font-weight: 800; font-size: 11pt; }
       .order-item-preview-table th { background: #f8fafc; text-align: center; font-weight: 800; }
       .order-item-preview-table thead span { font-size: 8pt; font-weight: 700; }
-      .order-item-preview-table td { height: 8.7mm; }
+      .order-item-preview-table td { height: 7.2mm; }
       .order-center { text-align: center; }
       .order-right { text-align: right; }
       .order-text-cell { word-break: break-all; white-space: normal; }
       .order-num-cell { white-space: nowrap; word-break: keep-all; }
-      .order-special { min-height: 15mm; border: 1px solid #111827; padding: 3mm; margin-bottom: 8mm; word-break: break-all; white-space: normal; }
-      .order-closing { text-align: center; margin: 8mm 0 9mm; font-weight: 600; }
-      .order-date-line { text-align: center; margin-bottom: 9mm; font-weight: 700; }
-      .order-company-line { text-align: center; font-size: 15pt; font-weight: 900; letter-spacing: 0.28em; line-height: 1.7; padding-left: 0.28em; }
-      @media print { .order-sheet { margin: 0; } }
+      .order-special { min-height: 11mm; border: 1px solid #111827; padding: 2mm; margin-bottom: 5mm; word-break: break-all; white-space: normal; }
+      .order-closing { text-align: center; margin: 5mm 0 5mm; font-weight: 600; }
+      .order-date-line { text-align: center; margin-bottom: 5mm; font-weight: 700; }
+      .order-company-line { text-align: center; font-size: 13pt; font-weight: 900; letter-spacing: 0.22em; line-height: 1.45; padding-left: 0.22em; }
+      @media print { .order-print-page { margin:0; } .order-sheet { margin: 0; } }
     `;
   }
 
   function printOrder(order) {
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-sheet">${renderSheet(order)}</div><script>window.onload=function(){setTimeout(function(){window.focus();window.print();},150);};<\/script></body></html>`;
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.985;sheet.style.transform='scale('+sc+')';sheet.style.width=(210/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},180);};<\/script></body></html>`;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) {
       alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 인쇄해주세요.");
@@ -4067,7 +4307,7 @@
           (order) => `
         <tr>
           <td>${escapeHtml(order.orderDate)}</td>
-          <td><strong>${escapeHtml(order.title)}</strong><br><small>${escapeHtml(order.purpose || "-")}</small></td>
+          <td><strong>${escapeHtml(order.title)}</strong><br><small>${escapeHtml(order.purpose || "-")}</small><div class="order-history-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><b>${escapeHtml(item.item || "품목")}</b> ${escapeHtml(item.spec || "")} · ${money(item.qty || 0)}개 ${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
           <td>${escapeHtml(order.author || "-")}</td>
           <td class="tr">${money(order.total || order.paymentAmount)} 원</td>
           <td>
@@ -4098,6 +4338,7 @@
         const order = findOrder(button.dataset.id);
         if (!order) return;
         resetForm(order);
+        setOrderPreviewVisible(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
       }),
     );
@@ -4112,6 +4353,9 @@
         const order = findOrder(button.dataset.id);
         if (order) downloadOrder(order);
       }),
+    );
+    document.querySelectorAll(".order-arrival-btn").forEach((button) =>
+      button.addEventListener("click", () => receiveOrderItem(button.dataset.id, Number(button.dataset.idx))),
     );
     document.querySelectorAll(".order-history-delete").forEach((button) =>
       button.addEventListener("click", async () => {
@@ -4183,6 +4427,8 @@
       }
     });
     resetForm();
+    setOrderPreviewVisible(false);
+    loadOrderInventoryRefs();
     if (location.hash === "#order") setTimeout(showOrderPage, 0);
   }
 
