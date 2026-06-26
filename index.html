@@ -79,7 +79,7 @@
               <i class="fa-solid fa-pen-to-square"></i> 거래명세서 작성
             </button>
             <button class="tab" id="tab-list">
-              <i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기
+              <i class="fa-solid fa-folder-open"></i> 거래내역 조회
             </button>
             <button class="tab" id="tab-inventory">
               <i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장
@@ -650,7 +650,7 @@
           ></div>
           <div class="actions">
             <button class="btn btn-o" id="btn-reset">
-              <i class="fa-solid fa-rotate-left"></i> 양식 초기화
+              <i class="fa-solid fa-arrow-left"></i> 돌아가기
             </button>
             <button class="btn btn-p" id="save-btn">
               <i class="fa-solid fa-download"></i> 내역 데이터 저장
@@ -1557,9 +1557,9 @@
               <span class="order-filter-sep">~</span>
               <input type="date" id="order-filter-end" class="order-history-filter-input order-date-filter" title="종료일" />
               <select id="order-filter-arrival" class="order-history-filter-input order-arrival-filter">
-                <option value="">전체 도착상태</option>
-                <option value="pending">미도착 포함</option>
-                <option value="done">전체 도착완료</option>
+                <option value="">전체</option>
+                <option value="pending">미도착</option>
+                <option value="done">도착완료</option>
               </select>
               <button type="button" class="btn btn-o btn-sm" id="order-filter-reset">필터 초기화</button>
               <span id="order-history-summary">저장된 발주서 0건</span>

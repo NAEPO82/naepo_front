@@ -469,7 +469,7 @@
     const E = (y - 1) * h;
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
-      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>\n          <td>\n            <div class="ibtns">\n              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>\n              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>\n              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;font-size:10px;" title="인쇄기록"><i class="fa-solid fa-clock-rotate-left"></i></button>\n              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>\n              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>\n              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n            </div>\n          </td>\n        `),
+      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>\n          <td>\n            <div class="ibtns">\n              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>\n              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>\n              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;" title="인쇄기록"><i class="fa-solid fa-clock-rotate-left"></i> 기록</button>\n              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>\n              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>\n              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n            </div>\n          </td>\n        `),
         u.appendChild(e));
     }),
       (function (t) {
@@ -514,16 +514,16 @@
               return;
             }
             const txt = logs
-              .map(
-                (l, i) =>
-                  `${i + 1}. ${l.printedAt.replace("T", " ").slice(0, 19)}`,
-              )
+              .map((l, i) => {
+                const stamp = l.printedAt ? l.printedAt.replace("T", " ").slice(0, 19) : "시간 없음";
+                return `${i + 1}. ${stamp}`;
+              })
               .join("\n");
             I(
-              "인쇄 기록 (" + logs.length + "회)",
-              "마지막 인쇄: " +
-                logs[0].printedAt.replace("T", " ").slice(0, 19) +
-                "\n\n" +
+              "인쇄 기록 — 총 " + logs.length + "회",
+              "최근 인쇄: " +
+                (logs[0].printedAt ? logs[0].printedAt.replace("T", " ").slice(0, 19) : "시간 없음") +
+                "\n\n전체 타임스탬프\n" +
                 txt,
             );
           } catch (e) {
@@ -1496,7 +1496,7 @@
     }),
     document
       .getElementById("tab-form")
-      .addEventListener("click", () => J("form")),
+      .addEventListener("click", () => { q(); J("form"); }),
     document
       .getElementById("tab-list")
       .addEventListener("click", () => J("list")),
@@ -2786,9 +2786,22 @@
         const o = t
           .filter((t) => "외상" === t.payMethod && !t.collected && dt(t) === e)
           .sort((t, e) => (t.date > e.date ? 1 : -1));
-        return `<div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:12px;padding:14px 16px;">\n          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n            <div>\n              <span style="font-size:14px;font-weight:700;color:#991b1b;">${n(e)}</span>\n              <span style="font-size:11px;color:#64748b;margin-left:8px;">${o.length}건</span>\n            </div>\n            <span style="font-size:16px;font-weight:800;color:#dc2626;">미수금 ${a.toLocaleString()}원</span>\n          </div>\n          <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">\n            ${o.map((t) => `\n              <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px dashed #fca5a5;border-radius:8px;padding:6px 10px;font-size:12px;">\n                <span style="color:#64748b;">${n(t.date)} &nbsp;${n(t.note || "")}</span>\n                <div style="display:flex;align-items:center;gap:8px;">\n                  <span style="font-weight:600;color:#991b1b;">${((t.amount || 0) + (t.tax || 0)).toLocaleString()}원</span>\n                  <button class="ibtn btn-collect" data-id="${n(t.id)}" style="color:#047857;background:#f0fdf4;border:1px solid #a7f3d0;"><i class="fa-solid fa-check"></i> 수금완료</button>\n                </div>\n              </div>`).join("")}\n          </div>\n        </div>`;
+        return `<div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:12px;padding:14px 16px;">\n          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n            <div>\n              <span style="font-size:14px;font-weight:700;color:#991b1b;">${n(e)}</span>\n              <span style="font-size:11px;color:#64748b;margin-left:8px;">${o.length}건</span>\n            </div>\n            <span style="font-size:16px;font-weight:800;color:#dc2626;">미수금 ${a.toLocaleString()}원</span>\n          </div>\n          <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">\n            ${o.map((t) => `\n              <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px dashed #fca5a5;border-radius:8px;padding:6px 10px;font-size:12px;">\n                <span style="color:#64748b;">${n(t.date)} &nbsp;${n(t.note || "")}</span>\n                <div style="display:flex;align-items:center;gap:8px;">\n                  <span style="font-weight:600;color:#991b1b;">${((t.amount || 0) + (t.tax || 0)).toLocaleString()}원</span>\n                  <button class="ibtn btn-ar-view" data-id="${n(t.id)}" style="color:#0284c7;background:#eff6ff;border:1px solid #bae6fd;"><i class="fa-solid fa-file-lines"></i> 명세표</button>\n                  <button class="ibtn btn-collect" data-id="${n(t.id)}" style="color:#047857;background:#f0fdf4;border:1px solid #a7f3d0;"><i class="fa-solid fa-check"></i> 수금완료</button>\n                </div>\n              </div>`).join("")}\n          </div>\n        </div>`;
       })
       .join("")),
+
+      document.querySelectorAll(".btn-ar-view").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const rec = t.find((r) => r.id === id);
+          if (!rec) return;
+          e = rec;
+          document.getElementById("premium-injected-frame").innerHTML = N(rec);
+          document.getElementById("live-preview-space").classList.add("show");
+          J("list");
+          document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
+        });
+      }),
       document.querySelectorAll(".btn-collect").forEach((e) => {
         e.addEventListener("click", async () => {
           const n = e.getAttribute("data-id");
@@ -3196,6 +3209,10 @@
         void 0 === t.balanceAfter || null === t.balanceAfter
           ? "-"
           : t.balanceAfter.toLocaleString(),
+      relatedLabel = t.relatedRecordId
+        ? `거래명세서 자동출고${t.relatedRecordDate ? " - " + n(t.relatedRecordDate) : ""}${t.relatedRecordCustomer ? " / " + n(t.relatedRecordCustomer) : ""}`
+        : "",
+      noteText = t.relatedRecordId && (!t.note || t.note === "거래명세서 출고" || t.note === "자동출고") ? relatedLabel : n(t.note),
       viewBtn = t.relatedRecordId
         ? `<button class="ibtn btn-invlog-view-record" data-rid="${n(t.relatedRecordId)}" style="margin-left:8px;color:#0284c7;border-color:#bae6fd;background:#f0f9ff;"><i class="fa-solid fa-file-lines"></i> 해당 명세표 보기</button>`
         : "";
@@ -3207,7 +3224,7 @@
           <td class="tr">${a}${t.qty.toLocaleString()}</td>
           <td class="tr">${(t.unitPrice || 0).toLocaleString()}원</td>
           <td class="tr">${o}</td>
-          <td style="font-size:11.5px;color:#64748b;padding-left:20px;">${n(t.note)}${viewBtn}</td>
+          <td style="font-size:11.5px;color:#64748b;padding-left:20px;"><span class="invlog-note-main">${noteText}</span>${viewBtn}</td>
         </tr>`;
   }
   (document
@@ -4093,7 +4110,7 @@
       <td><input type="number" class="order-item-qty" min="0" step="any" value="1" /></td>
       <td><input type="number" class="order-item-unit" min="0" step="1" value="0" /></td>
       <td><input type="number" class="order-item-amount" min="0" step="1" value="0" /></td>
-      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i></button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i></button></td>
+      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i> 재고선택</button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i> 삭제</button></td>
     `;
     tr.querySelectorAll("input").forEach((input) =>
       input.addEventListener("input", handleItemInput),
@@ -4313,66 +4330,100 @@
       return;
     }
     const filenameDate = (order.orderDate || today()).replace(/-/g, "");
-    const safeTitle = (order.title || "발주서").replace(/[\\/:*?"<>|]/g, "_");
-    const rows = [
-      ["발 주 및 구 매 품 의 서", "", "", "", ""],
-      ["", "", "결재", "담당", "이사", "대표이사"],
-      ["제목", order.title || "", "시행일자", order.orderDate || ""],
-      ["구입목적", order.purpose || "", "작성자", order.author || ""],
-      ["결제금액", order.total || 0, "", "", ""],
-      [],
-      ["품목", "규격", "수량", "단가", "금액(부가세포함)"],
-      ...(order.items || []).map((item) => [
-        item.item || "",
-        item.spec || "",
-        item.qty || "",
-        item.unitPrice || 0,
-        item.amount || 0,
-      ]),
-      ["합계", "", "", "", order.total || 0],
-      [],
-      ["특이사항", order.memo || "", "", "", ""],
-      [],
-      ["상기 금액을 지출하고자 하오니 검토 후 재가하여 주시기 바랍니다.", "", "", "", ""],
-      [koreanDate(order.orderDate), "", "", "", ""],
-      ["내 포 농 기 계", "", "", "", ""],
-      ["동아아세아농기계", "", "", "", ""],
-    ];
+    const safeTitle = (order.title || "발주서").replace(/[\/:*?"<>|]/g, "_");
+    const items = Array.isArray(order.items) ? order.items : [];
+    const rows = [];
+    rows.push(["발 주 및 구 매 품 의 서", "", "", "", "", "", "", ""]);
+    rows.push(["", "", "", "", "결재", "담당", "이사", "대표이사"]);
+    rows.push(["", "", "", "", "", "", "", ""]);
+    rows.push(["제목", order.title || "", "", "", "시행일자", order.orderDate || "", "", ""]);
+    rows.push(["구입목적", order.purpose || "", "", "", "작성자", order.author || "", "", ""]);
+    rows.push(["결제금액", order.total || 0, "", "", "", "", "", ""]);
+    rows.push(["", "", "", "", "", "", "", ""]);
+    rows.push(["품목", "", "규격", "", "수량", "단가", "금액(부가세포함)", ""]);
+    const itemStart = rows.length;
+    const printableItems = items.length ? items : [{ qty: 1, unitPrice: 0, amount: 0 }];
+    printableItems.forEach((item) => rows.push([
+      item.item || "", "", item.spec || "", "", item.qty || "", item.unitPrice || 0, item.amount || 0, ""
+    ]));
+    while (rows.length < itemStart + 7) rows.push(["", "", "", "", "", "", "", ""]);
+    const totalRow = rows.length;
+    rows.push(["합계", "", "", "", "", "", order.total || 0, ""]);
+    rows.push(["", "", "", "", "", "", "", ""]);
+    const memoRow = rows.length;
+    rows.push(["특이사항", order.memo || "", "", "", "", "", "", ""]);
+    rows.push(["", "", "", "", "", "", "", ""]);
+    const closingRow = rows.length;
+    rows.push(["상기 금액을 지출하고자 하오니 검토 후 재가하여 주시기 바랍니다.", "", "", "", "", "", "", ""]);
+    const dateRow = rows.length;
+    rows.push([koreanDate(order.orderDate), "", "", "", "", "", "", ""]);
+    const companyRow = rows.length;
+    rows.push(["내 포 농 기 계", "", "", "", "", "", "", ""]);
+    rows.push(["동아아세아농기계", "", "", "", "", "", "", ""]);
+
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = [
-      { wch: 18 },
-      { wch: 30 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 18 },
-      { wch: 14 },
+      { wch: 11 }, { wch: 17 }, { wch: 14 }, { wch: 13 },
+      { wch: 9 }, { wch: 13 }, { wch: 15 }, { wch: 13 },
     ];
-    ws["!merges"] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
-      { s: { r: 4, c: 1 }, e: { r: 4, c: 4 } },
-      { s: { r: 10, c: 1 }, e: { r: 10, c: 4 } },
-      { s: { r: 12, c: 0 }, e: { r: 12, c: 4 } },
-      { s: { r: 13, c: 0 }, e: { r: 13, c: 4 } },
-      { s: { r: 14, c: 0 }, e: { r: 14, c: 4 } },
-      { s: { r: 15, c: 0 }, e: { r: 15, c: 4 } },
+    ws["!rows"] = rows.map((_, i) => ({ hpt: i === 0 ? 26 : i === memoRow ? 34 : i >= closingRow ? 24 : 21 }));
+    const merges = [
+      [0,0,0,7], [1,4,2,4],
+      [3,1,3,3], [3,5,3,7], [4,1,4,3], [4,5,4,7], [5,1,5,7],
+      [7,0,7,1], [7,2,7,3], [7,6,7,7],
+      [totalRow,0,totalRow,5], [totalRow,6,totalRow,7],
+      [memoRow,1,memoRow,7], [closingRow,0,closingRow,7], [dateRow,0,dateRow,7], [companyRow,0,companyRow,7], [companyRow+1,0,companyRow+1,7]
     ];
+    for (let r = itemStart; r < totalRow; r++) {
+      merges.push([r,0,r,1], [r,2,r,3], [r,6,r,7]);
+    }
+    ws["!merges"] = merges.map(([r1,c1,r2,c2]) => ({ s: { r:r1, c:c1 }, e: { r:r2, c:c2 } }));
+
+    const border = {
+      top: { style: "thin", color: { rgb: "111827" } },
+      bottom: { style: "thin", color: { rgb: "111827" } },
+      left: { style: "thin", color: { rgb: "111827" } },
+      right: { style: "thin", color: { rgb: "111827" } },
+    };
+    const center = { vertical: "center", horizontal: "center", wrapText: true };
+    const left = { vertical: "center", horizontal: "left", wrapText: true };
+    const right = { vertical: "center", horizontal: "right", wrapText: true };
+    function setCell(r, c, style = {}) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!ws[ref]) ws[ref] = { t: "s", v: "" };
+      ws[ref].s = Object.assign({
+        font: { name: "맑은 고딕", sz: 10 },
+        alignment: center,
+      }, style);
+    }
     const range = XLSX.utils.decode_range(ws["!ref"]);
-    for (let R = range.s.r; R <= range.e.r; ++R) {
-      for (let C = range.s.c; C <= range.e.c; ++C) {
+    for (let R = range.s.r; R <= range.e.r; R++) {
+      for (let C = range.s.c; C <= range.e.c; C++) {
         const ref = XLSX.utils.encode_cell({ r: R, c: C });
-        if (!ws[ref]) continue;
+        if (!ws[ref]) ws[ref] = { t: "s", v: "" };
+        const isTable = (R >= 1 && R <= 5) || (R >= 7 && R <= totalRow) || R === memoRow;
         ws[ref].s = {
-          font: { name: "맑은 고딕", sz: R === 0 ? 18 : 10, bold: R === 0 || R === 6 || C === 0 },
-          alignment: { vertical: "center", horizontal: R === 0 || R >= 12 ? "center" : C >= 2 ? "center" : "left", wrapText: true },
-          border: R >= 2 && R <= 10 ? {
-            top: { style: "thin", color: { rgb: "111827" } },
-            bottom: { style: "thin", color: { rgb: "111827" } },
-            left: { style: "thin", color: { rgb: "111827" } },
-            right: { style: "thin", color: { rgb: "111827" } },
-          } : undefined,
+          font: { name: "맑은 고딕", sz: R === 0 ? 18 : 10, bold: R === 0 || C === 0 || R === 7 || R === totalRow },
+          alignment: C === 1 || C === 2 || C === 3 ? left : (C >= 5 || R === totalRow ? right : center),
+          border: isTable ? border : undefined,
+          fill: (R === 7 || C === 0 || R === totalRow) && isTable ? { patternType: "solid", fgColor: { rgb: "F8FAFC" } } : undefined,
         };
       }
     }
+    setCell(0, 0, { font: { name: "맑은 고딕", sz: 18, bold: true }, alignment: { vertical: "center", horizontal: "center", wrapText: true } });
+    for (let r = itemStart; r < totalRow; r++) {
+      [5,6].forEach((c) => {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (ws[ref]) ws[ref].z = "#,##0";
+      });
+    }
+    [1,6].forEach((c) => {
+      const ref = XLSX.utils.encode_cell({ r: totalRow, c });
+      if (ws[ref]) ws[ref].z = "#,##0";
+    });
+    ws["!printHeaderRows"] = 0;
+    ws["!margins"] = { left: 0.25, right: 0.25, top: 0.35, bottom: 0.35, header: 0.1, footer: 0.1 };
+    ws["!pageSetup"] = { paperSize: 9, orientation: "portrait", fitToWidth: 1, fitToHeight: 1 };
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "발주서");
     XLSX.writeFile(wb, `${filenameDate}_${safeTitle}.xlsx`);
@@ -4557,6 +4608,10 @@
       const el = $(id);
       if (!el) return;
       el.addEventListener(id === "order-filter-search" ? "input" : "change", renderOrderHistory);
+      if (id === "order-filter-start" || id === "order-filter-end") {
+        el.addEventListener("click", () => { if (el.showPicker) el.showPicker(); else el.focus(); });
+        el.addEventListener("focus", () => { if (el.showPicker) { try { el.showPicker(); } catch (_) {} } });
+      }
     });
     $("order-filter-reset") && $("order-filter-reset").addEventListener("click", () => {
       ["order-filter-search", "order-filter-start", "order-filter-end", "order-filter-arrival"].forEach((id) => {

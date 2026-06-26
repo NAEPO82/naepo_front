@@ -2405,3 +2405,71 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
   }
   .order-filter-sep { display: none; }
 }
+
+
+/* ============================================================
+   v7 사용성/정렬/기록 보정
+   ============================================================ */
+/* 발주서 기록 필터: 한 줄에 길게 늘어지지 않게 카드형 */
+.order-history-toolbar{
+  display:grid!important;
+  grid-template-columns:auto minmax(180px,1fr) 132px 18px 132px 116px auto auto;
+  gap:8px 10px!important;
+  align-items:center!important;
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  padding:10px 12px;
+  margin-bottom:10px!important;
+}
+#order-filter-search{min-width:0!important;width:100%!important;flex:unset!important;}
+.order-date-filter{width:100%!important;flex:unset!important;cursor:pointer;}
+.order-arrival-filter{width:100%!important;flex:unset!important;}
+#order-history-summary{justify-self:end;color:#475569;white-space:nowrap;font-weight:700;}
+@media(max-width:980px){.order-history-toolbar{grid-template-columns:1fr 1fr}.order-filter-sep{display:none}#order-history-summary{justify-self:start}}
+@media(max-width:560px){.order-history-toolbar{grid-template-columns:1fr}}
+
+/* 발주서 품목 입력 버튼을 눈에 띄게 */
+.order-input-table{table-layout:fixed;width:100%;}
+.order-input-table th:nth-child(1),.order-input-table td:nth-child(1){width:26%;}
+.order-input-table th:nth-child(2),.order-input-table td:nth-child(2){width:22%;}
+.order-input-table th:nth-child(3),.order-input-table td:nth-child(3){width:12%;}
+.order-input-table th:nth-child(4),.order-input-table td:nth-child(4){width:16%;}
+.order-input-table th:nth-child(5),.order-input-table td:nth-child(5){width:16%;}
+.order-row-tools{min-width:120px!important;display:grid!important;grid-template-columns:1fr;gap:6px!important;}
+.order-row-pick,.order-row-remove{font-size:11.5px!important;padding:7px 8px!important;border-radius:8px!important;justify-content:center!important;white-space:nowrap;}
+.order-row-pick{background:#ecfdf5!important;color:#047857!important;border-color:#86efac!important;}
+.order-row-remove{background:#fff5f5!important;color:#dc2626!important;border-color:#fecaca!important;}
+
+/* 발주서 기록 행: 지나치게 넓고 들쑥날쑥한 느낌 완화 */
+.order-history-table{table-layout:fixed!important;border-collapse:separate;border-spacing:0;}
+.order-history-table th{background:#f8fafc;color:#334155;font-weight:800;}
+.order-history-table td{padding:14px 16px!important;border-bottom:1px solid #eef2f7;}
+.order-history-table th:first-child,.order-history-table td:first-child{width:116px!important;padding-left:20px!important;padding-right:14px!important;}
+.order-history-table th:nth-child(2),.order-history-table td:nth-child(2){width:auto;}
+.order-history-table th:nth-child(3),.order-history-table td:nth-child(3){width:110px!important;}
+.order-history-table th:nth-child(4),.order-history-table td:nth-child(4){width:120px!important;}
+.order-history-table th:nth-child(5),.order-history-table td:nth-child(5){width:245px!important;}
+.order-history-items.compact.all-items{max-width:100%!important;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important;max-height:150px!important;border:1px solid #e2e8f0;border-radius:10px;background:#fff;padding:6px!important;}
+.order-history-items.compact.all-items .order-history-item{min-height:42px;}
+
+/* 거래내역 조회 관리액션 버튼이 묻히지 않게 */
+.records-table .ibtns{display:grid!important;grid-template-columns:repeat(2,minmax(64px,1fr));gap:6px;min-width:154px;}
+.records-table .ibtn{font-size:11.5px!important;padding:7px 8px!important;border-radius:8px!important;justify-content:center;background:#fff;}
+.records-table .btn-printlog-direct{background:#faf5ff!important;border-color:#ddd6fe!important;color:#7c3aed!important;}
+.records-table .btn-view-direct{background:#eff6ff!important;border-color:#bfdbfe!important;}
+.records-table .btn-edit-direct{background:#f5f3ff!important;border-color:#ddd6fe!important;}
+.records-table .btn-excel-direct{background:#f0fdf4!important;border-color:#bbf7d0!important;}
+
+/* 분류파트/상태 헤더 색상 통일 */
+.records-table th[data-sort="part"],
+.records-table th[data-sort="status"]{background:#f8fafc!important;color:#334155!important;}
+
+/* 미수금 현황 명세표 버튼 */
+.btn-ar-view{white-space:nowrap;}
+
+/* 거래명세서 작성 버튼 균일화 */
+.actions .btn{min-width:148px;height:44px;}
+
+/* 입출고대장 자동출고 메모 */
+.invlog-note-main{font-weight:600;color:#475569;}
