@@ -2466,48 +2466,23 @@
           document.querySelectorAll(".btn-group-edit").forEach((t) => {
             t.addEventListener("click", async () => {
               const e = t.getAttribute("data-id"),
-                n = ot.find((t) => t.id === e);
-              if (!n) return;
-              const a = prompt("그룹명:", n.name);
-              if (null === a) return;
-              nt.map(
-                (t) => `${n.partIds.includes(t.id) ? "✓" : "○"} ${t.name}`,
-              ).join("\n");
-              const o = prompt(
-                `포함할 부품 번호를 쉼표로 입력 (현재 포함:\n${n.partIds
-                  .map((t) => {
-                    const e = nt.find((e) => e.id === t);
-                    return e ? e.name : "";
-                  })
-                  .filter(Boolean)
-                  .join(
-                    ", ",
-                  )})\n\n부품 목록:\n${nt.map((t, e) => `${e + 1}. ${t.name}`).join("\n")}\n\n번호 입력:`,
-                nt
-                  .filter((t, e) => n.partIds.includes(t.id))
-                  .map(
-                    (t, e) =>
-                      nt.findIndex((e) => e.id === n.partIds[nt.indexOf(t)]) +
-                      1,
-                  )
-                  .join(","),
-              );
-              if (null === o) return;
-              const s = o
-                .split(",")
-                .map((t) => parseInt(t.trim(), 10) - 1)
-                .filter((t) => t >= 0 && t < nt.length)
-                .map((t) => nt[t].id);
-              try {
-                (await w(`/api/groups/${encodeURIComponent(e)}`, {
-                  method: "PUT",
-                  body: JSON.stringify({ name: a.trim(), partIds: s }),
-                }),
-                  M("그룹이 수정되었습니다.", "ok"),
-                  await lt());
-              } catch (t) {
-                I("수정 실패", t.message);
-              }
+                group = ot.find((t) => t.id === e);
+              if (!group) return;
+              const newName = prompt("그룹명:", group.name);
+              if (null === newName) return;
+              makePartPickModal(`그룹 수정 - ${newName.trim() || group.name}`, group.partIds || [], async (partIds) => {
+                try {
+                  await w(`/api/groups/${encodeURIComponent(e)}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ name: newName.trim() || group.name, partIds }),
+                  });
+                  M("그룹이 수정되었습니다.", "ok");
+                  await lt();
+                  await ut();
+                } catch (err) {
+                  I("수정 실패", err.message);
+                }
+              });
             });
           }),
           document.querySelectorAll(".btn-group-delete").forEach((t) => {
@@ -2544,6 +2519,125 @@
         .map((t) => `<option value="${n(t.id)}">${n(t.name)}</option>`)
         .join("")),
       e && (t.value = e));
+  }
+
+  function makePartPickModal(title, selectedIds, onConfirm) {
+    if (!Array.isArray(nt) || nt.length === 0) {
+      I("부품 없음", "먼저 재고현황에 부품을 등록해주세요.");
+      return;
+    }
+    selectedIds = new Set(selectedIds || []);
+    const overlay = document.createElement("div");
+    overlay.className = "parts-pick-modal-overlay";
+    overlay.innerHTML = `
+      <div class="parts-pick-modal">
+        <div class="ppm-head">
+          <div>
+            <h3><i class="fa-solid fa-list-check"></i> ${n(title || "품목 선택")}</h3>
+            <p>재고현황에 등록된 품목을 체크박스로 선택하세요. 검색도 가능합니다.</p>
+          </div>
+          <button type="button" class="ppm-x" id="ppm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ppm-tools">
+          <input type="text" id="ppm-search" placeholder="품목명 / 규격 검색"/>
+          <button type="button" class="btn btn-o btn-sm" id="ppm-all">전체선택</button>
+          <button type="button" class="btn btn-o btn-sm" id="ppm-none">전체해제</button>
+        </div>
+        <div class="ppm-count" id="ppm-count"></div>
+        <div class="ppm-list" id="ppm-list">
+          ${nt.map((part) => `
+            <label class="ppm-item" data-key="${n((part.name + ' ' + (part.spec || '')).toLowerCase())}">
+              <input type="checkbox" class="ppm-chk" data-pid="${n(part.id)}" ${selectedIds.has(part.id) ? "checked" : ""}/>
+              <span class="ppm-main">
+                <strong>${n(part.name)}</strong>
+                <small>${n(part.spec || "규격 없음")}</small>
+              </span>
+              <span class="ppm-stock">재고 ${Number(part.stock || 0).toLocaleString()}</span>
+            </label>`).join("")}
+        </div>
+        <div class="ppm-foot">
+          <button type="button" class="btn btn-o" id="ppm-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="ppm-ok"><i class="fa-solid fa-check"></i> 선택 완료</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+    const updateCount = () => {
+      const checked = overlay.querySelectorAll(".ppm-chk:checked").length;
+      overlay.querySelector("#ppm-count").textContent = `선택된 품목 ${checked}개 / 전체 ${nt.length}개`;
+    };
+    const applyFilter = () => {
+      const q = overlay.querySelector("#ppm-search").value.trim().toLowerCase();
+      overlay.querySelectorAll(".ppm-item").forEach((el) => {
+        el.style.display = !q || (el.getAttribute("data-key") || "").includes(q) ? "flex" : "none";
+      });
+    };
+    overlay.querySelector("#ppm-close").addEventListener("click", close);
+    overlay.querySelector("#ppm-cancel").addEventListener("click", close);
+    overlay.querySelector("#ppm-search").addEventListener("input", applyFilter);
+    overlay.querySelector("#ppm-all").addEventListener("click", () => {
+      overlay.querySelectorAll(".ppm-item").forEach((el) => {
+        if (el.style.display !== "none") el.querySelector(".ppm-chk").checked = true;
+      });
+      updateCount();
+    });
+    overlay.querySelector("#ppm-none").addEventListener("click", () => {
+      overlay.querySelectorAll(".ppm-item").forEach((el) => {
+        if (el.style.display !== "none") el.querySelector(".ppm-chk").checked = false;
+      });
+      updateCount();
+    });
+    overlay.querySelectorAll(".ppm-chk").forEach((chk) => chk.addEventListener("change", updateCount));
+    overlay.querySelector("#ppm-ok").addEventListener("click", () => {
+      const ids = Array.from(overlay.querySelectorAll(".ppm-chk:checked")).map((el) => el.getAttribute("data-pid"));
+      onConfirm && onConfirm(ids);
+      close();
+    });
+    updateCount();
+    setTimeout(() => overlay.querySelector("#ppm-search").focus(), 50);
+  }
+
+  function makeGroupPickModal(title, selectedGroupIds, onConfirm) {
+    if (!Array.isArray(ot) || ot.length === 0) {
+      I("그룹 없음", "먼저 부품 그룹을 생성해주세요.");
+      return;
+    }
+    selectedGroupIds = new Set(selectedGroupIds || []);
+    const overlay = document.createElement("div");
+    overlay.className = "parts-pick-modal-overlay";
+    overlay.innerHTML = `
+      <div class="parts-pick-modal small">
+        <div class="ppm-head">
+          <div>
+            <h3><i class="fa-solid fa-layer-group"></i> ${n(title || "그룹 선택")}</h3>
+            <p>선택한 재고 품목을 넣을 그룹을 체크하세요.</p>
+          </div>
+          <button type="button" class="ppm-x" id="gpm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ppm-list group-list-select">
+          ${ot.map((g) => `
+            <label class="ppm-item">
+              <input type="checkbox" class="gpm-chk" data-gid="${n(g.id)}" ${selectedGroupIds.has(g.id) ? "checked" : ""}/>
+              <span class="ppm-main">
+                <strong>${n(g.name)}</strong>
+                <small>${(g.partIds || []).length}개 품목 포함</small>
+              </span>
+            </label>`).join("")}
+        </div>
+        <div class="ppm-foot">
+          <button type="button" class="btn btn-o" id="gpm-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="gpm-ok"><i class="fa-solid fa-check"></i> 적용</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+    overlay.querySelector("#gpm-close").addEventListener("click", close);
+    overlay.querySelector("#gpm-cancel").addEventListener("click", close);
+    overlay.querySelector("#gpm-ok").addEventListener("click", () => {
+      const ids = Array.from(overlay.querySelectorAll(".gpm-chk:checked")).map((el) => el.getAttribute("data-gid"));
+      onConfirm && onConfirm(ids);
+      close();
+    });
   }
   function dt(t) {
     return t.company && "-" !== t.company ? t.company : t.name || "-";
@@ -2694,7 +2788,7 @@
             ? `<span class="badge-low">부족 (최소 ${t.minStock})</span>`
             : '<span class="badge-ok">정상</span>',
           s = e ? "padding-left:22px;" : "";
-        return `\n          <tr>\n            <td style="text-align:center;"><input type="checkbox" class="chk-part" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>\n            <td style="${s}"><strong>${e ? "∟ " : ""}${n(t.name)}</strong></td>\n            <td>${n(t.spec)}</td>\n            <td class="tr">${t.unitPrice.toLocaleString()}원</td>\n            <td class="tr" style="font-weight:700;${a ? "color:#dc2626;" : ""}">${t.stock.toLocaleString()}</td>\n            <td class="tr">${t.minStock.toLocaleString()}</td>\n            <td>${o}</td>\n            <td>\n              <div class="ibtns">\n                <button class="ibtn btn-stock-in" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-truck-ramp-box"></i> 입고</button>\n                <button class="ibtn btn-stock-adjust" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-sliders"></i> 보정</button>\n                <button class="ibtn btn-part-edit" data-id="${n(t.id)}" style="color:#0ea5e9;"><i class="fa-solid fa-pen"></i> 수정</button>\n                <button class="ibtn d btn-part-delete" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n              </div>\n            </td>\n          </tr>`;
+        return `\n          <tr>\n            <td style="text-align:center;"><input type="checkbox" class="chk-part" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>\n            <td style="${s}"><strong>${e ? "∟ " : ""}${n(t.name)}</strong></td>\n            <td>${n(t.spec)}</td>\n            <td class="tr">${t.unitPrice.toLocaleString()}원</td>\n            <td class="tr" style="font-weight:700;${a ? "color:#dc2626;" : ""}">${t.stock.toLocaleString()}</td>\n            <td class="tr">${t.minStock.toLocaleString()}</td>\n            <td>${o}</td>\n            <td>\n              <div class="ibtns">\n                <button class="ibtn btn-stock-in" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-truck-ramp-box"></i> 입고</button>\n                <button class="ibtn btn-stock-adjust" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-sliders"></i> 보정</button>\n                <button class="ibtn btn-part-group" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-layer-group"></i> 그룹</button>\n                <button class="ibtn btn-part-edit" data-id="${n(t.id)}" style="color:#0ea5e9;"><i class="fa-solid fa-pen"></i> 수정</button>\n                <button class="ibtn d btn-part-delete" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n              </div>\n            </td>\n          </tr>`;
       }
       ot.forEach((t) => {
         const e = t.partIds
@@ -2783,6 +2877,31 @@
                   t.message || "재고 보정 중 오류가 발생했습니다.",
                 );
               }
+          });
+        }),
+        document.querySelectorAll(".btn-part-group").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const partId = btn.getAttribute("data-id"),
+              part = nt.find((p) => p.id === partId);
+            if (!part) return;
+            const selectedGroups = ot.filter((g) => (g.partIds || []).includes(partId)).map((g) => g.id);
+            makeGroupPickModal(`그룹 지정 - ${part.name}`, selectedGroups, async (groupIds) => {
+              try {
+                for (const g of ot) {
+                  const ids = new Set(g.partIds || []);
+                  groupIds.includes(g.id) ? ids.add(partId) : ids.delete(partId);
+                  await w(`/api/groups/${encodeURIComponent(g.id)}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ name: g.name, partIds: Array.from(ids) }),
+                  });
+                }
+                M(`"${part.name}" 그룹 지정이 저장되었습니다.`, "ok");
+                await lt();
+                await ut();
+              } catch (err) {
+                I("그룹 지정 실패", err.message || "그룹 저장 중 오류가 발생했습니다.");
+              }
+            });
           });
         }),
         document.querySelectorAll(".btn-part-edit").forEach((t) => {
@@ -2954,6 +3073,20 @@
       });
     }
     t.innerHTML = u;
+    document.querySelectorAll(".btn-invlog-view-record").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const rid = btn.getAttribute("data-rid");
+        try {
+          const rec = await w(`/api/records/${encodeURIComponent(rid)}`);
+          document.getElementById("premium-injected-frame").innerHTML = N(rec);
+          document.getElementById("live-preview-space").classList.add("show");
+          J("list");
+          document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
+        } catch (err) {
+          I("명세표 조회 실패", err.message || "해당 명세표를 찾을 수 없습니다.");
+        }
+      });
+    });
     (function () {
       const totalPages = Math.ceil(l.length / invLogPerPage);
       const wrap = document.getElementById("invlog-pagination");
@@ -3001,8 +3134,20 @@
       o =
         void 0 === t.balanceAfter || null === t.balanceAfter
           ? "-"
-          : t.balanceAfter.toLocaleString();
-    return `<tr>\n          <td style="text-align:center;"><input type="checkbox" class="chk-invlog" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>\n          <td>${n(t.date)}</td>\n          <td><strong>${n(t.partName)}</strong></td>\n          <td>${e[t.type] || n(t.type)}</td>\n          <td class="tr">${a}${t.qty.toLocaleString()}</td>\n          <td class="tr">${(t.unitPrice || 0).toLocaleString()}원</td>\n          <td class="tr">${o}</td>\n          <td style="font-size:11.5px;color:#64748b;padding-left:20px;">${n(t.note)}</td>\n        </tr>`;
+          : t.balanceAfter.toLocaleString(),
+      viewBtn = t.relatedRecordId
+        ? `<button class="ibtn btn-invlog-view-record" data-rid="${n(t.relatedRecordId)}" style="margin-left:8px;color:#0284c7;border-color:#bae6fd;background:#f0f9ff;"><i class="fa-solid fa-file-lines"></i> 해당 명세표 보기</button>`
+        : "";
+    return `<tr>
+          <td style="text-align:center;"><input type="checkbox" class="chk-invlog" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>
+          <td>${n(t.date)}</td>
+          <td><strong>${n(t.partName)}</strong></td>
+          <td>${e[t.type] || n(t.type)}</td>
+          <td class="tr">${a}${t.qty.toLocaleString()}</td>
+          <td class="tr">${(t.unitPrice || 0).toLocaleString()}원</td>
+          <td class="tr">${o}</td>
+          <td style="font-size:11.5px;color:#64748b;padding-left:20px;">${n(t.note)}${viewBtn}</td>
+        </tr>`;
   }
   (document
     .getElementById("btn-add-part")
@@ -3181,36 +3326,26 @@
     document
       .getElementById("btn-add-group")
       .addEventListener("click", async () => {
-        const t = document.getElementById("group-name").value.trim();
-        if (!t) return void I("입력 오류", "그룹명을 입력해주세요.");
+        const groupName = document.getElementById("group-name").value.trim();
+        if (!groupName) return void I("입력 오류", "그룹명을 입력해주세요.");
         if (0 === nt.length)
           return void I("부품 없음", "먼저 부품을 등록해주세요.");
-        const e = nt
-            .map((t, e) => `${e + 1}. ${t.name} (${t.spec || "-"})`)
-            .join("\n"),
-          n = prompt(
-            `"${t}" 그룹에 포함할 부품 번호를 쉼표로 입력하세요:\n\n${e}`,
-            "",
-          );
-        if (null === n) return;
-        const a = n
-          .split(",")
-          .map((t) => parseInt(t.trim(), 10) - 1)
-          .filter((t) => t >= 0 && t < nt.length);
-        if (0 === a.length)
-          return void I("선택 없음", "최소 1개 이상의 부품을 선택해주세요.");
-        const o = a.map((t) => nt[t].id);
-        try {
-          (await w("/api/groups", {
-            method: "POST",
-            body: JSON.stringify({ name: t, partIds: o }),
-          }),
-            (document.getElementById("group-name").value = ""),
-            M(`"${t}" 그룹이 생성되었습니다.`, "ok"),
-            await lt());
-        } catch (t) {
-          I("생성 실패", t.message);
-        }
+        makePartPickModal(`그룹 생성 - ${groupName}`, [], async (partIds) => {
+          if (0 === partIds.length)
+            return void I("선택 없음", "최소 1개 이상의 부품을 선택해주세요.");
+          try {
+            await w("/api/groups", {
+              method: "POST",
+              body: JSON.stringify({ name: groupName, partIds }),
+            });
+            document.getElementById("group-name").value = "";
+            M(`"${groupName}" 그룹이 생성되었습니다.`, "ok");
+            await lt();
+            await ut();
+          } catch (err) {
+            I("생성 실패", err.message);
+          }
+        });
       }),
     document.getElementById("btn-apply-group").addEventListener("click", () => {
       const t = document.getElementById("group-apply-select"),
@@ -3315,6 +3450,34 @@
               () => {},
             )
           : I("선택 없음", "삭제할 항목을 먼저 선택해주세요.");
+      }),
+    document
+      .getElementById("btn-parts-add-to-group")
+      .addEventListener("click", () => {
+        const partIds = Array.from(document.querySelectorAll(".chk-part:checked")).map((el) => el.getAttribute("data-id"));
+        if (partIds.length === 0) return void I("선택 없음", "그룹에 넣을 재고 품목을 먼저 체크해주세요.");
+        makeGroupPickModal(`선택품목 ${partIds.length}개 그룹넣기`, [], async (groupIds) => {
+          if (groupIds.length === 0) return void I("그룹 미선택", "적용할 그룹을 1개 이상 선택해주세요.");
+          try {
+            for (const g of ot) {
+              if (!groupIds.includes(g.id)) continue;
+              const ids = new Set(g.partIds || []);
+              partIds.forEach((id) => ids.add(id));
+              await w(`/api/groups/${encodeURIComponent(g.id)}`, {
+                method: "PUT",
+                body: JSON.stringify({ name: g.name, partIds: Array.from(ids) }),
+              });
+            }
+            M(`선택품목 ${partIds.length}개를 ${groupIds.length}개 그룹에 넣었습니다.`, "ok");
+            document.querySelectorAll(".chk-part:checked").forEach((el) => (el.checked = false));
+            const all = document.getElementById("parts-chk-all");
+            if (all) all.checked = false;
+            await lt();
+            await ut();
+          } catch (err) {
+            I("그룹 넣기 실패", err.message || "그룹 저장 중 오류가 발생했습니다.");
+          }
+        });
       }),
     document
       .getElementById("btn-parts-del-sel")
@@ -3673,17 +3836,17 @@
 
   function renderSheet(order) {
     const rows = [...(order.items || [])];
-    while (rows.length < 8)
+    while (rows.length < 9)
       rows.push({ item: "", spec: "", qty: "", unitPrice: "", amount: "" });
     const body = rows
       .map(
         (item) => `
       <tr>
-        <td>${escapeHtml(item.item)}</td>
-        <td>${escapeHtml(item.spec)}</td>
-        <td class="order-center">${item.qty ? escapeHtml(item.qty) : ""}</td>
-        <td class="order-right">${item.unitPrice ? money(item.unitPrice) : ""}</td>
-        <td class="order-right">${item.amount ? money(item.amount) : ""}</td>
+        <td class="order-text-cell">${escapeHtml(item.item)}</td>
+        <td class="order-text-cell">${escapeHtml(item.spec)}</td>
+        <td class="order-center order-num-cell">${item.qty ? escapeHtml(item.qty) : ""}</td>
+        <td class="order-right order-num-cell">${item.unitPrice ? money(item.unitPrice) : ""}</td>
+        <td class="order-right order-num-cell">${item.amount ? money(item.amount) : ""}</td>
       </tr>
     `,
       )
@@ -3693,21 +3856,24 @@
       <div class="order-doc-title">발 주 및 구 매 품 의 서</div>
       <div class="order-approval-wrap">
         <table class="order-approval-table">
-          <tr><th rowspan="2">결<br>재</th><th>담 당</th><th>이 사</th><th>대표이사</th></tr>
+          <colgroup><col class="approval-label-col"><col><col><col></colgroup>
+          <tr><th rowspan="2" class="approval-label">결<br>재</th><th>담당</th><th>이사</th><th>대표<br>이사</th></tr>
           <tr><td></td><td></td><td></td></tr>
         </table>
       </div>
       <table class="order-info-table">
-        <tr><th>제&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;목</th><td>${escapeHtml(order.title)}</td><th>시 행 일 자</th><td>${escapeHtml(order.orderDate)}</td></tr>
-        <tr><th>구 입 목 적</th><td>${escapeHtml(order.purpose)}</td><th>작 성 자</th><td>${escapeHtml(order.author)}</td></tr>
-        <tr><th>결 제 금 액</th><td colspan="3" class="order-right order-total-cell">${money(order.total)} 원</td></tr>
+        <colgroup><col class="order-info-label-col"><col><col class="order-info-label-col"><col class="order-info-value-short"></colgroup>
+        <tr><th>제&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;목</th><td class="order-wrap-cell">${escapeHtml(order.title)}</td><th>시행일자</th><td class="order-center">${escapeHtml(order.orderDate)}</td></tr>
+        <tr><th>구입목적</th><td class="order-wrap-cell">${escapeHtml(order.purpose)}</td><th>작 성 자</th><td class="order-center order-wrap-cell">${escapeHtml(order.author)}</td></tr>
+        <tr><th>결제금액</th><td colspan="3" class="order-right order-total-cell">${money(order.total)} 원</td></tr>
       </table>
       <table class="order-item-preview-table">
+        <colgroup><col><col style="width:20%"><col style="width:12%"><col style="width:20%"><col style="width:20%"></colgroup>
         <thead><tr><th>품 목</th><th>규 격</th><th>수 량</th><th>단 가</th><th>금 액<br><span>부가세포함</span></th></tr></thead>
         <tbody>${body}</tbody>
         <tfoot><tr><th colspan="4">합 계</th><td class="order-right">${money(order.total)} 원</td></tr></tfoot>
       </table>
-      <div class="order-special"><strong>특이사항:</strong> ${escapeHtml(order.memo)}</div>
+      <div class="order-special"><strong>특이사항:</strong> <span>${escapeHtml(order.memo)}</span></div>
       <p class="order-closing">상기 금액을 지출하고자 하오니 검토 후 재가하여 주시기 바랍니다.</p>
       <div class="order-date-line">${koreanDate(order.orderDate)}</div>
       <div class="order-company-line">내 포 농 기 계<br>동아아세아농기계</div>
@@ -3742,8 +3908,55 @@
     if (!order.items.length) throw new Error("품목을 1개 이상 입력해주세요.");
   }
 
+  function orderPrintCss() {
+    return `
+      @page { size: A4 portrait; margin: 0; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: #fff; }
+      body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #111827; }
+      .order-sheet {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        padding: 16mm 17mm 13mm;
+        background: #fff;
+        color: #111827;
+        border: 0;
+        box-shadow: none;
+        font-size: 10.5pt;
+        line-height: 1.32;
+      }
+      .order-doc-title { text-align: center; font-size: 20pt; font-weight: 800; letter-spacing: 0.42em; margin: 3mm 0 8mm; padding-left: 0.42em; }
+      .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 3mm; }
+      .order-approval-table { width: 62mm; border-collapse: collapse; table-layout: fixed; font-size: 10pt; }
+      .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1px solid #111827; padding: 2.2mm 2mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
+      .order-approval-table .approval-label-col { width: 12mm; }
+      .order-approval-table th { text-align: center; font-weight: 800; line-height: 1.15; }
+      .order-approval-table td { height: 17mm; }
+      .order-info-table, .order-item-preview-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 4mm; }
+      .order-info-label-col { width: 23mm; }
+      .order-info-value-short { width: 31mm; }
+      .order-info-table th { background: #f8fafc; text-align: center; font-weight: 800; letter-spacing: 0.08em; }
+      .order-info-table td { min-height: 9mm; }
+      .order-wrap-cell { white-space: normal; word-break: break-all; line-height: 1.28; }
+      .order-total-cell { font-weight: 800; font-size: 11pt; }
+      .order-item-preview-table th { background: #f8fafc; text-align: center; font-weight: 800; }
+      .order-item-preview-table thead span { font-size: 8pt; font-weight: 700; }
+      .order-item-preview-table td { height: 8.7mm; }
+      .order-center { text-align: center; }
+      .order-right { text-align: right; }
+      .order-text-cell { word-break: break-all; white-space: normal; }
+      .order-num-cell { white-space: nowrap; word-break: keep-all; }
+      .order-special { min-height: 15mm; border: 1px solid #111827; padding: 3mm; margin-bottom: 8mm; word-break: break-all; white-space: normal; }
+      .order-closing { text-align: center; margin: 8mm 0 9mm; font-weight: 600; }
+      .order-date-line { text-align: center; margin-bottom: 9mm; font-weight: 700; }
+      .order-company-line { text-align: center; font-size: 15pt; font-weight: 900; letter-spacing: 0.28em; line-height: 1.7; padding-left: 0.28em; }
+      @media print { .order-sheet { margin: 0; } }
+    `;
+  }
+
   function printOrder(order) {
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><link rel="stylesheet" href="styles.css"><style>body{background:#fff;padding:20px}.order-sheet{box-shadow:none;margin:0 auto}.no-print{display:none!important}</style></head><body><div class="order-sheet">${renderSheet(order)}</div><script>window.onload=function(){window.print();};<\/script></body></html>`;
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-sheet">${renderSheet(order)}</div><script>window.onload=function(){setTimeout(function(){window.focus();window.print();},150);};<\/script></body></html>`;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) {
       alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 인쇄해주세요.");
@@ -3755,17 +3968,84 @@
   }
 
   function downloadOrder(order) {
+    if (typeof XLSX === "undefined") {
+      alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      return;
+    }
     const filenameDate = (order.orderDate || today()).replace(/-/g, "");
     const safeTitle = (order.title || "발주서").replace(/[\\/:*?"<>|]/g, "_");
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><link rel="stylesheet" href="styles.css"></head><body><div class="order-sheet">${renderSheet(order)}</div></body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${filenameDate}_${safeTitle}.html`;
-    document.body.appendChild(a);
-    a.click();
-    URL.revokeObjectURL(a.href);
-    a.remove();
+    const rows = [
+      ["발 주 및 구 매 품 의 서", "", "", "", ""],
+      ["", "", "결재", "담당", "이사", "대표이사"],
+      ["제목", order.title || "", "시행일자", order.orderDate || ""],
+      ["구입목적", order.purpose || "", "작성자", order.author || ""],
+      ["결제금액", order.total || 0, "", "", ""],
+      [],
+      ["품목", "규격", "수량", "단가", "금액(부가세포함)"],
+      ...(order.items || []).map((item) => [
+        item.item || "",
+        item.spec || "",
+        item.qty || "",
+        item.unitPrice || 0,
+        item.amount || 0,
+      ]),
+      ["합계", "", "", "", order.total || 0],
+      [],
+      ["특이사항", order.memo || "", "", "", ""],
+      [],
+      ["상기 금액을 지출하고자 하오니 검토 후 재가하여 주시기 바랍니다.", "", "", "", ""],
+      [koreanDate(order.orderDate), "", "", "", ""],
+      ["내 포 농 기 계", "", "", "", ""],
+      ["동아아세아농기계", "", "", "", ""],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 18 },
+      { wch: 30 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 18 },
+      { wch: 14 },
+    ];
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } },
+      { s: { r: 4, c: 1 }, e: { r: 4, c: 4 } },
+      { s: { r: 10, c: 1 }, e: { r: 10, c: 4 } },
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 4 } },
+      { s: { r: 13, c: 0 }, e: { r: 13, c: 4 } },
+      { s: { r: 14, c: 0 }, e: { r: 14, c: 4 } },
+      { s: { r: 15, c: 0 }, e: { r: 15, c: 4 } },
+    ];
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const ref = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[ref]) continue;
+        ws[ref].s = {
+          font: { name: "맑은 고딕", sz: R === 0 ? 18 : 10, bold: R === 0 || R === 6 || C === 0 },
+          alignment: { vertical: "center", horizontal: R === 0 || R >= 12 ? "center" : C >= 2 ? "center" : "left", wrapText: true },
+          border: R >= 2 && R <= 10 ? {
+            top: { style: "thin", color: { rgb: "111827" } },
+            bottom: { style: "thin", color: { rgb: "111827" } },
+            left: { style: "thin", color: { rgb: "111827" } },
+            right: { style: "thin", color: { rgb: "111827" } },
+          } : undefined,
+        };
+      }
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "발주서");
+    XLSX.writeFile(wb, `${filenameDate}_${safeTitle}.xlsx`);
+  }
+
+  function setOrderPreviewVisible(visible) {
+    const card = $("order-preview-card");
+    const layout = document.querySelector("#page-order .order-layout");
+    const openBtn = $("order-preview-open");
+    if (!card || !layout) return;
+    card.style.display = visible ? "block" : "none";
+    layout.classList.toggle("preview-closed", !visible);
+    if (openBtn) openBtn.style.display = visible ? "none" : "inline-flex";
   }
 
   async function loadOrders() {
@@ -3884,6 +4164,8 @@
     });
     $("order-reset").addEventListener("click", () => resetForm());
     $("order-print").addEventListener("click", () => printOrder(readOrder()));
+    $("order-preview-close").addEventListener("click", () => setOrderPreviewVisible(false));
+    $("order-preview-open").addEventListener("click", () => setOrderPreviewVisible(true));
     $("order-refresh").addEventListener("click", loadOrders);
     $("order-save").addEventListener("click", async () => {
       try {

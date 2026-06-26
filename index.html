@@ -1060,6 +1060,17 @@
               >
                 <i class="fa-solid fa-file-excel"></i> 재고현황 엑셀다운로드
               </button>
+              <button
+                class="btn btn-o btn-sm"
+                id="btn-parts-add-to-group"
+                style="
+                  color: #7c3aed;
+                  border-color: #ddd6fe;
+                  background: #faf5ff;
+                "
+              >
+                <i class="fa-solid fa-layer-group"></i> 선택품목 그룹넣기
+              </button>
             </div>
             <div class="tbl-wrap">
               <table class="parts-table">
@@ -1484,15 +1495,21 @@
                 <button type="button" class="btn btn-o" id="order-print">
                   <i class="fa-solid fa-print"></i> 인쇄
                 </button>
+                <button type="button" class="btn btn-o" id="order-preview-open" style="display: none">
+                  <i class="fa-solid fa-eye"></i> 미리보기 열기
+                </button>
                 <button type="button" class="btn btn-p" id="order-save">
                   <i class="fa-solid fa-floppy-disk"></i> 발주서 저장
                 </button>
               </div>
             </section>
 
-            <section class="card order-preview-card">
-              <div class="card-title">
-                <i class="fa-solid fa-eye"></i> 발주서 미리보기
+            <section class="card order-preview-card" id="order-preview-card">
+              <div class="card-title order-preview-title">
+                <span><i class="fa-solid fa-eye"></i> 발주서 미리보기</span>
+                <button type="button" class="btn btn-o btn-sm" id="order-preview-close">
+                  <i class="fa-solid fa-xmark"></i> 닫기
+                </button>
               </div>
               <div id="order-preview" class="order-sheet"></div>
             </section>
