@@ -3985,6 +3985,49 @@
     }
   }
 
+
+  async function receiveOrderAll(orderId) {
+    const order = findOrder(orderId);
+    if (!order || !Array.isArray(order.items)) return;
+    const pending = order.items
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => !(item.receivedAt || item.inventoryAddedAt));
+    if (!pending.length) {
+      alert("이미 모든 품목이 도착 처리되었습니다.");
+      return;
+    }
+    if (!confirm(`${order.orderDate} ${order.title}
+미도착 품목 ${pending.length}개를 모두 재고에 입고할까요?`)) return;
+    try {
+      await loadOrderInventoryRefs();
+      const updated = JSON.parse(JSON.stringify(order));
+      for (const { item, idx } of pending) {
+        let part = findPartByOrderItem(item);
+        if (!part) part = await promptNewPartFromOrderItem(item);
+        await api(`/api/parts/${encodeURIComponent(part.id)}/stock-in`, {
+          method: "POST",
+          body: JSON.stringify({
+            qty: number(item.qty) || 1,
+            unitPrice: number(item.unitPrice) || number(part.unitPrice) || 0,
+            date: today(),
+            note: "발주 택배 도착",
+          }),
+        });
+        updated.items[idx].partId = part.id;
+        updated.items[idx].receivedAt = new Date().toISOString();
+        updated.items[idx].inventoryAddedAt = new Date().toISOString();
+        const cached = orderParts.find((p) => p.id === part.id);
+        if (cached) cached.stock = number(cached.stock) + (number(item.qty) || 1);
+      }
+      await api(`/api/orders/${encodeURIComponent(order.id)}`, { method: "PUT", body: JSON.stringify(updated) });
+      alert(`미도착 품목 ${pending.length}개가 재고에 입고 처리되었습니다.`);
+      await loadOrders();
+      try { await ut(); await gt(); } catch (_) {}
+    } catch (error) {
+      alert(error.message || "전체 도착 처리 중 오류가 발생했습니다.");
+    }
+  }
+
   function blankRow() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -4148,55 +4191,55 @@
 
   function orderPrintCss() {
     return `
-      @page { size: A4 portrait; margin: 0; }
+      @page { size: A4 portrait; margin: 6mm; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #fff; }
       body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #111827; }
-      .order-print-page { width: 210mm; height: 297mm; overflow: hidden; margin: 0 auto; background:#fff; }
+      .order-print-page { width: 198mm; height: 285mm; overflow: hidden; margin: 0 auto; background:#fff; }
       .order-sheet {
-        width: 210mm;
+        width: 198mm;
         min-height: auto;
         margin: 0;
-        padding: 13mm 14mm 10mm;
+        padding: 9mm 10mm 7mm;
         transform-origin: top left;
         background: #fff;
         color: #111827;
         border: 0;
         box-shadow: none;
-        font-size: 10.5pt;
-        line-height: 1.32;
+        font-size: 10pt;
+        line-height: 1.24;
       }
-      .order-doc-title { text-align: center; font-size: 18pt; font-weight: 800; letter-spacing: 0.36em; margin: 2mm 0 5mm; padding-left: 0.36em; }
-      .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 3mm; }
-      .order-approval-table { width: 62mm; border-collapse: collapse; table-layout: fixed; font-size: 10pt; }
-      .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1px solid #111827; padding: 2.2mm 2mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
-      .order-approval-table .approval-label-col { width: 12mm; }
-      .order-approval-table th { text-align: center; font-weight: 800; line-height: 1.15; }
-      .order-approval-table td { height: 17mm; }
-      .order-info-table, .order-item-preview-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 4mm; }
-      .order-info-label-col { width: 23mm; }
-      .order-info-value-short { width: 31mm; }
-      .order-info-table th { background: #f8fafc; text-align: center; font-weight: 800; letter-spacing: 0.08em; }
-      .order-info-table td { min-height: 9mm; }
-      .order-wrap-cell { white-space: normal; word-break: break-all; line-height: 1.28; }
-      .order-total-cell { font-weight: 800; font-size: 11pt; }
+      .order-doc-title { text-align: center; font-size: 17pt; font-weight: 800; letter-spacing: 0.34em; margin: 1mm 0 4mm; padding-left: 0.34em; }
+      .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 2.5mm; }
+      .order-approval-table { width: 60mm; border-collapse: collapse; table-layout: fixed; font-size: 9.5pt; }
+      .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1px solid #111827; padding: 1.7mm 1.7mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
+      .order-approval-table .approval-label-col { width: 11mm; }
+      .order-approval-table th { text-align: center; font-weight: 800; line-height: 1.1; }
+      .order-approval-table td { height: 15mm; }
+      .order-info-table, .order-item-preview-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 3mm; }
+      .order-info-label-col { width: 21mm; }
+      .order-info-value-short { width: 30mm; }
+      .order-info-table th { background: #f8fafc; text-align: center; font-weight: 800; letter-spacing: 0.04em; }
+      .order-info-table td { min-height: 8mm; }
+      .order-wrap-cell { white-space: normal; word-break: break-all; line-height: 1.22; }
+      .order-total-cell { font-weight: 800; font-size: 10.5pt; }
       .order-item-preview-table th { background: #f8fafc; text-align: center; font-weight: 800; }
-      .order-item-preview-table thead span { font-size: 8pt; font-weight: 700; }
-      .order-item-preview-table td { height: 7.2mm; }
+      .order-item-preview-table thead span { font-size: 7.6pt; font-weight: 700; }
+      .order-item-preview-table td { height: 6.5mm; }
       .order-center { text-align: center; }
       .order-right { text-align: right; }
       .order-text-cell { word-break: break-all; white-space: normal; }
       .order-num-cell { white-space: nowrap; word-break: keep-all; }
-      .order-special { min-height: 11mm; border: 1px solid #111827; padding: 2mm; margin-bottom: 5mm; word-break: break-all; white-space: normal; }
-      .order-closing { text-align: center; margin: 5mm 0 5mm; font-weight: 600; }
-      .order-date-line { text-align: center; margin-bottom: 5mm; font-weight: 700; }
-      .order-company-line { text-align: center; font-size: 13pt; font-weight: 900; letter-spacing: 0.22em; line-height: 1.45; padding-left: 0.22em; }
-      @media print { .order-print-page { margin:0; } .order-sheet { margin: 0; } }
+      .order-special { min-height: 9mm; border: 1px solid #111827; padding: 1.7mm; margin-bottom: 3.5mm; word-break: break-all; white-space: normal; }
+      .order-closing { text-align: center; margin: 3.5mm 0 3.5mm; font-weight: 600; }
+      .order-date-line { text-align: center; margin-bottom: 3.5mm; font-weight: 700; }
+      .order-company-line { text-align: center; font-size: 12.5pt; font-weight: 900; letter-spacing: 0.18em; line-height: 1.35; padding-left: 0.18em; }
+      @media print { .order-print-page { margin:0 auto; } .order-sheet { margin: 0; } }
     `;
   }
 
   function printOrder(order) {
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.985;sheet.style.transform='scale('+sc+')';sheet.style.width=(210/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},180);};<\/script></body></html>`;
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='198mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.992;sheet.style.transform='scale('+sc+')';sheet.style.width=(198/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},220);};window.onbeforeprint=fitOrder;<\/script></body></html>`;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) {
       alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 인쇄해주세요.");
@@ -4307,13 +4350,14 @@
           (order) => `
         <tr>
           <td>${escapeHtml(order.orderDate)}</td>
-          <td><strong>${escapeHtml(order.title)}</strong><br><small>${escapeHtml(order.purpose || "-")}</small><div class="order-history-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><b>${escapeHtml(item.item || "품목")}</b> ${escapeHtml(item.spec || "")} · ${money(item.qty || 0)}개 ${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
+          <td><strong>${escapeHtml(order.title)}</strong><br><small>${escapeHtml(order.purpose || "-")}</small><div class="order-history-items compact">${(order.items || []).slice(0, 4).map((item, idx) => `<span class="order-history-item"><b>${escapeHtml(item.item || "품목")}</b><small>${escapeHtml(item.spec || "")}</small><em>${money(item.qty || 0)}개</em>${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}${(order.items || []).length > 4 ? `<span class="order-history-more">외 ${(order.items || []).length - 4}개 품목</span>` : ""}</div></td>
           <td>${escapeHtml(order.author || "-")}</td>
           <td class="tr">${money(order.total || order.paymentAmount)} 원</td>
           <td>
             <div class="ibtns">
               <button type="button" class="ibtn order-history-view" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-eye"></i> 보기</button>
               <button type="button" class="ibtn order-history-print" data-id="${escapeHtml(order.id)}" style="color:#0284c7"><i class="fa-solid fa-print"></i> 인쇄</button>
+              ${(order.items || []).some((item) => !(item.receivedAt || item.inventoryAddedAt)) ? `<button type="button" class="ibtn order-arrival-all-btn" data-id="${escapeHtml(order.id)}" style="color:#0f766e"><i class="fa-solid fa-boxes-packing"></i> 전체 도착</button>` : ""}
               <button type="button" class="ibtn order-history-download" data-id="${escapeHtml(order.id)}" style="color:#047857"><i class="fa-solid fa-download"></i> 다운로드</button>
               <button type="button" class="ibtn d order-history-delete" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
             </div>
@@ -4356,6 +4400,9 @@
     );
     document.querySelectorAll(".order-arrival-btn").forEach((button) =>
       button.addEventListener("click", () => receiveOrderItem(button.dataset.id, Number(button.dataset.idx))),
+    );
+    document.querySelectorAll(".order-arrival-all-btn").forEach((button) =>
+      button.addEventListener("click", () => receiveOrderAll(button.dataset.id)),
     );
     document.querySelectorAll(".order-history-delete").forEach((button) =>
       button.addEventListener("click", async () => {
