@@ -72,21 +72,12 @@
         "서버에 연결할 수 없습니다. 인터넷 연결 또는 서버 상태를 확인해주세요.",
       );
     }
-    if (401 === o.status)
-      throw (
-        x(),
-        document.getElementById("main-content").classList.remove("visible"),
-        document.getElementById("auth-layer").classList.remove("hidden"),
-        I(
-          "세션 만료",
-          "로그인이 만료되었습니다. 비밀번호를 다시 입력해주세요.",
-        ),
-        new Error("인증이 만료되었습니다.")
-      );
     let s = null;
     try {
       s = await o.json();
     } catch (t) {}
+    if (401 === o.status)
+      throw new Error((s && s.error) || "인증이 만료되었습니다.");
     if (!o.ok)
       throw new Error(
         (s && s.error) || "서버 오류가 발생했습니다. (" + o.status + ")",
@@ -750,25 +741,19 @@
     return o;
   }
   window.addEventListener("DOMContentLoaded", () => {
-    (B(),
-      $(),
-      history.replaceState({ tab: "dashboard" }, "", "#dashboard"),
-      (async function () {
-        if (!E()) return;
-        try {
-          const e = await w("/api/records");
-          ((t = Array.isArray(e) ? e : []),
-            document.getElementById("auth-layer").classList.add("hidden"),
-            document.getElementById("main-content").classList.add("visible"),
-            C(),
-            await ut(),
-            lt(),
-            rt(),
-            Q());
-        } catch (t) {
-          x();
-        }
-      })());
+    (B(), $());
+    if (!E()) return;
+    document.getElementById("auth-layer").classList.add("hidden");
+    document.getElementById("main-content").classList.add("visible");
+    history.replaceState({ tab: "dashboard" }, "", "#dashboard");
+    (async function () {
+      try {
+        const e = await w("/api/records");
+        ((t = Array.isArray(e) ? e : []), C(), await ut(), lt(), rt(), Q());
+      } catch (e) {
+        ((t = []), C(), Q(), I("데이터 불러오기 실패", e.message || "로그인 후 초기 데이터를 불러오지 못했습니다."));
+      }
+    })();
   });
   var N = function (t) {
     var e = t.amount + t.tax,
@@ -1465,13 +1450,19 @@
           ((s = o.token),
             sessionStorage.setItem(v, s),
             document.getElementById("auth-layer").classList.add("hidden"),
-            document.getElementById("main-content").classList.add("visible"),
-            await k(),
-            await ut(),
-            lt(),
-            rt(),
-            C(),
-            Q());
+            document.getElementById("main-content").classList.add("visible"));
+          try {
+            await k();
+            await ut();
+            lt();
+            rt();
+            C();
+            Q();
+          } catch (initError) {
+            C();
+            Q();
+            I("데이터 불러오기 실패", initError.message || "로그인 후 초기 데이터를 불러오지 못했습니다.");
+          }
         } catch (t) {
           e.textContent =
             t && t.message && t.message !== "Failed to fetch"
