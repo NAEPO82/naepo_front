@@ -705,6 +705,23 @@
                   />
                 </div>
               </div>
+              <div class="field">
+                <label>거래 대분류</label>
+                <select id="fl-cat">
+                  <option value="">전체 대분류</option>
+                  <option value="일반">일반</option>
+                  <option value="계통">계통</option>
+                  <option value="자체">자체</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>처리 상태</label>
+                <select id="fl-status">
+                  <option value="">전체 상태</option>
+                  <option value="done">완료</option>
+                  <option value="pending">미완료</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -852,11 +869,11 @@
                   <th data-sort="author" style="cursor: pointer">담당자</th>
                   <th data-sort="company" style="cursor: pointer">상호/성명</th>
                   <th data-sort="region" style="cursor: pointer">지역</th>
-                  <th data-sort="part" style="cursor: pointer">분류 파트</th>
+                  <th data-sort="part" style="cursor: pointer" title="클릭하면 일반/계통/자체 필터가 바뀝니다">분류 파트</th>
                   <th data-sort="note" style="cursor: pointer">
                     대표 품목명 요약
                   </th>
-                  <th>상태</th>
+                  <th data-sort="status" style="cursor: pointer" title="클릭하면 완료/미완료 필터가 바뀝니다">상태</th>
                   <th class="tr" data-sort="amount" style="cursor: pointer">
                     공급가액
                   </th>
@@ -1103,7 +1120,7 @@
                     <th style="text-align: right">단가</th>
                     <th style="text-align: right">현재 재고</th>
                     <th style="text-align: right">최소 재고</th>
-                    <th>상태</th>
+                    <th data-sort="status" style="cursor: pointer" title="클릭하면 완료/미완료 필터가 바뀝니다">상태</th>
                     <th>관리</th>
                   </tr>
                 </thead>
@@ -1181,6 +1198,18 @@
                 "
               >
                 <option value="">전체 품목</option>
+              </select>
+              <select
+                id="invlog-filter-group"
+                style="
+                  font-size: 12px;
+                  padding: 5px 8px;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 8px;
+                  color: #475569;
+                "
+              >
+                <option value="">전체 그룹</option>
               </select>
               <select
                 id="invlog-filter-type"
@@ -1523,6 +1552,16 @@
               <button type="button" class="btn btn-o btn-sm" id="order-refresh">
                 <i class="fa-solid fa-arrows-rotate"></i> 새로고침
               </button>
+              <input type="text" id="order-filter-search" class="order-history-filter-input" placeholder="제목/목적/작성자/품목 검색" />
+              <input type="date" id="order-filter-start" class="order-history-filter-input order-date-filter" title="시작일" />
+              <span class="order-filter-sep">~</span>
+              <input type="date" id="order-filter-end" class="order-history-filter-input order-date-filter" title="종료일" />
+              <select id="order-filter-arrival" class="order-history-filter-input order-arrival-filter">
+                <option value="">전체 도착상태</option>
+                <option value="pending">미도착 포함</option>
+                <option value="done">전체 도착완료</option>
+              </select>
+              <button type="button" class="btn btn-o btn-sm" id="order-filter-reset">필터 초기화</button>
               <span id="order-history-summary">저장된 발주서 0건</span>
             </div>
             <div class="tbl-wrap">
@@ -1637,7 +1676,7 @@
                 <th>IP</th>
                 <th>메서드</th>
                 <th>경로</th>
-                <th>상태</th>
+                <th data-sort="status" style="cursor: pointer" title="클릭하면 완료/미완료 필터가 바뀝니다">상태</th>
                 <th>User-Agent</th>
               </tr>
             </thead>

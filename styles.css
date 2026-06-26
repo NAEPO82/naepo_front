@@ -2247,3 +2247,161 @@ tr:hover td {
 @media(max-width:980px){
   .parts-table .ibtns{grid-template-columns:repeat(2,minmax(54px,1fr));}
 }
+
+
+/* ============================================================
+   v5 레이아웃 / 인쇄 / 발주기록 / 재고접힘 보정
+   ============================================================ */
+/* 상단 메뉴: 글자 줄바꿈/겹침 방지 */
+header .wrap{max-width:1180px;}
+.header-top{padding:14px 20px;}
+.header-top h1{font-size:18px;}
+.header-top p{font-size:11.5px;}
+nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;align-items:stretch;}
+.tab{min-width:0;justify-content:center;text-align:center;gap:6px;padding:12px 8px;font-size:13px;line-height:1.2;white-space:normal;word-break:keep-all;}
+.tab i{font-size:15px;flex:0 0 auto;}
+@media(max-width:880px){nav.wrap{grid-template-columns:repeat(3,1fr)}.tab{font-size:12.5px;padding:10px 6px}.header-top{flex-wrap:wrap}.header-btns{width:100%;justify-content:flex-end}}
+@media(max-width:520px){nav.wrap{grid-template-columns:repeat(2,1fr)}}
+
+/* 명세서 인쇄: 큰 빈칸 대신 표의 행들이 균형 있게 커지도록 보정 */
+@media print{
+  @page{size:A4 portrait;margin:5mm;}
+  body.print-record-mode #print-target-area{width:200mm!important;max-width:200mm!important;margin:0 auto!important;}
+  body.print-record-mode .excel-frame{width:200mm!important;max-width:200mm!important;background:#fff!important;padding:0!important;margin:0 auto!important;}
+  body.print-record-mode .tfs{width:200mm!important;height:136mm!important;min-height:0!important;margin:0!important;padding:3.6mm 4.2mm!important;box-sizing:border-box!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;}
+  body.print-record-mode .tfs-title{flex:0 0 auto!important;padding:4.3px 6px!important;}
+  body.print-record-mode .tfs-name{font-size:14.6px!important;letter-spacing:3.8px!important;}
+  body.print-record-mode .tfs-sub{font-size:9px!important;}
+  body.print-record-mode .tfs table{width:100%!important;table-layout:fixed!important;flex:0 0 auto!important;}
+  body.print-record-mode .tfs table:nth-of-type(3){flex:1 1 auto!important;height:auto!important;}
+  body.print-record-mode .tfs table:nth-of-type(3) tr{height:auto!important;}
+  body.print-record-mode .tfs table:nth-of-type(3) td{height:auto!important;}
+  body.print-record-mode .tfs td{padding:3.2px 4px!important;font-size:9.8px!important;line-height:1.12!important;}
+  body.print-record-mode .tfs table:nth-of-type(3) td{padding-top:4.2px!important;padding-bottom:4.2px!important;}
+  body.print-record-mode .tfs-bottom{flex:0 0 auto!important;padding:4px 6px!important;margin-top:0!important;}
+  body.print-record-mode .tfs-amt{font-size:12px!important;letter-spacing:0!important;}
+  body.print-record-mode .excel-divider{height:5mm!important;margin:0!important;padding:1.5mm 0!important;}
+  body.print-record-mode .lp-page{width:200mm!important;height:287mm!important;display:flex!important;flex-direction:column!important;overflow:hidden!important;page-break-after:always!important;break-after:page!important;}
+  body.print-record-mode .lp-page:last-child{page-break-after:auto!important;break-after:auto!important;}
+  body.print-record-mode .lp-slot{width:200mm!important;height:136mm!important;display:block!important;overflow:hidden!important;flex:0 0 136mm!important;}
+  body.print-record-mode .lp-slot .excel-frame{width:200mm!important;max-width:200mm!important;height:136mm!important;}
+  body.print-record-mode .lp-slot .tfs{height:136mm!important;min-height:0!important;margin:0!important;}
+  body.print-record-mode .lp-sep{height:6mm!important;margin:0!important;border-top:1px dashed #999!important;flex:0 0 6mm!important;}
+}
+
+/* 화면 미리보기에서도 명세표가 특정 하단 칸만 길어 보이지 않도록 */
+.excel-frame .tfs{display:block;}
+.excel-frame .tfs table:nth-of-type(3) td{height:25px;}
+
+/* 발주서 페이지: 숨막히는 느낌 완화 */
+.order-layout{grid-template-columns:minmax(500px,1fr) minmax(420px,500px);gap:24px;align-items:start;}
+.order-editor-card,.order-preview-card,.order-history-card{border-radius:18px;padding:26px;}
+.order-editor-card .g2{gap:18px 20px;}
+.order-editor-card input,.order-editor-card select{height:42px;font-size:13.5px;}
+.order-input-table{border-radius:16px;overflow:hidden;background:#fff;}
+.order-input-table th{padding:12px 10px;background:#f8fafc;font-size:12.5px;}
+.order-input-table td{padding:10px 8px;}
+.order-input-table input{height:38px;padding:9px 10px;font-size:13px;}
+.order-row-tools{min-width:64px;}
+.order-actions{gap:10px;margin-top:22px;}
+.order-sheet{width:440px;min-height:622px;padding:28px 22px;font-size:11.2px;}
+.order-doc-title{font-size:21px;margin:4px 0 20px;}
+.order-info-table th,.order-item-preview-table th{background:#f8fafc;}
+.order-info-table td{height:32px;padding:7px 8px;}
+.order-item-preview-table td{height:30px;padding:6px 7px;}
+.order-special{min-height:46px;margin-bottom:20px;}
+@media(max-width:1100px){.order-layout{grid-template-columns:1fr}.order-sheet{max-width:540px;width:100%;}.order-preview-card{overflow-x:auto;}}
+
+/* 발주서 미리보기 기본 열림 상태에 맞춘 버튼 */
+#order-preview-open{margin-bottom:12px;}
+
+/* 발주서 기록: 넓게 퍼지지 않고, 모든 품목의 도착 버튼이 보이도록 */
+.order-history-table{table-layout:fixed;}
+.order-history-table th,.order-history-table td{padding:12px 14px;vertical-align:middle;}
+.order-history-table th:first-child,.order-history-table td:first-child{width:112px;text-align:left;white-space:nowrap;padding-left:18px;}
+.order-history-table th:nth-child(3),.order-history-table td:nth-child(3){width:90px;text-align:center;}
+.order-history-table th:nth-child(4),.order-history-table td:nth-child(4){width:105px;text-align:right;}
+.order-history-table th:nth-child(5),.order-history-table td:nth-child(5){width:230px;}
+.order-history-title{display:block;font-size:13.5px;margin-bottom:3px;}
+.order-history-purpose{display:block;color:#64748b;margin-bottom:8px;line-height:1.35;max-width:100%;word-break:break-word;}
+.order-history-items.compact.all-items{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:6px;max-width:520px;max-height:176px;overflow:auto;padding:2px 4px 2px 0;margin-top:6px;}
+.order-history-items.compact.all-items .order-history-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 6px;padding:7px 8px;border-radius:9px;background:#f8fafc;border:1px solid #e2e8f0;}
+.order-history-item .ohi-main{min-width:0;display:flex;flex-direction:column;gap:2px;}
+.order-history-items.compact.all-items .order-history-item b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.order-history-items.compact.all-items .order-history-item small{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.order-history-items.compact.all-items .order-history-item em:not(.arrived){font-size:11px;}
+.order-arrival-btn,.order-history-item .arrived{justify-self:end;}
+.order-history-more{display:none!important;}
+.order-history-table .ibtns{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.order-history-table .ibtn{justify-content:center;padding:6px 8px;font-size:11.5px;}
+@media(max-width:900px){.order-history-table{table-layout:auto}.order-history-table th:nth-child(5),.order-history-table td:nth-child(5){width:auto}.order-history-items.compact.all-items{max-width:100%;grid-template-columns:1fr}.order-history-table .ibtns{grid-template-columns:1fr}}
+
+/* 재고현황: 기본 접힘 상태 안내와 테이블 압축 */
+.group-header-row td::after{content:"  클릭해서 펼치기/접기";font-size:11px;font-weight:500;color:#64748b;margin-left:8px;}
+.parts-table td,.parts-table th{padding:9px 10px;}
+.parts-table .ibtns{grid-template-columns:repeat(2,minmax(56px,1fr));max-width:180px;margin-left:auto;}
+
+/* v6 추가: 발주서 기록 필터 / 거래내역 필터 / 입출고 그룹 필터 정리 */
+.order-history-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.order-history-filter-input {
+  height: 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #fff;
+  color: #1e293b;
+}
+#order-filter-search {
+  min-width: 220px;
+  flex: 1 1 240px;
+}
+.order-date-filter {
+  width: 138px;
+  flex: 0 0 auto;
+}
+.order-arrival-filter {
+  width: 140px;
+  flex: 0 0 auto;
+}
+.order-filter-sep {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 700;
+}
+.order-history-date {
+  padding-left: 14px !important;
+  padding-right: 14px !important;
+  white-space: nowrap;
+}
+.records-table th[data-sort="part"],
+.records-table th[data-sort="status"] {
+  background: #f0fdf4;
+  color: #065f46;
+}
+.section-filter select,
+#invlog-filter-group {
+  height: 38px;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  background: #fff;
+  color: #1e293b;
+}
+@media (max-width: 760px) {
+  .order-history-filter-input,
+  #order-filter-search,
+  .order-date-filter,
+  .order-arrival-filter {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+  .order-filter-sep { display: none; }
+}
