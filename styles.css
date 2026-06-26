@@ -3904,3 +3904,409 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
     .order-history-table { min-width: 900px !important; }
   }
 }
+
+/* ============================================================
+   User screenshot correction patch — table/actions/order/login
+   ============================================================ */
+@media screen {
+  /* 로그인: 외부 저작권 사진 대신 농기계 느낌의 자체 일러스트 배경 */
+  #auth-layer {
+    display: grid !important;
+    grid-template-columns: minmax(380px, 540px) minmax(340px, 420px) !important;
+    gap: 34px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 44px !important;
+    background:
+      radial-gradient(circle at 20% 18%, rgba(37, 99, 235, 0.14), transparent 30%),
+      radial-gradient(circle at 82% 74%, rgba(22, 163, 74, 0.10), transparent 30%),
+      linear-gradient(135deg, #f8fafc 0%, #eef4fb 48%, #f7faf5 100%) !important;
+    overflow: hidden !important;
+  }
+
+  #auth-layer::before {
+    content: "";
+    position: absolute;
+    inset: auto -6% -9% -6%;
+    height: 32%;
+    background:
+      repeating-linear-gradient(100deg, rgba(30, 58, 95, 0.10) 0 2px, transparent 2px 32px),
+      linear-gradient(180deg, rgba(241, 245, 249, 0) 0%, rgba(226, 232, 240, 0.95) 100%);
+    transform: skewY(-2deg);
+    pointer-events: none;
+  }
+
+  .auth-visual {
+    position: relative;
+    z-index: 1;
+    min-height: 430px;
+    padding: 46px 44px;
+    border: 1px solid rgba(203, 213, 225, 0.78);
+    border-radius: 28px;
+    color: #0f172a;
+    background:
+      linear-gradient(140deg, rgba(255,255,255,.84), rgba(239,246,255,.72)),
+      radial-gradient(circle at 76% 35%, rgba(30, 58, 95, 0.10), transparent 32%);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.10);
+    overflow: hidden;
+  }
+
+  .auth-visual::before {
+    content: "\f722";
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: -8px;
+    bottom: 34px;
+    font-size: 190px;
+    line-height: 1;
+    color: rgba(30, 58, 95, 0.10);
+  }
+
+  .auth-visual::after {
+    content: "";
+    position: absolute;
+    left: 34px;
+    right: 34px;
+    bottom: 48px;
+    height: 74px;
+    border-radius: 22px;
+    background:
+      repeating-linear-gradient(90deg, rgba(37,99,235,.12) 0 2px, transparent 2px 22px),
+      linear-gradient(180deg, rgba(248,250,252,.3), rgba(226,232,240,.75));
+  }
+
+  .auth-visual-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1e3a5f;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .08em;
+  }
+
+  .auth-visual h2 {
+    max-width: 430px;
+    margin-top: 20px;
+    font-family: var(--font-head);
+    font-size: 31px;
+    line-height: 1.25;
+    letter-spacing: -0.03em;
+  }
+
+  .auth-visual p {
+    max-width: 430px;
+    margin-top: 14px;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .auth-machine-card {
+    position: absolute;
+    left: 44px;
+    bottom: 38px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 290px;
+    padding: 14px 16px;
+    border: 1px solid rgba(203,213,225,.86);
+    border-radius: 18px;
+    background: rgba(255,255,255,.88);
+    box-shadow: 0 14px 34px rgba(15,23,42,.10);
+  }
+
+  .auth-machine-icon {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    color: #fff;
+    background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  }
+
+  .auth-machine-card strong,
+  .auth-machine-card span { display: block; }
+  .auth-machine-card strong { font-size: 13px; color: #0f172a; }
+  .auth-machine-card span { margin-top: 2px; font-size: 11.5px; color: #64748b; }
+
+  .auth-box {
+    position: relative;
+    z-index: 1;
+    max-width: 420px !important;
+    border-radius: 24px !important;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.13) !important;
+  }
+
+  /* 로그인 후 배경: 조용한 ERP 배경으로 정돈 */
+  #main-content {
+    min-height: 100vh;
+    background:
+      linear-gradient(180deg, rgba(248,250,252,.86), rgba(248,250,252,.96)),
+      radial-gradient(circle at 12% 10%, rgba(37,99,235,.08), transparent 25%),
+      radial-gradient(circle at 88% 30%, rgba(30,58,95,.06), transparent 26%),
+      repeating-linear-gradient(0deg, transparent 0 31px, rgba(148,163,184,.075) 31px 32px),
+      #f8fafc;
+  }
+
+  /* 거래내역: 분류/상태 컬럼 바탕색 차이 제거 */
+  .records-table tbody tr,
+  .records-table tbody td,
+  .records-table tbody td:nth-child(n) {
+    background: #fff !important;
+  }
+
+  .records-table tbody tr:hover td {
+    background: #f8fafc !important;
+  }
+
+  .records-table thead th,
+  .records-table thead th:nth-child(n) {
+    background: #f1f5f9 !important;
+  }
+
+  .records-table {
+    min-width: 1180px !important;
+    width: 100% !important;
+  }
+
+  .records-table th,
+  .records-table td {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .records-table th:nth-child(1), .records-table td:nth-child(1) { width: 36px !important; }
+  .records-table th:nth-child(2), .records-table td:nth-child(2) { width: 88px !important; }
+  .records-table th:nth-child(3), .records-table td:nth-child(3) { width: 70px !important; }
+  .records-table th:nth-child(4), .records-table td:nth-child(4) { width: 120px !important; }
+  .records-table th:nth-child(5), .records-table td:nth-child(5) { width: 72px !important; text-align: center !important; }
+  .records-table th:nth-child(6), .records-table td:nth-child(6) { width: 110px !important; text-align: center !important; }
+  .records-table th:nth-child(7), .records-table td:nth-child(7) { width: 150px !important; }
+  .records-table th:nth-child(8), .records-table td:nth-child(8) { width: 82px !important; text-align: center !important; }
+  .records-table th:nth-child(9), .records-table td:nth-child(9) { width: 112px !important; text-align: center !important; }
+  .records-table th:nth-child(10), .records-table td:nth-child(10) { width: 84px !important; }
+  .records-table th:nth-child(11), .records-table td:nth-child(11) { width: 74px !important; }
+  .records-table th:nth-child(12), .records-table td:nth-child(12) { width: 172px !important; }
+
+  .records-table .ibtns {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(48px, 1fr)) !important;
+    gap: 4px !important;
+    min-width: 154px !important;
+    width: 100% !important;
+  }
+
+  .records-table .ibtn {
+    min-width: 0 !important;
+    min-height: 27px !important;
+    padding: 4px 5px !important;
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+    gap: 3px !important;
+    overflow: visible !important;
+  }
+
+  .badge.bn,
+  .badge.bo,
+  .btn-status-toggle,
+  .credit-badge {
+    border-radius: 4px !important;
+  }
+
+  .badge.bn,
+  .badge.bo {
+    min-width: 0 !important;
+    background: #eff6ff !important;
+    color: #1e3a5f !important;
+    border-color: #bfdbfe !important;
+  }
+
+  .btn-status-toggle[data-status="done"],
+  .credit-badge.credit-paid {
+    background: #ecfdf5 !important;
+    color: #15803d !important;
+    border-color: #bbf7d0 !important;
+  }
+
+  /* 거래명세서 작성 품목 행: 오른쪽 삭제 버튼 묻힘 방지 */
+  .item-row-card {
+    overflow: visible !important;
+  }
+
+  .item-row-card .g2 > .field:first-child > div {
+    display: grid !important;
+    grid-template-columns: minmax(110px, 1fr) minmax(74px, 92px) auto !important;
+    gap: 6px !important;
+  }
+
+  .item-row-card .p-tax {
+    max-width: none !important;
+  }
+
+  .btn-remove-item-row {
+    min-width: 70px !important;
+    min-height: 30px !important;
+    padding: 5px 10px !important;
+  }
+
+  /* 발주서 입력 테이블: 우측 선택/삭제 버튼이 묻히지 않게 */
+  .order-input-table-wrap {
+    overflow-x: auto !important;
+  }
+
+  .order-input-table {
+    min-width: 720px !important;
+    table-layout: fixed !important;
+  }
+
+  .order-input-table colgroup col:nth-child(1) { width: 22% !important; }
+  .order-input-table colgroup col:nth-child(2) { width: 18% !important; }
+  .order-input-table colgroup col:nth-child(3) { width: 10% !important; }
+  .order-input-table colgroup col:nth-child(4) { width: 14% !important; }
+  .order-input-table colgroup col:nth-child(5) { width: 15% !important; }
+  .order-input-table colgroup col:nth-child(6) { width: 120px !important; }
+
+  .order-row-tools {
+    width: 120px !important;
+    min-width: 120px !important;
+    white-space: normal !important;
+    overflow: visible !important;
+  }
+
+  .order-row-tools .ibtn,
+  .order-row-pick,
+  .order-row-remove {
+    width: 100% !important;
+    min-height: 30px !important;
+    padding: 5px 6px !important;
+    margin: 2px 0 !important;
+    font-size: 11px !important;
+    border-radius: 6px !important;
+  }
+
+  /* 발주 기록: 품목 카드와 관리 버튼 재정리 */
+  .order-history-table {
+    min-width: 1120px !important;
+    table-layout: fixed !important;
+  }
+
+  .order-history-table th:nth-child(1), .order-history-table td:nth-child(1) { width: 106px !important; }
+  .order-history-table th:nth-child(2), .order-history-table td:nth-child(2) { width: auto !important; }
+  .order-history-table th:nth-child(3), .order-history-table td:nth-child(3) { width: 84px !important; }
+  .order-history-table th:nth-child(4), .order-history-table td:nth-child(4) { width: 104px !important; }
+  .order-history-table th:nth-child(5), .order-history-table td:nth-child(5) { width: 250px !important; }
+
+  .order-history-title {
+    display: inline-block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: #0f172a;
+  }
+
+  .order-history-purpose {
+    display: block;
+    margin-bottom: 8px;
+    color: #64748b;
+  }
+
+  .order-history-items.compact.all-items {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .order-history-items.compact.all-items .order-history-item {
+    display: inline-grid !important;
+    grid-template-columns: minmax(92px, 1fr) auto !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: 156px !important;
+    max-width: 190px !important;
+    padding: 7px 8px !important;
+    border: 1px solid #dbeafe !important;
+    background: #f8fbff !important;
+  }
+
+  .order-history-item .ohi-main b {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .order-history-item .ohi-main small {
+    display: block !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    color: #64748b !important;
+  }
+
+  .order-arrival-btn,
+  .order-arrival-all-btn,
+  .order-history-item .arrived {
+    min-height: 24px !important;
+    padding: 4px 7px !important;
+    border-radius: 4px !important;
+    font-size: 10.5px !important;
+  }
+
+  .order-history-table .ibtns {
+    grid-template-columns: repeat(2, minmax(94px, 1fr)) !important;
+    gap: 6px !important;
+    min-width: 206px !important;
+  }
+
+  .order-history-table .ibtn {
+    min-height: 29px !important;
+    font-size: 11px !important;
+  }
+
+  /* 화면 미리보기 발주서도 너무 작아 보이지 않게 */
+  .order-sheet {
+    width: 560px !important;
+    min-height: 792px !important;
+    padding: 34px 32px !important;
+    font-size: 12.5px !important;
+  }
+
+  .order-doc-title {
+    font-size: 24px !important;
+    margin-bottom: 22px !important;
+  }
+
+  .order-sheet table,
+  .order-sheet th,
+  .order-sheet td {
+    font-size: 12px !important;
+  }
+
+  .order-info-table td,
+  .order-item-preview-table td {
+    padding: 7px 8px !important;
+  }
+
+  @media (max-width: 980px) {
+    #auth-layer {
+      grid-template-columns: minmax(300px, 420px) !important;
+      padding: 24px !important;
+    }
+    .auth-visual { display: none !important; }
+    .records-table { min-width: 1120px !important; }
+  }
+}

@@ -4150,7 +4150,7 @@
       <td><input type="number" class="order-item-qty" min="0" step="any" value="1" /></td>
       <td><input type="number" class="order-item-unit" min="0" step="1" value="0" /></td>
       <td><input type="number" class="order-item-amount" min="0" step="1" value="0" /></td>
-      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i> 재고선택</button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i> 삭제</button></td>
+      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i> 선택</button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i> 삭제</button></td>
     `;
     tr.querySelectorAll("input").forEach((input) =>
       input.addEventListener("input", handleItemInput),
@@ -4305,55 +4305,55 @@
 
   function orderPrintCss() {
     return `
-      @page { size: A4 portrait; margin: 6mm; }
+      @page { size: A4 portrait; margin: 4mm; }
       * { box-sizing: border-box; }
       html, body { margin: 0; padding: 0; background: #fff; }
       body { font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; color: #111827; }
-      .order-print-page { width: 198mm; height: 285mm; overflow: hidden; margin: 0 auto; background:#fff; }
+      .order-print-page { width: 202mm; min-height: 289mm; overflow: hidden; margin: 0 auto; background:#fff; }
       .order-sheet {
-        width: 198mm;
+        width: 202mm;
         min-height: auto;
         margin: 0;
-        padding: 9mm 10mm 7mm;
+        padding: 6mm 7mm 5mm;
         transform-origin: top left;
         background: #fff;
         color: #111827;
         border: 0;
         box-shadow: none;
-        font-size: 10pt;
-        line-height: 1.24;
+        font-size: 11pt;
+        line-height: 1.3;
       }
-      .order-doc-title { text-align: center; font-size: 17pt; font-weight: 800; letter-spacing: 0.34em; margin: 1mm 0 4mm; padding-left: 0.34em; }
-      .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 2.5mm; }
-      .order-approval-table { width: 60mm; border-collapse: collapse; table-layout: fixed; font-size: 9.5pt; }
-      .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1px solid #111827; padding: 1.7mm 1.7mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
-      .order-approval-table .approval-label-col { width: 11mm; }
-      .order-approval-table th { text-align: center; font-weight: 800; line-height: 1.1; }
-      .order-approval-table td { height: 15mm; }
-      .order-info-table, .order-item-preview-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 3mm; }
-      .order-info-label-col { width: 21mm; }
-      .order-info-value-short { width: 30mm; }
-      .order-info-table th { background: #f8fafc; text-align: center; font-weight: 800; letter-spacing: 0.04em; }
-      .order-info-table td { min-height: 8mm; }
-      .order-wrap-cell { white-space: normal; word-break: break-all; line-height: 1.22; }
-      .order-total-cell { font-weight: 800; font-size: 10.5pt; }
-      .order-item-preview-table th { background: #f8fafc; text-align: center; font-weight: 800; }
-      .order-item-preview-table thead span { font-size: 7.6pt; font-weight: 700; }
-      .order-item-preview-table td { height: 6.5mm; }
+      .order-doc-title { text-align: center; font-size: 21pt; font-weight: 900; letter-spacing: 0.38em; margin: 0 0 5mm; padding-left: 0.38em; }
+      .order-approval-wrap { display: flex; justify-content: flex-end; margin-bottom: 3mm; }
+      .order-approval-table { width: 68mm; border-collapse: collapse; table-layout: fixed; font-size: 10.2pt; }
+      .order-approval-table th, .order-approval-table td, .order-info-table th, .order-info-table td, .order-item-preview-table th, .order-item-preview-table td { border: 1.15px solid #111827; padding: 2.2mm 2mm; overflow: visible; text-overflow: clip; white-space: normal; word-break: break-all; }
+      .order-approval-table .approval-label-col { width: 12mm; }
+      .order-approval-table th { text-align: center; font-weight: 900; line-height: 1.1; }
+      .order-approval-table td { height: 17mm; }
+      .order-info-table, .order-item-preview-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 3.4mm; }
+      .order-info-label-col { width: 22mm; }
+      .order-info-value-short { width: 32mm; }
+      .order-info-table th { background: #f8fafc; text-align: center; font-weight: 900; letter-spacing: 0.04em; }
+      .order-info-table td { min-height: 9mm; }
+      .order-wrap-cell { white-space: normal; word-break: break-all; line-height: 1.26; }
+      .order-total-cell { font-weight: 900; font-size: 11.5pt; }
+      .order-item-preview-table th { background: #f8fafc; text-align: center; font-weight: 900; }
+      .order-item-preview-table thead span { font-size: 8.2pt; font-weight: 700; }
+      .order-item-preview-table td { height: 8.2mm; }
       .order-center { text-align: center; }
       .order-right { text-align: right; }
       .order-text-cell { word-break: break-all; white-space: normal; }
       .order-num-cell { white-space: nowrap; word-break: keep-all; }
-      .order-special { min-height: 9mm; border: 1px solid #111827; padding: 1.7mm; margin-bottom: 3.5mm; word-break: break-all; white-space: normal; }
-      .order-closing { text-align: center; margin: 3.5mm 0 3.5mm; font-weight: 600; }
-      .order-date-line { text-align: center; margin-bottom: 3.5mm; font-weight: 700; }
-      .order-company-line { text-align: center; font-size: 12.5pt; font-weight: 900; letter-spacing: 0.18em; line-height: 1.35; padding-left: 0.18em; }
+      .order-special { min-height: 12mm; border: 1.15px solid #111827; padding: 2.2mm; margin-bottom: 4mm; word-break: break-all; white-space: normal; }
+      .order-closing { text-align: center; margin: 4.5mm 0 4mm; font-weight: 700; }
+      .order-date-line { text-align: center; margin-bottom: 4mm; font-weight: 800; }
+      .order-company-line { text-align: center; font-size: 14pt; font-weight: 900; letter-spacing: 0.2em; line-height: 1.35; padding-left: 0.2em; }
       @media print { .order-print-page { margin:0 auto; } .order-sheet { margin: 0; } }
     `;
   }
 
   function printOrder(order) {
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='198mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.992;sheet.style.transform='scale('+sc+')';sheet.style.width=(198/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},220);};window.onbeforeprint=fitOrder;<\/script></body></html>`;
+    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='202mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.996;sheet.style.transform='scale('+sc+')';sheet.style.width=(202/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},220);};window.onbeforeprint=fitOrder;<\/script></body></html>`;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) {
       alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 인쇄해주세요.");
