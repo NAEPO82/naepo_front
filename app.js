@@ -405,10 +405,14 @@
       o = document.getElementById("fl-region").value.trim(),
       l = document.getElementById("fl-sdate").value,
       p = document.getElementById("fl-edate").value,
+      catFilter = document.getElementById("fl-cat") ? document.getElementById("fl-cat").value : "",
+      statusFilter = document.getElementById("fl-status") ? document.getElementById("fl-status").value : "",
       m = t.filter((t) => {
         if (o && t.region !== o) return !1;
         if (l && t.date < l) return !1;
         if (p && t.date > p) return !1;
+        if (catFilter && t.cat !== catFilter) return !1;
+        if (statusFilter && (t.status || "done") !== statusFilter) return !1;
         if (a) {
           const e = (t.company || "").toLowerCase().includes(a),
             n = (t.name || "").toLowerCase().includes(a),
@@ -430,6 +434,7 @@
       part: "part",
       note: "note",
       amount: "amount",
+      status: "status",
     };
     let ms = m;
     if (sortCol) {
@@ -440,6 +445,10 @@
           av = Number(av) || 0;
           bv = Number(bv) || 0;
           return sortDir * (av - bv);
+        }
+        if (sortCol === "status") {
+          const order = { done: 0, pending: 1 };
+          return sortDir * ((order[av] ?? 0) - (order[bv] ?? 0));
         }
         return sortDir * String(av).localeCompare(String(bv), "ko");
       });
@@ -2016,6 +2025,14 @@
     document.getElementById("fl-edate").addEventListener("change", () => {
       ((y = 1), C());
     }),
+    document.getElementById("fl-cat") &&
+      document.getElementById("fl-cat").addEventListener("change", () => {
+        ((y = 1), C());
+      }),
+    document.getElementById("fl-status") &&
+      document.getElementById("fl-status").addEventListener("change", () => {
+        ((y = 1), C());
+      }),
     document.getElementById("chk-all").addEventListener("change", (t) => {
       (document
         .querySelectorAll(".chk-row")
@@ -2030,6 +2047,26 @@
         if (!col) return;
         th.title = "클릭하여 정렬";
         th.addEventListener("click", () => {
+          if (col === "part") {
+            const sel = document.getElementById("fl-cat");
+            if (sel) {
+              const values = ["", "일반", "계통", "자체"];
+              sel.value = values[(values.indexOf(sel.value) + 1) % values.length];
+              y = 1;
+              C();
+              return;
+            }
+          }
+          if (col === "status") {
+            const sel = document.getElementById("fl-status");
+            if (sel) {
+              const values = ["", "done", "pending"];
+              sel.value = values[(values.indexOf(sel.value) + 1) % values.length];
+              y = 1;
+              C();
+              return;
+            }
+          }
           const prevText = th.textContent.replace(/ [▲▼]$/, "");
           if (sortCol === col) {
             sortDir *= -1;
@@ -2996,16 +3033,28 @@
       a = document.getElementById("invlog-filter-part")
         ? document.getElementById("invlog-filter-part").value
         : "",
+      groupFilter = document.getElementById("invlog-filter-group")
+        ? document.getElementById("invlog-filter-group").value
+        : "",
       o = document.getElementById("invlog-filter-type")
         ? document.getElementById("invlog-filter-type").value
         : "",
       s =
         !!document.getElementById("invlog-show-subtotal") &&
         document.getElementById("invlog-show-subtotal").checked;
+    const groupPartNames = new Set();
+    if (groupFilter) {
+      const group = ot.find((g) => g.id === groupFilter);
+      (group && Array.isArray(group.partIds) ? group.partIds : []).forEach((pid) => {
+        const part = nt.find((p) => p.id === pid);
+        if (part && part.name) groupPartNames.add(part.name);
+      });
+    }
     let l = at.filter(
       (t) =>
         !(e && !(t.date || "").startsWith(e)) &&
         (!a || t.partName === a) &&
+        (!groupFilter || groupPartNames.has(t.partName)) &&
         (!o || t.type === o),
     );
     const i = [...new Set(at.map((t) => (t.date || "").slice(0, 7)))]
@@ -3013,7 +3062,8 @@
         .reverse(),
       c = [...new Set(at.map((t) => t.partName))].sort(),
       d = document.getElementById("invlog-filter-month"),
-      r = document.getElementById("invlog-filter-part");
+      r = document.getElementById("invlog-filter-part"),
+      groupSelect = document.getElementById("invlog-filter-group");
     if (d) {
       const t = d.value;
       d.innerHTML =
@@ -3035,6 +3085,12 @@
               `<option value="${n(e)}"${e === t ? " selected" : ""}>${n(e)}</option>`,
           )
           .join("");
+    }
+    if (groupSelect) {
+      const selected = groupSelect.value;
+      groupSelect.innerHTML =
+        '<option value="">전체 그룹</option>' +
+        ot.map((g) => `<option value="${n(g.id)}"${g.id === selected ? " selected" : ""}>${n(g.name)}</option>`).join("");
     }
     const p = document.getElementById("invlog-summary-bar");
     if (l.length > 0) {
@@ -3418,7 +3474,7 @@
           .querySelectorAll(".chk-invlog")
           .forEach((e) => (e.checked = t.target.checked));
       }),
-    ["invlog-filter-month", "invlog-filter-part", "invlog-filter-type"].forEach(
+    ["invlog-filter-month", "invlog-filter-part", "invlog-filter-group", "invlog-filter-type"].forEach(
       (t) => {
         document.getElementById(t).addEventListener("change", () => {
           invLogPage = 1;
@@ -4332,25 +4388,53 @@
     if (openBtn) openBtn.style.display = visible ? "none" : "inline-flex";
   }
 
-  async function loadOrders() {
+  function getFilteredOrders() {
+    const q = String($("order-filter-search") ? $("order-filter-search").value : "").toLowerCase().trim();
+    const start = $("order-filter-start") ? $("order-filter-start").value : "";
+    const end = $("order-filter-end") ? $("order-filter-end").value : "";
+    const arrival = $("order-filter-arrival") ? $("order-filter-arrival").value : "";
+    return orders.filter((order) => {
+      const date = order.orderDate || "";
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      const items = Array.isArray(order.items) ? order.items : [];
+      if (arrival === "pending" && !items.some((item) => !(item.receivedAt || item.inventoryAddedAt))) return false;
+      if (arrival === "done" && items.some((item) => !(item.receivedAt || item.inventoryAddedAt))) return false;
+      if (q) {
+        const text = [
+          order.title,
+          order.purpose,
+          order.author,
+          order.memo,
+          ...items.flatMap((item) => [item.item, item.spec]),
+        ].join(" ").toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderOrderHistory() {
     const body = $("order-history-body");
     if (!body) return;
-    body.innerHTML =
-      '<tr><td colspan="5" class="empty-td">발주서 기록을 불러오는 중입니다.</td></tr>';
-    try {
-      orders = await api("/api/orders");
-      $("order-history-summary").textContent =
-        `저장된 발주서 ${orders.length}건`;
-      if (!orders.length) {
-        body.innerHTML =
-          '<tr><td colspan="5" class="empty-td">저장된 발주서 기록이 없습니다.</td></tr>';
-        return;
-      }
-      body.innerHTML = orders
-        .map(
-          (order) => `
+    const filtered = getFilteredOrders();
+    $("order-history-summary").textContent =
+      `저장된 발주서 ${orders.length}건 · 표시 ${filtered.length}건`;
+    if (!orders.length) {
+      body.innerHTML =
+        '<tr><td colspan="5" class="empty-td">저장된 발주서 기록이 없습니다.</td></tr>';
+      return;
+    }
+    if (!filtered.length) {
+      body.innerHTML =
+        '<tr><td colspan="5" class="empty-td">필터 조건에 맞는 발주서가 없습니다.</td></tr>';
+      return;
+    }
+    body.innerHTML = filtered
+      .map(
+        (order) => `
         <tr>
-          <td>${escapeHtml(order.orderDate)}</td>
+          <td class="order-history-date">${escapeHtml(order.orderDate)}</td>
           <td><strong class="order-history-title">${escapeHtml(order.title)}</strong><br><small class="order-history-purpose">${escapeHtml(order.purpose || "-")}</small><div class="order-history-items compact all-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><span class="ohi-main"><b>${escapeHtml(item.item || "품목")}</b><small>${escapeHtml(item.spec || "")}</small></span><em>${money(item.qty || 0)}개</em>${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
           <td>${escapeHtml(order.author || "-")}</td>
           <td class="tr">${money(order.total || order.paymentAmount)} 원</td>
@@ -4365,9 +4449,19 @@
           </td>
         </tr>
       `,
-        )
-        .join("");
-      bindHistoryButtons();
+      )
+      .join("");
+    bindHistoryButtons();
+  }
+
+  async function loadOrders() {
+    const body = $("order-history-body");
+    if (!body) return;
+    body.innerHTML =
+      '<tr><td colspan="5" class="empty-td">발주서 기록을 불러오는 중입니다.</td></tr>';
+    try {
+      orders = await api("/api/orders");
+      renderOrderHistory();
     } catch (error) {
       body.innerHTML = `<tr><td colspan="5" class="empty-td">${escapeHtml(error.message)}</td></tr>`;
     }
@@ -4459,6 +4553,18 @@
     $("order-preview-close").addEventListener("click", () => setOrderPreviewVisible(false));
     $("order-preview-open").addEventListener("click", () => setOrderPreviewVisible(true));
     $("order-refresh").addEventListener("click", loadOrders);
+    ["order-filter-search", "order-filter-start", "order-filter-end", "order-filter-arrival"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener(id === "order-filter-search" ? "input" : "change", renderOrderHistory);
+    });
+    $("order-filter-reset") && $("order-filter-reset").addEventListener("click", () => {
+      ["order-filter-search", "order-filter-start", "order-filter-end", "order-filter-arrival"].forEach((id) => {
+        const el = $(id);
+        if (el) el.value = "";
+      });
+      renderOrderHistory();
+    });
     $("order-save").addEventListener("click", async () => {
       try {
         const order = readOrder();
