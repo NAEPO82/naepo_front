@@ -4310,3 +4310,17 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
     .records-table { min-width: 1120px !important; }
   }
 }
+
+/* ============================================================
+   Auth overlay visibility fix
+   - The redesigned login screen used display:grid !important.
+   - This restores hidden state after successful login.
+   ============================================================ */
+#auth-layer.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+#main-content.visible {
+  display: block !important;
+}
