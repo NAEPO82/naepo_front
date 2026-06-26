@@ -62,6 +62,7 @@
         <button class="tab" id="tab-list"><i class="fa-solid fa-folder-open"></i> 거래내역 조회 & 미리보기</button>
         <button class="tab" id="tab-inventory"><i class="fa-solid fa-boxes-stacked"></i> 재고관리 & 입출고대장</button>
         <button class="tab" id="tab-customer"><i class="fa-solid fa-address-book"></i> 거래처 & 미수금</button>
+        <button class="tab" id="tab-order"><i class="fa-solid fa-file-pen"></i> 발주서</button>
       </nav>
     </div>
   </header>
@@ -304,6 +305,7 @@
               <button class="tools-item" id="btn-cloud-restore"><i class="fa-solid fa-cloud-arrow-up" style="color:#b45309;width:16px;"></i> 백업 파일 복원</button>
               <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
               <button class="tools-item" id="btn-excel-import"><i class="fa-solid fa-file-import" style="color:#7c3aed;width:16px;"></i> 기존 엑셀 가져오기</button>
+              <button class="tools-item" id="btn-text-import"><i class="fa-solid fa-file-lines" style="color:#0369a1;width:16px;"></i> 텍스트 일괄 가져오기</button>
             </div>
           </div>
 
@@ -323,8 +325,9 @@
               <th data-sort="region" style="cursor:pointer;">지역</th>
               <th data-sort="part" style="cursor:pointer;">분류 파트</th>
               <th data-sort="note" style="cursor:pointer;">대표 품목명 요약</th>
-              <th>상태</th>
+              <th data-sort="status" style="cursor:pointer;">상태</th>
               <th class="tr" data-sort="amount" style="cursor:pointer;">공급가액</th>
+              <th style="text-align:center;font-size:11px;">인쇄</th>
               <th class="tr">세액</th>
               <th>관리 액션</th>
             </tr>
@@ -490,6 +493,132 @@
         </div>
       </div>
     </div>
+
+    <!-- 발주서 탭 -->
+    <div id="page-order" style="display:none">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+          <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-file-pen"></i> 발주 및 구매품의서</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-o btn-sm" id="btn-order-print" style="color:#0284c7;border-color:#bae6fd;"><i class="fa-solid fa-print"></i> 인쇄</button>
+            <button class="btn btn-p btn-sm" id="btn-order-save-log"><i class="fa-solid fa-floppy-disk"></i> 기록 저장</button>
+            <button class="btn btn-o btn-sm" id="btn-order-show-log" style="color:#7c3aed;border-color:#c4b5fd;"><i class="fa-solid fa-clock-rotate-left"></i> 기록 보기</button>
+            <button class="btn btn-o btn-sm" id="btn-order-reset" style="color:#64748b;border-color:#e2e8f0;"><i class="fa-solid fa-rotate-left"></i> 초기화</button>
+          </div>
+        </div>
+
+        <!-- 발주서 본체 -->
+        <div id="order-form-wrap" style="max-width:780px;margin:0 auto;font-family:'맑은 고딕',sans-serif;font-size:13px;">
+
+          <!-- 결재란 -->
+          <table style="width:100%;border-collapse:collapse;margin-bottom:0;">
+            <colgroup><col style="width:60%"/><col style="width:10%"/><col style="width:10%"/><col style="width:10%"/><col style="width:10%"/></colgroup>
+            <tr>
+              <td rowspan="2" style="border:1px solid #555;padding:8px 12px;vertical-align:middle;">
+                <div style="font-size:18px;font-weight:900;letter-spacing:6px;text-align:center;margin-bottom:6px;">발 주 및 구 매 품 의 서</div>
+              </td>
+              <td style="border:1px solid #555;padding:4px;text-align:center;font-weight:700;font-size:11px;">담&nbsp;당</td>
+              <td style="border:1px solid #555;padding:4px;text-align:center;font-weight:700;font-size:11px;">이&nbsp;사</td>
+              <td style="border:1px solid #555;padding:4px;text-align:center;font-weight:700;font-size:11px;">대표이사</td>
+              <td style="border:1px solid #555;padding:4px;text-align:center;font-weight:700;font-size:11px;"></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #555;height:44px;"></td>
+              <td style="border:1px solid #555;height:44px;"></td>
+              <td style="border:1px solid #555;height:44px;"></td>
+              <td style="border:1px solid #555;height:44px;"></td>
+            </tr>
+          </table>
+
+          <!-- 기본 정보 -->
+          <table style="width:100%;border-collapse:collapse;margin-top:-1px;">
+            <colgroup><col style="width:18%"/><col style="width:32%"/><col style="width:18%"/><col style="width:32%"/></colgroup>
+            <tr>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">시 행 일 자</td>
+              <td style="border:1px solid #555;padding:5px 8px;"><input type="date" id="order-date" style="border:none;font-size:12px;width:100%;"/></td>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">작 성 자</td>
+              <td style="border:1px solid #555;padding:5px 8px;"><input type="text" id="order-author" placeholder="담당자명" style="border:none;font-size:12px;width:100%;" maxlength="30"/></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">구 입 목 적</td>
+              <td style="border:1px solid #555;padding:5px 8px;" colspan="3"><input type="text" id="order-purpose" placeholder="구입 목적 입력" style="border:none;font-size:12px;width:100%;" maxlength="100"/></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">공 급 업 체</td>
+              <td style="border:1px solid #555;padding:5px 8px;"><input type="text" id="order-vendor" placeholder="공급업체명" style="border:none;font-size:12px;width:100%;" maxlength="60"/></td>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">연 락 처</td>
+              <td style="border:1px solid #555;padding:5px 8px;"><input type="text" id="order-phone" placeholder="연락처" style="border:none;font-size:12px;width:100%;" maxlength="30"/></td>
+            </tr>
+            <tr>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">결 제 금 액</td>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;font-size:13px;color:#065f46;" id="order-total-display">0 원</td>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;">발 주 회 사</td>
+              <td style="border:1px solid #555;padding:5px 8px;">
+                <div style="display:flex;gap:8px;">
+                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="radio" name="order-company" value="naepo" checked style="accent-color:#065f46;"/> 내포농기계</label>
+                  <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;"><input type="radio" name="order-company" value="donga" style="accent-color:#065f46;"/> 동아아세아농기계</label>
+                </div>
+              </td>
+            </tr>
+          </table>
+
+          <!-- 품목 테이블 -->
+          <table style="width:100%;border-collapse:collapse;margin-top:-1px;">
+            <colgroup><col style="width:4%"/><col style="width:30%"/><col style="width:14%"/><col style="width:9%"/><col style="width:14%"/><col style="width:16%"/><col style="width:13%"/></colgroup>
+            <thead>
+              <tr style="background:#f0fdf4;">
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">No</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">품&nbsp;&nbsp;&nbsp;목</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">규&nbsp;&nbsp;&nbsp;격</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">수량</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">단&nbsp;&nbsp;가</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">금액(부가세포함)</th>
+                <th style="border:1px solid #555;padding:5px 4px;text-align:center;font-size:11px;">비&nbsp;&nbsp;고</th>
+              </tr>
+            </thead>
+            <tbody id="order-items-body">
+              <!-- JS로 10행 생성 -->
+            </tbody>
+            <tfoot>
+              <tr style="background:#f8fafc;">
+                <td colspan="5" style="border:1px solid #555;padding:5px 8px;font-weight:700;text-align:center;">합&nbsp;&nbsp;계</td>
+                <td style="border:1px solid #555;padding:5px 8px;font-weight:700;text-align:right;" id="order-sum-cell">0</td>
+                <td style="border:1px solid #555;"></td>
+              </tr>
+            </tfoot>
+          </table>
+
+          <!-- 특이사항 -->
+          <table style="width:100%;border-collapse:collapse;margin-top:-1px;">
+            <tr>
+              <td style="border:1px solid #555;padding:5px 8px;font-weight:700;background:#f8fafc;width:18%;">특 이 사 항</td>
+              <td style="border:1px solid #555;padding:5px 8px;"><input type="text" id="order-note" placeholder="특이사항 (선택)" style="border:none;font-size:12px;width:100%;" maxlength="200"/></td>
+            </tr>
+          </table>
+
+          <!-- 하단 문구 -->
+          <div style="margin-top:12px;font-size:12px;text-align:center;color:#475569;">
+            상기 금액을 지출하고자 하오니 검토 후 재가하여 주시기 바랍니다.
+          </div>
+          <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 20px;">
+            <div style="font-size:13px;font-weight:700;" id="order-company-name">내 포 농 기 계</div>
+            <div style="font-size:12px;color:#64748b;" id="order-date-display">년 &nbsp; 월 &nbsp; 일</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 기록 목록 -->
+      <div class="card" id="order-log-section" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="card-title" style="margin-bottom:0;"><i class="fa-solid fa-clock-rotate-left"></i> 발주서 기록</div>
+          <button class="btn btn-o btn-sm" id="btn-order-log-close" style="color:#64748b;"><i class="fa-solid fa-xmark"></i> 닫기</button>
+        </div>
+        <div id="order-log-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- 텍스트 임포트 파일 input -->
+    <input type="file" id="text-import-input" accept=".txt,.csv" style="display:none;"/>
 
   </main>
 </div>
