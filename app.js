@@ -407,12 +407,14 @@
       p = document.getElementById("fl-edate").value,
       catFilter = document.getElementById("fl-cat") ? document.getElementById("fl-cat").value : "",
       statusFilter = document.getElementById("fl-status") ? document.getElementById("fl-status").value : "",
+      paymentFilter = document.getElementById("fl-payment") ? document.getElementById("fl-payment").value : "",
       m = t.filter((t) => {
         if (o && t.region !== o) return !1;
         if (l && t.date < l) return !1;
         if (p && t.date > p) return !1;
         if (catFilter && t.cat !== catFilter) return !1;
         if (statusFilter && (t.status || "done") !== statusFilter) return !1;
+        if (paymentFilter && (t.payMethod || "미기재") !== paymentFilter) return !1;
         if (a) {
           const e = (t.company || "").toLowerCase().includes(a),
             n = (t.name || "").toLowerCase().includes(a),
@@ -461,7 +463,7 @@
     if ((b && (b.checked = !1), O(), 0 === g))
       return (
         (u.innerHTML =
-          '<tr><td colspan="10" class="empty-td"><i class="fa-solid fa-folder-open" style="display:block; font-size:32px; margin-bottom:10px; color:#cbd5e1;"></i>조건에 부합하는 거래명세 내역 레코드가 존재하지 않습니다.</td></tr>'),
+          '<tr><td colspan="12" class="empty-td"><i class="fa-solid fa-folder-open" style="display:block; font-size:32px; margin-bottom:10px; color:#cbd5e1;"></i>조건에 부합하는 거래명세 내역 레코드가 존재하지 않습니다.</td></tr>'),
         void (document.getElementById("pagination-root").innerHTML = "")
       );
     const v = Math.ceil(g / h);
@@ -469,7 +471,7 @@
     const E = (y - 1) * h;
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
-      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>\n          <td>\n            <div class="ibtns">\n              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>\n              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>\n              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;" title="인쇄기록"><i class="fa-solid fa-clock-rotate-left"></i> 기록</button>\n              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>\n              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>\n              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n            </div>\n          </td>\n        `),
+      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>\n          <td>\n            <div class="ibtns">\n              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>\n              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>\n              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;" title="인쇄기록"><i class="fa-solid fa-clock-rotate-left"></i> 기록</button>\n              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>\n              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>\n              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n            </div>\n          </td>\n        `),
         u.appendChild(e));
     }),
       (function (t) {
@@ -2033,6 +2035,10 @@
       document.getElementById("fl-status").addEventListener("change", () => {
         ((y = 1), C());
       }),
+    document.getElementById("fl-payment") &&
+      document.getElementById("fl-payment").addEventListener("change", () => {
+        ((y = 1), C());
+      }),
     document.getElementById("chk-all").addEventListener("change", (t) => {
       (document
         .querySelectorAll(".chk-row")
@@ -2795,7 +2801,6 @@
           const id = btn.getAttribute("data-id");
           const rec = t.find((r) => r.id === id);
           if (!rec) return;
-          e = rec;
           document.getElementById("premium-injected-frame").innerHTML = N(rec);
           document.getElementById("live-preview-space").classList.add("show");
           J("list");
@@ -2809,6 +2814,7 @@
             await w(`/api/records/${n}/collect`, { method: "PATCH" });
             const e = t.find((t) => t.id === n);
             (e && (e.collected = !0),
+              C(),
               mt(),
               pt(),
               Q(),

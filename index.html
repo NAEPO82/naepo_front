@@ -722,6 +722,16 @@
                   <option value="pending">미완료</option>
                 </select>
               </div>
+              <div class="field">
+                <label>결제 방식</label>
+                <select id="fl-payment">
+                  <option value="">전체 결제</option>
+                  <option value="현금">현금</option>
+                  <option value="카드">카드</option>
+                  <option value="계좌이체">계좌이체</option>
+                  <option value="외상">외상</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -874,6 +884,7 @@
                     대표 품목명 요약
                   </th>
                   <th data-sort="status" style="cursor: pointer" title="클릭하면 완료/미완료 필터가 바뀝니다">상태</th>
+                  <th>외상 상태</th>
                   <th class="tr" data-sort="amount" style="cursor: pointer">
                     공급가액
                   </th>

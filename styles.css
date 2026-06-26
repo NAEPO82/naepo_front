@@ -2473,3 +2473,9 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 
 /* 입출고대장 자동출고 메모 */
 .invlog-note-main{font-weight:600;color:#475569;}
+
+/* 외상 상태 뱃지 */
+.credit-badge{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-width:88px;padding:5px 8px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap;border:1px solid transparent;line-height:1.15}
+.credit-unpaid{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+.credit-paid{background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+.records-table td .credit-badge i{font-size:10px}
