@@ -1438,7 +1438,7 @@
     document
       .getElementById("auth-submit")
       .addEventListener("click", async () => {
-        const t = document.getElementById("auth-pw").value,
+        const t = document.getElementById("auth-pw").value.trim(),
           e = document.getElementById("auth-err"),
           n = document.getElementById("auth-lock"),
           a = document.getElementById("auth-submit");
@@ -1461,6 +1461,7 @@
                   "로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요."))
               : (e.textContent =
                   (o && o.error) || "비밀번호가 일치하지 않습니다."));
+          if (!o || !o.token) throw new Error("로그인 응답에 토큰이 없습니다.");
           ((s = o.token),
             sessionStorage.setItem(v, s),
             document.getElementById("auth-layer").classList.add("hidden"),
@@ -1473,7 +1474,9 @@
             Q());
         } catch (t) {
           e.textContent =
-            "서버에 연결할 수 없습니다. 인터넷 연결 또는 서버 상태(Render)를 확인해주세요.";
+            t && t.message && t.message !== "Failed to fetch"
+              ? t.message
+              : "서버에 연결할 수 없습니다. 인터넷 연결 또는 서버 상태(Render)를 확인해주세요.";
         } finally {
           ((a.disabled = !1), (a.textContent = o));
         }
