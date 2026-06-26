@@ -241,22 +241,18 @@
       $());
   }
   async function T() {
-    if (!u || !g[u])
-      return (
-        (document.getElementById("e-supplier").textContent =
-          "공급자를 선택해주세요."),
-        void I(
-          "공급자 미선택",
-          "거래명세서를 저장하려면 먼저 공급자(내포농기계 / 동아아세아농기계)를 선택해야 합니다.",
-        )
-      );
+    const supplierPills = document.getElementById("supplier-pills");
+    supplierPills && supplierPills.classList.remove("bad");
+    document.getElementById("e-supplier").textContent = "";
+    document.getElementById("e-date").textContent = "";
+    if (!u || !g[u]) {
+      supplierPills && supplierPills.classList.add("bad");
+      document.getElementById("e-supplier").textContent =
+        "필수항목을 입력하세요.";
+      return void I("저장 실패", "필수항목을 입력하세요.");
+    }
     const e = document.getElementById("f-date");
     let n = !0;
-    e.value
-      ? (document.getElementById("e-date").textContent = "")
-      : ((document.getElementById("e-date").textContent =
-          "작성일자는 필수 항목입니다."),
-        (n = !1));
     const a = document.getElementById("f-isoil");
     a.checked && "일반" === o
       ? ((document.getElementById("e-isoil").textContent =
@@ -265,7 +261,7 @@
       : (document.getElementById("e-isoil").textContent = "");
     const p = document.querySelectorAll(".item-row-card");
     if (0 === p.length)
-      return void I("저장 실패", "명세서에 등록된 품목 내역이 비어 있습니다.");
+      return void I("저장 실패", "필수항목을 입력하세요.");
     let m = [],
       f = 0,
       h = 0,
@@ -297,8 +293,8 @@
       }),
       !b)
     )
-      return void M("필수 품목명 사양 항목이 누락되었습니다.", "err");
-    if (!n) return;
+      return void I("저장 실패", "필수항목을 입력하세요.");
+    if (!n) return void I("저장 실패", "필수항목을 입력하세요.");
     let v = o;
     "일반" === o
       ? (v = `일반 [${s}]`)
@@ -399,6 +395,8 @@
     ((document.getElementById("supplier-bar-text").textContent =
       `공급자 정보: ${e.name} (${e.regNo}) · 대표 ${e.ceo} · ${e.addr}`),
       (document.getElementById("e-supplier").textContent = ""));
+    const supplierPills = document.getElementById("supplier-pills");
+    supplierPills && supplierPills.classList.remove("bad");
   }
   function C() {
     const a = document.getElementById("fl-search").value.toLowerCase().trim(),
@@ -1419,7 +1417,8 @@
       "inventory" === t && (ut(), gt(), lt()),
       "dashboard" === t && Q(),
       "customer" === t && rt(),
-      !1 !== e && history.pushState({ tab: t }, "", "#" + t));
+      !1 !== e && history.pushState({ tab: t }, "", "#" + t),
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" }));
   }
   (window.addEventListener("beforeprint", D),
     window.addEventListener("afterprint", function () {
@@ -2768,62 +2767,97 @@
   function mt() {
     const e = document.getElementById("ar-list");
     if (!e) return;
-    const a = new Map();
-    t.forEach((t) => {
-      if ("외상" !== t.payMethod || t.collected) return;
-      const e = dt(t);
-      a.set(e, (a.get(e) || 0) + (t.amount || 0) + (t.tax || 0));
+    const unpaidMap = new Map();
+    const paidRecords = [];
+    t.forEach((rec) => {
+      if ("외상" !== rec.payMethod) return;
+      if (rec.collected) {
+        paidRecords.push(rec);
+        return;
+      }
+      const key = dt(rec);
+      unpaidMap.set(key, (unpaidMap.get(key) || 0) + (rec.amount || 0) + (rec.tax || 0));
     });
-    const o = [...a.values()].reduce((t, e) => t + e, 0),
+    const unpaidTotal = [...unpaidMap.values()].reduce((sum, value) => sum + value, 0),
       s = document.getElementById("ar-total-badge");
-    s && (s.textContent = `합계 ${o.toLocaleString()}원 · ${a.size}개 거래처`);
+    s && (s.textContent = `합계 ${unpaidTotal.toLocaleString()}원 · ${unpaidMap.size}개 거래처`);
     const l = document.getElementById("dash-ar-total"),
       i = document.getElementById("dash-ar-count");
-    if (
-      (l && (l.textContent = o.toLocaleString() + "원"),
-      i && (i.textContent = a.size + "개 거래처 미수"),
-      0 === a.size)
-    )
-      return void (e.innerHTML =
-        '<div style="text-align:center;color:#94a3b8;padding:16px;font-size:12px;">미수금이 없습니다. 🎉</div>');
-    const c = [...a.entries()].sort((t, e) => e[1] - t[1]);
-    ((e.innerHTML = c
-      .map(([e, a]) => {
-        const o = t
-          .filter((t) => "외상" === t.payMethod && !t.collected && dt(t) === e)
-          .sort((t, e) => (t.date > e.date ? 1 : -1));
-        return `<div style="background:#fff5f5;border:1.5px solid #fecaca;border-radius:12px;padding:14px 16px;">\n          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">\n            <div>\n              <span style="font-size:14px;font-weight:700;color:#991b1b;">${n(e)}</span>\n              <span style="font-size:11px;color:#64748b;margin-left:8px;">${o.length}건</span>\n            </div>\n            <span style="font-size:16px;font-weight:800;color:#dc2626;">미수금 ${a.toLocaleString()}원</span>\n          </div>\n          <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">\n            ${o.map((t) => `\n              <div style="display:flex;justify-content:space-between;align-items:center;background:#fff;border:1px dashed #fca5a5;border-radius:8px;padding:6px 10px;font-size:12px;">\n                <span style="color:#64748b;">${n(t.date)} &nbsp;${n(t.note || "")}</span>\n                <div style="display:flex;align-items:center;gap:8px;">\n                  <span style="font-weight:600;color:#991b1b;">${((t.amount || 0) + (t.tax || 0)).toLocaleString()}원</span>\n                  <button class="ibtn btn-ar-view" data-id="${n(t.id)}" style="color:#0284c7;background:#eff6ff;border:1px solid #bae6fd;"><i class="fa-solid fa-file-lines"></i> 명세표</button>\n                  <button class="ibtn btn-collect" data-id="${n(t.id)}" style="color:#047857;background:#f0fdf4;border:1px solid #a7f3d0;"><i class="fa-solid fa-check"></i> 수금완료</button>\n                </div>\n              </div>`).join("")}\n          </div>\n        </div>`;
-      })
-      .join("")),
+    (l && (l.textContent = unpaidTotal.toLocaleString() + "원"),
+      i && (i.textContent = unpaidMap.size + "개 거래처 미수"));
 
-      document.querySelectorAll(".btn-ar-view").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const id = btn.getAttribute("data-id");
-          const rec = t.find((r) => r.id === id);
-          if (!rec) return;
-          document.getElementById("premium-injected-frame").innerHTML = N(rec);
-          document.getElementById("live-preview-space").classList.add("show");
-          J("list");
-          document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
-        });
-      }),
-      document.querySelectorAll(".btn-collect").forEach((e) => {
-        e.addEventListener("click", async () => {
-          const n = e.getAttribute("data-id");
-          try {
-            await w(`/api/records/${n}/collect`, { method: "PATCH" });
-            const e = t.find((t) => t.id === n);
-            (e && (e.collected = !0),
-              C(),
-              mt(),
-              pt(),
-              Q(),
-              M("수금 완료 처리되었습니다.", "ok"));
-          } catch (t) {
-            I("처리 실패", t.message);
-          }
-        });
-      }));
+    const renderRecordRow = (rec, paid) => `
+      <div class="ar-record-row ${paid ? "ar-paid-row" : "ar-unpaid-row"}">
+        <span class="ar-record-meta">${n(rec.date)} &nbsp;${n(rec.note || "")}</span>
+        <div class="ar-record-actions">
+          <span class="ar-record-amount">${((rec.amount || 0) + (rec.tax || 0)).toLocaleString()}원</span>
+          <button class="ibtn btn-ar-view" data-id="${n(rec.id)}"><i class="fa-solid fa-file-lines"></i> 명세표</button>
+          ${paid ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 수금완료</span>' : `<button class="ibtn btn-collect" data-id="${n(rec.id)}"><i class="fa-solid fa-check"></i> 수금완료</button>`}
+        </div>
+      </div>`;
+
+    const unpaidCards = [...unpaidMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([key, amount]) => {
+        const rows = t
+          .filter((rec) => "외상" === rec.payMethod && !rec.collected && dt(rec) === key)
+          .sort((a, b) => (a.date > b.date ? 1 : -1));
+        return `<section class="ar-card ar-card-unpaid">
+          <div class="ar-card-head">
+            <div>
+              <strong>${n(key)}</strong>
+              <span>${rows.length}건</span>
+            </div>
+            <em>미수금 ${amount.toLocaleString()}원</em>
+          </div>
+          <div class="ar-card-body">${rows.map((rec) => renderRecordRow(rec, false)).join("")}</div>
+        </section>`;
+      })
+      .join("");
+
+    const paidCards = paidRecords
+      .sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""), "ko"))
+      .map((rec) => renderRecordRow(rec, true))
+      .join("");
+
+    e.innerHTML = `
+      <div class="ar-section">
+        <div class="ar-section-title"><i class="fa-solid fa-triangle-exclamation"></i> 미수금</div>
+        ${unpaidMap.size ? unpaidCards : '<div class="ar-empty">미수금이 없습니다. 🎉</div>'}
+      </div>
+      <div class="ar-section ar-section-paid">
+        <div class="ar-section-title"><i class="fa-solid fa-clock-rotate-left"></i> 수금완료 이력 <span>${paidRecords.length}건</span></div>
+        ${paidRecords.length ? `<div class="ar-paid-list">${paidCards}</div>` : '<div class="ar-empty">수금완료 이력이 없습니다.</div>'}
+      </div>`;
+
+    document.querySelectorAll(".btn-ar-view").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-id");
+        const rec = t.find((r) => r.id === id);
+        if (!rec) return;
+        document.getElementById("premium-injected-frame").innerHTML = N(rec);
+        document.getElementById("live-preview-space").classList.add("show");
+        J("list");
+        document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
+      });
+    });
+    document.querySelectorAll(".btn-collect").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-id");
+        try {
+          await w(`/api/records/${id}/collect`, { method: "PATCH" });
+          const rec = t.find((record) => record.id === id);
+          (rec && (rec.collected = !0),
+            C(),
+            mt(),
+            pt(),
+            Q(),
+            M("수금 완료 처리되었습니다. 완료 이력에서 계속 조회할 수 있습니다.", "ok"));
+        } catch (error) {
+          I("처리 실패", error.message);
+        }
+      });
+    });
   }
   async function ut() {
     try {
@@ -4587,6 +4621,7 @@
       page.style.display = page.id === "page-order" ? "block" : "none";
     });
     history.pushState({ tab: "order" }, "", "#order");
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     loadOrders();
     updatePreview();
   }
