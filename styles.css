@@ -4501,3 +4501,109 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
   .records-table{min-width:1580px!important;width:1580px!important;}
   #page-customer .tbl-wrap table{min-width:1040px!important;}
 }
+
+/* ============================================================
+   HARD FIX 2026-06-27: 거래내역조회 출력/관리 컬럼 깨짐 최종 보정
+   - 출력 버튼 5개를 한 칸 안에 세로 정렬
+   - 관리 버튼도 세로 정렬
+   - 출력/관리 컬럼은 우측 sticky 처리하여 화면 오른쪽에서 잘리지 않게 유지
+   ============================================================ */
+#page-list .tbl-wrap{
+  position:relative!important;
+  overflow-x:auto!important;
+  overflow-y:visible!important;
+  max-width:100%!important;
+  padding-bottom:10px!important;
+}
+#page-list .records-table{
+  table-layout:fixed!important;
+  width:1320px!important;
+  min-width:1320px!important;
+  max-width:none!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+#page-list .records-table th,
+#page-list .records-table td{
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  vertical-align:middle!important;
+}
+#page-list .records-table th:nth-child(1), #page-list .records-table td:nth-child(1){width:34px!important;min-width:34px!important;max-width:34px!important;}
+#page-list .records-table th:nth-child(2), #page-list .records-table td:nth-child(2){width:88px!important;min-width:88px!important;max-width:88px!important;}
+#page-list .records-table th:nth-child(3), #page-list .records-table td:nth-child(3){width:66px!important;min-width:66px!important;max-width:66px!important;}
+#page-list .records-table th:nth-child(4), #page-list .records-table td:nth-child(4){width:126px!important;min-width:126px!important;max-width:126px!important;}
+#page-list .records-table th:nth-child(5), #page-list .records-table td:nth-child(5){width:62px!important;min-width:62px!important;max-width:62px!important;}
+#page-list .records-table th:nth-child(6), #page-list .records-table td:nth-child(6){width:102px!important;min-width:102px!important;max-width:102px!important;}
+#page-list .records-table th:nth-child(7), #page-list .records-table td:nth-child(7){width:150px!important;min-width:150px!important;max-width:150px!important;white-space:normal!important;}
+#page-list .records-table th:nth-child(8), #page-list .records-table td:nth-child(8){width:82px!important;min-width:82px!important;max-width:82px!important;}
+#page-list .records-table th:nth-child(9), #page-list .records-table td:nth-child(9){width:94px!important;min-width:94px!important;max-width:94px!important;}
+#page-list .records-table th:nth-child(10), #page-list .records-table td:nth-child(10){width:90px!important;min-width:90px!important;max-width:90px!important;}
+#page-list .records-table th:nth-child(11), #page-list .records-table td:nth-child(11){width:58px!important;min-width:58px!important;max-width:58px!important;}
+#page-list .records-table th:nth-child(12), #page-list .records-table td:nth-child(12){width:112px!important;min-width:112px!important;max-width:112px!important;}
+#page-list .records-table th:nth-child(13), #page-list .records-table td:nth-child(13){width:84px!important;min-width:84px!important;max-width:84px!important;}
+#page-list .records-output-cell,
+#page-list .records-manage-cell{
+  padding:6px!important;
+  overflow:visible!important;
+  background:#fff!important;
+}
+#page-list .ibtns-output,
+#page-list .ibtns-manage{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:5px!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+}
+#page-list .ibtns-output .ibtn,
+#page-list .ibtns-manage .ibtn{
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  height:28px!important;
+  min-height:28px!important;
+  padding:4px 5px!important;
+  border-radius:8px!important;
+  font-size:10.5px!important;
+  line-height:1!important;
+  letter-spacing:-.04em!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:4px!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+}
+#page-list .ibtns-output .btn-excel-direct{
+  grid-column:auto!important;
+}
+@media (min-width: 900px){
+  #page-list .records-table th:nth-child(13),
+  #page-list .records-table td:nth-child(13){
+    position:sticky!important;
+    right:0!important;
+    z-index:5!important;
+    box-shadow:-1px 0 0 #e2e8f0!important;
+    background:#fff!important;
+  }
+  #page-list .records-table th:nth-child(12),
+  #page-list .records-table td:nth-child(12){
+    position:sticky!important;
+    right:84px!important;
+    z-index:5!important;
+    box-shadow:-1px 0 0 #e2e8f0!important;
+    background:#fff!important;
+  }
+  #page-list .records-table thead th:nth-child(12),
+  #page-list .records-table thead th:nth-child(13){
+    z-index:8!important;
+    background:#f1f5f9!important;
+  }
+}
+@media (max-width: 899px){
+  #page-list .records-table{width:1180px!important;min-width:1180px!important;}
+}
