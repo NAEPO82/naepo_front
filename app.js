@@ -323,12 +323,19 @@
           t
             .querySelector(".btn-remove-item-row")
             .addEventListener("click", () => {
-              (t.remove(), A());
+              (t.remove(), renumberItemRows(), A());
             }));
       })(n),
       A());
   }
+  function renumberItemRows() {
+    document.querySelectorAll(".item-row-card").forEach((row, idx) => {
+      const title = row.querySelector(".item-row-title");
+      if (title) title.innerHTML = `<i class="fa-solid fa-list-ol"></i> 품목 연동 슬롯 #${idx + 1}`;
+    });
+  }
   function A() {
+    renumberItemRows();
     const t = document.querySelectorAll(".item-row-card");
     let e = 0;
     t.forEach((t) => {
@@ -586,8 +593,9 @@
     e = record;
     const previewRow = document.createElement("tr");
     previewRow.className = "inline-record-preview-row";
+    const inlineColspan = (document.querySelectorAll(".records-table thead th") || []).length || 13;
     previewRow.innerHTML = `
-      <td colspan="13">
+      <td colspan="${inlineColspan}">
         <div class="inline-record-preview-box">
           <div class="inline-record-preview-head">
             <strong><i class="fa-solid fa-eye"></i> ${n(record.date || "")} ${n(record.company && record.company !== "-" ? record.company : record.name || "")} 명세서 미리보기</strong>
@@ -677,7 +685,7 @@
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
       e.setAttribute("data-record-id", String(t.id || ""));
-      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
+      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#dc2626;border-color:#fecaca;background:#fef2f2;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
           <td class="records-output-cell">
             <div class="ibtns ibtns-output">
               <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>
@@ -1710,6 +1718,7 @@
         eb && (eb.style.display = "none");
       }
     }
+    if (t !== "dashboard") resetDashboardRangeOnLeave();
     const n = {
       dashboard: "page-dashboard",
       form: "page-form",
@@ -1906,6 +1915,7 @@
           (dashCustomEnd = ""),
           document.getElementById("dash-period-week").classList.add("on"),
           document.getElementById("dash-period-month").classList.remove("on"),
+          saveDashboardState(),
           Q());
       }),
     document
@@ -1917,6 +1927,7 @@
           (dashCustomEnd = ""),
           document.getElementById("dash-period-month").classList.add("on"),
           document.getElementById("dash-period-week").classList.remove("on"),
+          saveDashboardState(),
           Q());
       }),
     document
@@ -1927,6 +1938,7 @@
         } else {
           W--;
         }
+        saveDashboardState();
         Q();
       }),
     document
@@ -1937,6 +1949,7 @@
         } else {
           W++;
         }
+        saveDashboardState();
         Q();
       }),
 
@@ -1953,6 +1966,7 @@
         W = 0;
         document.getElementById("dash-period-week").classList.remove("on");
         document.getElementById("dash-period-month").classList.remove("on");
+        saveDashboardState();
         Q();
       }),
     document
@@ -1966,6 +1980,7 @@
         document.getElementById("dash-custom-end").value = "";
         document.getElementById("dash-period-week").classList.add("on");
         document.getElementById("dash-period-month").classList.remove("on");
+        saveDashboardState();
         Q();
       }),
     document
@@ -1999,6 +2014,38 @@
     Z = "bar",
     dashCustomStart = "",
     dashCustomEnd = "";
+  function saveDashboardState() {
+    // 대시보드 임의 날짜는 현재 화면에서만 유지합니다.
+    // 다른 페이지로 이동했다가 돌아오면 초기화되도록 sessionStorage에 저장하지 않습니다.
+    try {
+      sessionStorage.removeItem("dashMode");
+      sessionStorage.removeItem("dashOffset");
+      sessionStorage.removeItem("dashCustomStart");
+      sessionStorage.removeItem("dashCustomEnd");
+    } catch (_) {}
+  }
+  function resetDashboardRangeOnLeave() {
+    Y = "week";
+    W = 0;
+    dashCustomStart = "";
+    dashCustomEnd = "";
+    const si = document.getElementById("dash-custom-start");
+    const ei = document.getElementById("dash-custom-end");
+    si && (si.value = "");
+    ei && (ei.value = "");
+    const ws = document.getElementById("dash-period-week");
+    const mo = document.getElementById("dash-period-month");
+    ws && ws.classList.add("on");
+    mo && mo.classList.remove("on");
+  }
+  function applyDashboardControls() {
+    const ws = document.getElementById("dash-period-week"), mo = document.getElementById("dash-period-month");
+    ws && ws.classList.toggle("on", Y === "week");
+    mo && mo.classList.toggle("on", Y === "month");
+    const si = document.getElementById("dash-custom-start"), ei = document.getElementById("dash-custom-end");
+    si && (si.value = dashCustomStart || "");
+    ei && (ei.value = dashCustomEnd || "");
+  }
   function G(t) {
     return (
       t.getFullYear() +
@@ -2022,10 +2069,12 @@
     const ei = document.getElementById("dash-custom-end");
     si && (si.value = dashCustomStart);
     ei && (ei.value = dashCustomEnd);
+    saveDashboardState();
   }
 
   let V = new Set();
   function Q() {
+    applyDashboardControls();
     const e = (function (t, e) {
       const n = new Date();
       if ("custom" === t && dashCustomStart && dashCustomEnd) {
@@ -2358,17 +2407,27 @@
       U(n);
     }),
     document.getElementById("btn-list-print").addEventListener("click", () => {
-      const e = Array.from(document.querySelectorAll(".chk-row:checked")).map(
+      const e = [...new Set(Array.from(document.querySelectorAll(".chk-row:checked")).map(
         (t) => t.getAttribute("data-id"),
-      );
+      ).filter(Boolean))];
       if (0 === e.length)
         return void I("선택 없음", "인쇄할 항목을 먼저 선택해주세요.");
-      const n = e.map((e) => t.find((t) => t.id === e)).filter(Boolean);
+      const n = e.map((id) => t.find((row) => String(row.id) === String(id))).filter(Boolean);
       if (0 === n.length) return;
-      const o = n
-        .map((record, idx) => `<div class="lp-page${idx === n.length - 1 ? " lp-last" : ""}">${N(record)}</div>`)
-        .join("");
-      ((document.getElementById("print-target-area").innerHTML = o),
+      const pages = [];
+      for (let i = 0; i < n.length; i += 2) {
+        const pair = n.slice(i, i + 2);
+        pages.push(
+          `<div class="lp-page${i + 2 >= n.length ? " lp-last" : ""}">` +
+            pair
+              .map((record) => `<div class="lp-slot">${N(record, "supplier")}</div>`)
+              .join('<div class="lp-sep"><span>✂ 절취선 ✂</span></div>') +
+          `</div>`
+        );
+      }
+      const o = pages.join("");
+      ((document.getElementById("print-target-area").classList.remove("pf-active")),
+        (document.getElementById("print-target-area").innerHTML = o),
         document.body.classList.add("print-record-mode"),
         document.getElementById("print-overlay").classList.add("show"),
         setTimeout(async () => {
