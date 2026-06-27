@@ -87,7 +87,9 @@
 
   let adminPasswordCache = "";
   function getAdminPassword() {
-    return adminPasswordCache || (document.getElementById("admin-pw") ? document.getElementById("admin-pw").value.trim() : "");
+    const input = document.getElementById("admin-pw");
+    const inputValue = input ? input.value.trim() : "";
+    return inputValue || adminPasswordCache;
   }
   async function downloadWithAuth(path, fallbackName, extraHeaders) {
     const headers = Object.assign({}, extraHeaders || {});
@@ -122,6 +124,87 @@
       headers: Object.assign({}, (options && options.headers) || {}, { "X-Admin-Password": adminPassword }),
     }));
   }
+
+  function splitSqlValues(valueText) {
+    const out = [];
+    let cur = "";
+    let inQuote = false;
+    for (let i = 0; i < valueText.length; i++) {
+      const ch = valueText[i];
+      if (ch === "'") {
+        if (inQuote && valueText[i + 1] === "'") {
+          cur += "''";
+          i++;
+          continue;
+        }
+        inQuote = !inQuote;
+        cur += ch;
+        continue;
+      }
+      if (ch === "," && !inQuote) {
+        out.push(cur.trim());
+        cur = "";
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.trim() || valueText.endsWith(",")) out.push(cur.trim());
+    return out;
+  }
+  function parseSqlLiteral(token) {
+    let v = String(token == null ? "" : token).trim();
+    v = v.replace(/::jsonb\s*$/i, "").trim();
+    if (/^null$/i.test(v)) return null;
+    if (/^(true|false)$/i.test(v)) return /^true$/i.test(v);
+    if (/^-?\d+(\.\d+)?$/.test(v)) return Number(v);
+    if (v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1).replace(/''/g, "'");
+    return v;
+  }
+  function parseNaepoSqlBackup(sqlText) {
+    const tableMap = {
+      naepo_records: "records",
+      naepo_customers: "customers",
+      naepo_part_groups: "groups",
+      naepo_parts: "parts",
+      naepo_inventory_log: "inventoryLog",
+      naepo_print_log: "printLog",
+      naepo_orders: "orderLog",
+    };
+    const parsed = { records: [], customers: [], groups: [], parts: [], inventoryLog: [], printLog: [], orderLog: [] };
+    const lines = String(sqlText || "").split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^\s*INSERT\s+INTO\s+(naepo_[a-z_]+)\s*\(([^)]*)\)\s*VALUES\s*\((.*)\)\s*;\s*$/i);
+      if (!m) continue;
+      const key = tableMap[m[1]];
+      if (!key) continue;
+      const cols = m[2].split(",").map((x) => x.trim().replace(/"/g, ""));
+      const values = splitSqlValues(m[3]);
+      const dataIdx = cols.indexOf("data");
+      if (dataIdx < 0 || dataIdx >= values.length) continue;
+      try {
+        const jsonText = parseSqlLiteral(values[dataIdx]);
+        const row = JSON.parse(jsonText || "{}");
+        if (row && typeof row === "object") parsed[key].push(row);
+      } catch (_) {}
+    }
+    if (!parsed.records.length && !parsed.parts.length && !parsed.customers.length && !parsed.orderLog.length) {
+      throw new Error("복원 가능한 내포농기계 SQL 백업 데이터를 찾지 못했습니다.");
+    }
+    return parsed;
+  }
+  function scrollToRequiredField(target) {
+    if (!target) return;
+    const el = target instanceof Element ? target : document.getElementById(String(target));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (typeof el.focus === "function") {
+      setTimeout(() => el.focus({ preventScroll: true }), 250);
+    }
+  }
+  function showRequiredMissing(label, target) {
+    I("저장 실패", `${label}을(를) 입력해주세요.`, () => scrollToRequiredField(target));
+  }
+
   async function logClientAction(action, detail, extra) {
     try {
       await w("/api/action-log", {
@@ -305,8 +388,8 @@
     if (!u || !g[u]) {
       supplierPills && supplierPills.classList.add("bad");
       document.getElementById("e-supplier").textContent =
-        "필수항목을 입력하세요.";
-      return void I("저장 실패", "필수항목을 입력하세요.");
+        "공급자 선택이 필요합니다.";
+      return void showRequiredMissing("공급자", supplierPills || "supplier-pills");
     }
     const e = document.getElementById("f-date");
     let n = !0;
@@ -317,8 +400,11 @@
         (n = !1))
       : (document.getElementById("e-isoil").textContent = "");
     const p = document.querySelectorAll(".item-row-card");
-    if (0 === p.length)
-      return void I("저장 실패", "필수항목을 입력하세요.");
+    if (0 === p.length) {
+      $();
+      const firstItem = document.querySelector(".item-row-card .p-item");
+      return void showRequiredMissing("명세 품목명", firstItem);
+    }
     let m = [],
       f = 0,
       h = 0,
@@ -350,8 +436,8 @@
       }),
       !b)
     )
-      return void I("저장 실패", "필수항목을 입력하세요.");
-    if (!n) return void I("저장 실패", "필수항목을 입력하세요.");
+      return void showRequiredMissing("명세 품목명", document.querySelector(".item-row-card .p-item.bad"));
+    if (!n) return void I("저장 실패", "급유기 분할 옵션을 확인해주세요.", () => scrollToRequiredField("f-isoil"));
     let v = o;
     "일반" === o
       ? (v = `일반 [${s}]`)
@@ -472,6 +558,53 @@
     return null;
   }
 
+
+  function clearInlineRecordPreview() {
+    document
+      .querySelectorAll(".inline-record-preview-row")
+      .forEach((row) => row.remove());
+  }
+  function showInlineRecordPreview(record, triggerEl) {
+    if (!record) return;
+    const anchorRow = triggerEl && triggerEl.closest ? triggerEl.closest("tr") : null;
+    if (!anchorRow || !anchorRow.parentNode) {
+      (e = record),
+        (document.getElementById("premium-injected-frame").innerHTML = N(record)),
+        document.getElementById("live-preview-space").classList.add("show");
+      return;
+    }
+    const openedId = anchorRow.getAttribute("data-inline-preview-open");
+    clearInlineRecordPreview();
+    if (openedId === String(record.id || "")) {
+      anchorRow.removeAttribute("data-inline-preview-open");
+      return;
+    }
+    document
+      .querySelectorAll("#list-body tr[data-inline-preview-open]")
+      .forEach((row) => row.removeAttribute("data-inline-preview-open"));
+    anchorRow.setAttribute("data-inline-preview-open", String(record.id || ""));
+    e = record;
+    const previewRow = document.createElement("tr");
+    previewRow.className = "inline-record-preview-row";
+    previewRow.innerHTML = `
+      <td colspan="13">
+        <div class="inline-record-preview-box">
+          <div class="inline-record-preview-head">
+            <strong><i class="fa-solid fa-eye"></i> ${n(record.date || "")} ${n(record.company && record.company !== "-" ? record.company : record.name || "")} 명세서 미리보기</strong>
+            <button type="button" class="ibtn inline-record-preview-close"><i class="fa-solid fa-xmark"></i> 닫기</button>
+          </div>
+          <div class="inline-record-preview-frame">${N(record)}</div>
+        </div>
+      </td>`;
+    anchorRow.insertAdjacentElement("afterend", previewRow);
+    const closeBtn = previewRow.querySelector(".inline-record-preview-close");
+    closeBtn && closeBtn.addEventListener("click", () => {
+      anchorRow.removeAttribute("data-inline-preview-open");
+      previewRow.remove();
+    });
+    previewRow.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function C() {
     const a = document.getElementById("fl-search").value.toLowerCase().trim(),
       o = document.getElementById("fl-region").value.trim(),
@@ -543,6 +676,7 @@
     const E = (y - 1) * h;
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
+      e.setAttribute("data-record-id", String(t.id || ""));
       ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
           <td class="records-output-cell">
             <div class="ibtns ibtns-output">
@@ -653,13 +787,7 @@
         try {
           const o = await getRecordForAction(a);
           o && await logClientAction("거래내역 보기", (o.date || "") + " " + (o.note || o.part || o.name || ""), { recordId: o.id });
-          o &&
-            ((e = o),
-            (document.getElementById("premium-injected-frame").innerHTML = N(o)),
-            document.getElementById("live-preview-space").classList.add("show"),
-            document
-              .getElementById("live-preview-space")
-              .scrollIntoView({ behavior: "smooth" }));
+          o && showInlineRecordPreview(o, n);
         } catch (err) {
           I("보기 실패", err.message || "거래내역을 불러오지 못했습니다.");
         }
@@ -1676,6 +1804,71 @@
         }
         var s;
       }),
+    (function () {
+      const link = document.getElementById("password-request-link"),
+        modal = document.getElementById("password-request-modal"),
+        closeBtn = document.getElementById("password-request-close"),
+        nameInput = document.getElementById("password-request-name"),
+        phoneInput = document.getElementById("password-request-phone"),
+        submitBtn = document.getElementById("password-request-submit"),
+        errBox = document.getElementById("password-request-err");
+      if (!link || !modal || !nameInput || !phoneInput || !submitBtn) return;
+      const openModal = () => {
+        errBox && (errBox.textContent = "");
+        nameInput.value = "";
+        phoneInput.value = "";
+        modal.classList.add("show");
+        modal.setAttribute("aria-hidden", "false");
+        setTimeout(() => nameInput.focus(), 40);
+      };
+      const closeModal = () => {
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+      };
+      const submitRequest = async () => {
+        const name = nameInput.value.trim(), phone = phoneInput.value.trim();
+        if (!name) {
+          errBox && (errBox.textContent = "이름을 입력해주세요.");
+          nameInput.focus();
+          return;
+        }
+        if (!phone) {
+          errBox && (errBox.textContent = "전화번호를 입력해주세요.");
+          phoneInput.focus();
+          return;
+        }
+        const original = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = "전송 중...";
+        errBox && (errBox.textContent = "");
+        try {
+          const res = await fetch(b + "/api/password-issue-request", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, phone }),
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) throw new Error((data && data.error) || "요청 전송에 실패했습니다.");
+          closeModal();
+          I("비밀번호 발급 요청", "요청이 접수되었습니다. 관리자가 확인 후 안내합니다.");
+        } catch (error) {
+          errBox && (errBox.textContent = error && error.message ? error.message : "서버에 연결할 수 없습니다.");
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = original;
+        }
+      };
+      link.addEventListener("click", (ev) => { ev.preventDefault(); openModal(); });
+      closeBtn && closeBtn.addEventListener("click", closeModal);
+      modal.addEventListener("click", (ev) => { if (ev.target === modal) closeModal(); });
+      [nameInput, phoneInput].forEach((input) => {
+        input.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") { ev.preventDefault(); submitRequest(); }
+          if (ev.key === "Escape") { ev.preventDefault(); closeModal(); }
+        });
+      });
+      submitBtn.addEventListener("click", submitRequest);
+    })(),
     window.addEventListener("popstate", (t) => {
       J((t.state && t.state.tab) || "dashboard", !1);
     }),
@@ -1709,6 +1902,8 @@
       .addEventListener("click", () => {
         ((Y = "week"),
           (W = 0),
+          (dashCustomStart = ""),
+          (dashCustomEnd = ""),
           document.getElementById("dash-period-week").classList.add("on"),
           document.getElementById("dash-period-month").classList.remove("on"),
           Q());
@@ -1718,6 +1913,8 @@
       .addEventListener("click", () => {
         ((Y = "month"),
           (W = 0),
+          (dashCustomStart = ""),
+          (dashCustomEnd = ""),
           document.getElementById("dash-period-month").classList.add("on"),
           document.getElementById("dash-period-week").classList.remove("on"),
           Q());
@@ -1725,12 +1922,51 @@
     document
       .getElementById("dash-period-prev")
       .addEventListener("click", () => {
-        (W--, Q());
+        if (Y === "custom" && dashCustomStart && dashCustomEnd) {
+          shiftDashboardCustomRange(-1);
+        } else {
+          W--;
+        }
+        Q();
       }),
     document
       .getElementById("dash-period-next")
       .addEventListener("click", () => {
-        (W++, Q());
+        if (Y === "custom" && dashCustomStart && dashCustomEnd) {
+          shiftDashboardCustomRange(1);
+        } else {
+          W++;
+        }
+        Q();
+      }),
+
+    document
+      .getElementById("dash-custom-apply")
+      .addEventListener("click", () => {
+        const s = document.getElementById("dash-custom-start").value;
+        const e = document.getElementById("dash-custom-end").value;
+        if (!s || !e) return I("날짜 선택 필요", "대시보드에 적용할 시작일과 종료일을 모두 선택해주세요.");
+        if (s > e) return I("날짜 확인", "시작일은 종료일보다 늦을 수 없습니다.");
+        dashCustomStart = s;
+        dashCustomEnd = e;
+        Y = "custom";
+        W = 0;
+        document.getElementById("dash-period-week").classList.remove("on");
+        document.getElementById("dash-period-month").classList.remove("on");
+        Q();
+      }),
+    document
+      .getElementById("dash-custom-clear")
+      .addEventListener("click", () => {
+        dashCustomStart = "";
+        dashCustomEnd = "";
+        Y = "week";
+        W = 0;
+        document.getElementById("dash-custom-start").value = "";
+        document.getElementById("dash-custom-end").value = "";
+        document.getElementById("dash-period-week").classList.add("on");
+        document.getElementById("dash-period-month").classList.remove("on");
+        Q();
       }),
     document
       .getElementById("dash-exclude-channel")
@@ -1760,7 +1996,9 @@
   let Y = "week",
     W = 0,
     K = null,
-    Z = "bar";
+    Z = "bar",
+    dashCustomStart = "",
+    dashCustomEnd = "";
   function G(t) {
     return (
       t.getFullYear() +
@@ -1770,10 +2008,29 @@
       String(t.getDate()).padStart(2, "0")
     );
   }
+
+  function shiftDashboardCustomRange(direction) {
+    const s = new Date(dashCustomStart + "T00:00:00");
+    const e = new Date(dashCustomEnd + "T00:00:00");
+    if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return;
+    const days = Math.max(1, Math.round((e - s) / 86400000) + 1);
+    s.setDate(s.getDate() + direction * days);
+    e.setDate(e.getDate() + direction * days);
+    dashCustomStart = G(s);
+    dashCustomEnd = G(e);
+    const si = document.getElementById("dash-custom-start");
+    const ei = document.getElementById("dash-custom-end");
+    si && (si.value = dashCustomStart);
+    ei && (ei.value = dashCustomEnd);
+  }
+
   let V = new Set();
   function Q() {
     const e = (function (t, e) {
       const n = new Date();
+      if ("custom" === t && dashCustomStart && dashCustomEnd) {
+        return { start: dashCustomStart, end: dashCustomEnd, label: `${dashCustomStart} ~ ${dashCustomEnd}` };
+      }
       if ("week" === t) {
         const t = n.getDay(),
           a = 0 === t ? -6 : 1 - t,
@@ -1805,11 +2062,11 @@
     })(Y, W);
     ((document.getElementById("dash-period-label").textContent = e.label),
       (document.getElementById("dash-amount-label").textContent =
-        ("week" === Y ? "이번주" : "이번달") +
+        ("custom" === Y ? "선택기간" : "week" === Y ? "이번주" : "이번달") +
         " 총 거래금액" +
         (p ? " (계통제외)" : "")),
       (document.getElementById("dash-count-label").textContent =
-        ("week" === Y ? "이번주" : "이번달") +
+        ("custom" === Y ? "선택기간" : "week" === Y ? "이번주" : "이번달") +
         " 거래건수" +
         (p ? " (계통제외)" : "")));
     const a = p ? t.filter((t) => "계통" !== t.cat) : t,
@@ -2146,15 +2403,21 @@
     }),
     document.getElementById("btn-admin-login") && document.getElementById("btn-admin-login").addEventListener("click", async () => {
       const err = document.getElementById("admin-err");
+      const pwInput = document.getElementById("admin-pw");
+      const candidate = pwInput ? pwInput.value.trim() : "";
       try {
-        adminPasswordCache = getAdminPassword();
-        await adminJson("/api/admin/status");
+        adminPasswordCache = "";
+        if (!candidate) throw new Error("관리자 비밀번호를 입력해주세요.");
+        await w("/api/admin/status", { headers: { "X-Admin-Password": candidate } });
+        adminPasswordCache = candidate;
         err.textContent = "";
         document.getElementById("admin-login-box").style.display = "none";
         document.getElementById("admin-panel").style.display = "block";
         await loadAdminActionLog();
       } catch (error) {
+        adminPasswordCache = "";
         err.textContent = error.message || "관리자 인증 실패";
+        pwInput && pwInput.focus();
       }
     }),
     document.getElementById("admin-btn-csv-backup") && document.getElementById("admin-btn-csv-backup").addEventListener("click", async () => {
@@ -2177,10 +2440,20 @@
       ev.target.value = "";
       if (!file) return;
       let data;
-      try { data = JSON.parse(await file.text()); } catch (_) { return I("파일 오류", "JSON 백업 파일만 복원할 수 있습니다."); }
+      try {
+        const text = await file.text();
+        if (/\.sql$/i.test(file.name) || /^\s*--.*PostgreSQL|INSERT\s+INTO\s+naepo_/is.test(text)) {
+          data = parseNaepoSqlBackup(text);
+        } else {
+          data = JSON.parse(text);
+        }
+      } catch (error) {
+        return I("파일 오류", error.message || "JSON 또는 SQL 백업 파일만 복원할 수 있습니다.");
+      }
       const records = data.records || data;
-      if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 파일이 필요합니다.");
-      S("백업파일 복원", `${records.length}건의 거래내역을 병합 복원합니다. 계속할까요?`, async () => {
+      if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 또는 내포농기계 SQL 백업 파일이 필요합니다.");
+      const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0);
+      S("백업파일 복원", `${file.name}에서 ${totalCount}건의 데이터를 병합 복원합니다. 계속할까요?`, async () => {
         try {
           const result = await w("/api/restore", {
             method: "POST",
@@ -2198,7 +2471,7 @@
           });
           await k();
           C();
-          I("복원 완료", `${result.restored}건을 병합했습니다. 전체 ${result.total}건입니다.`);
+          I("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 전체 거래내역 ${result.total}건입니다.`);
         } catch (error) { I("복원 실패", error.message); }
       }, () => {});
     }),
@@ -2214,6 +2487,34 @@
     }),
     document.getElementById("admin-btn-log-json") && document.getElementById("admin-btn-log-json").addEventListener("click", async () => {
       try { await downloadWithAuth("/api/admin/action-log/download.json", "naepo-action-log.json", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
+    }),
+    document.addEventListener("keydown", (ev) => {
+      const pretty = document.getElementById("pretty-modal-container");
+      if (pretty && pretty.classList.contains("show")) {
+        if (ev.key === "Enter") {
+          ev.preventDefault();
+          const ok = pretty.querySelector(".pm-btn-ok");
+          ok && ok.click();
+        } else if (ev.key === "Escape") {
+          ev.preventDefault();
+          const cancel = pretty.querySelector(".pm-btn-cancel");
+          (cancel || pretty.querySelector(".pm-btn-ok"))?.click();
+        }
+        return;
+      }
+      const adminOverlay = document.getElementById("admin-overlay");
+      if (adminOverlay && adminOverlay.classList.contains("show")) {
+        if (ev.key === "Escape") {
+          ev.preventDefault();
+          document.getElementById("btn-admin-close")?.click();
+          return;
+        }
+        if (ev.key === "Enter" && document.getElementById("admin-login-box")?.style.display !== "none") {
+          ev.preventDefault();
+          document.getElementById("btn-admin-login")?.click();
+          return;
+        }
+      }
     }),
     
     document
@@ -3769,10 +4070,7 @@
             return;
           }
           if (viewBtn) {
-            e = rec;
-            document.getElementById("premium-injected-frame").innerHTML = N(rec);
-            document.getElementById("live-preview-space").classList.add("show");
-            document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
+            showInlineRecordPreview(rec, viewBtn);
           } else {
             X(rec);
           }

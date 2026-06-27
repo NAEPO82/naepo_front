@@ -69,8 +69,31 @@
           />
         </div>
         <button class="auth-btn" id="auth-submit">시스템 접속하기</button>
+        <div class="auth-request-row">
+          <a href="#" id="password-request-link" class="auth-request-link">발급받기</a>
+        </div>
         <div class="auth-err" id="auth-err"></div>
         <div class="auth-lock" id="auth-lock"></div>
+      </div>
+      <div id="password-request-modal" class="password-request-modal" aria-hidden="true">
+        <div class="password-request-box" role="dialog" aria-modal="true" aria-labelledby="password-request-title">
+          <button type="button" class="password-request-close" id="password-request-close" aria-label="닫기">&times;</button>
+          <div class="auth-logo" style="margin-bottom:18px">
+            <i class="fa-solid fa-id-card"></i>
+            <h2 id="password-request-title">비밀번호 발급 요청</h2>
+            <p>이름과 전화번호를 입력하면 관리자 백업 이메일로 요청이 전송됩니다.</p>
+          </div>
+          <div class="auth-field">
+            <label for="password-request-name">이름</label>
+            <input type="text" id="password-request-name" placeholder="이름 입력" maxlength="40" autocomplete="name" />
+          </div>
+          <div class="auth-field">
+            <label for="password-request-phone">전화번호</label>
+            <input type="tel" id="password-request-phone" placeholder="예: 010-0000-0000" maxlength="30" autocomplete="tel" />
+          </div>
+          <div class="auth-err" id="password-request-err" style="margin-top:-4px;margin-bottom:12px"></div>
+          <button type="button" class="auth-btn" id="password-request-submit">확인</button>
+        </div>
       </div>
     </div>
 
@@ -135,6 +158,13 @@
               <button class="dash-nav-btn" id="dash-period-next">
                 <i class="fa-solid fa-chevron-right"></i>
               </button>
+            </div>
+            <div class="dash-custom-range" aria-label="대시보드 날짜 직접 설정">
+              <input type="date" id="dash-custom-start" title="시작일" />
+              <span>~</span>
+              <input type="date" id="dash-custom-end" title="종료일" />
+              <button type="button" class="dash-range-btn" id="dash-custom-apply">적용</button>
+              <button type="button" class="dash-range-btn ghost" id="dash-custom-clear">오늘 기준</button>
             </div>
             <label
               style="
@@ -1642,10 +1672,10 @@
             <div class="admin-tool-grid">
               <button class="admin-tool-btn" id="admin-btn-csv-backup"><i class="fa-solid fa-file-csv"></i><span>CSV 백업</span><small>CSV 묶음 ZIP 다운로드</small></button>
               <button class="admin-tool-btn" id="admin-btn-full-backup"><i class="fa-solid fa-box-archive"></i><span>전체백업 다운로드</span><small>JSON + SQL + CSV ZIP 묶음</small></button>
-              <button class="admin-tool-btn" id="admin-btn-restore"><i class="fa-solid fa-cloud-arrow-up"></i><span>백업파일 복원</span><small>JSON 백업 병합 복원</small></button>
+              <button class="admin-tool-btn" id="admin-btn-restore"><i class="fa-solid fa-cloud-arrow-up"></i><span>백업파일 복원</span><small>JSON / SQL 백업 병합 복원</small></button>
               <button class="admin-tool-btn" id="admin-btn-email-backup"><i class="fa-solid fa-envelope-circle-check"></i><span>수동 이메일 백업</span><small>백업 메일 즉시 전송</small></button>
             </div>
-            <input type="file" id="admin-restore-file-input" accept="application/json" style="display:none" />
+            <input type="file" id="admin-restore-file-input" accept=".json,.sql,application/json,text/plain,application/sql" style="display:none" />
           </div>
 
           <div class="admin-section">
