@@ -5258,7 +5258,12 @@
   }
 
   function safeText(v) {
-    return n(String(v == null ? "" : v));
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function openEasyImport(mode, payload) {
@@ -5475,8 +5480,40 @@
       const chk = row.querySelector(".chk-row");
       if (!chk) return;
       chk.checked = !chk.checked;
-      O();
+      chk.dispatchEvent(new Event("change", { bubbles: true }));
     });
+  });
+
+
+  // ===== inventory/log row blank-area checkbox toggle v13 =====
+  window.addEventListener("DOMContentLoaded", () => {
+    const bindRowToggle = (containerSelector, checkboxSelector, skipSelector) => {
+      document.querySelectorAll(containerSelector).forEach((container) => {
+        if (container.dataset.rowToggleBound === "1") return;
+        container.dataset.rowToggleBound = "1";
+        container.addEventListener("click", (ev) => {
+          if (ev.target.closest(skipSelector)) return;
+          const row = ev.target.closest("tr");
+          if (!row || !container.contains(row)) return;
+          const chk = row.querySelector(checkboxSelector);
+          if (!chk) return;
+          chk.checked = !chk.checked;
+          chk.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      });
+    };
+
+    bindRowToggle(
+      "#parts-body, #inventory-body, #part-list-body, #stock-body",
+      'input[type="checkbox"], .chk-part, .chk-parts, .chk-stock, .part-check',
+      "button,a,input,label,select,textarea"
+    );
+
+    bindRowToggle(
+      "#invlog-body, #inventory-log-body, #inout-body, #stock-log-body",
+      'input[type="checkbox"], .chk-invlog, .chk-log, .invlog-check',
+      "button,a,input,label,select,textarea"
+    );
   });
 
 })();
