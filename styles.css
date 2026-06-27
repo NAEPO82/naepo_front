@@ -4650,3 +4650,7 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 .order-part-group-title span{margin-left:auto;color:#64748b;font-size:11px;font-weight:800;}
 .order-part-group-body{padding:8px 10px 10px;display:block;}
 .order-part-group.is-collapsed .order-part-group-body{display:none!important;}
+
+/* 관리자 화면 위로 완료/오류 알림 모달이 항상 표시되도록 보정 */
+#pretty-modal-container.show{z-index:20000!important;}
+#pretty-modal-container.show .pretty-modal-box{position:relative;z-index:20001!important;}
