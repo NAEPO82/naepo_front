@@ -9939,3 +9939,136 @@ tr:hover td{background:#F8FAFC !important;}
     display: none !important;
   }
 }
+
+
+/* ===== invoice-print-selective-v16-20260628 =====
+   요청 반영:
+   - 단일인쇄 / 공급자만 / 공급받는자만: 사용자가 올린 이전 단일인쇄 양식 사이즈로 복원
+   - 선택일괄인쇄: 단일 양식 복원값을 덮지 않고 별도 슬롯 규격 사용
+*/
+@media print{
+  /* 단일 / 공급자만 / 공급받는자만 */
+  body.print-record-mode #print-target-area:not(:has(.lp-page)),
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)){
+    width:182mm !important;
+    max-width:182mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame,
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame.single-copy{
+    width:182mm !important;
+    max-width:182mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs{
+    width:182mm !important;
+    max-width:182mm !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 0 10px !important;
+    overflow:visible !important;
+    table-layout:auto !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs table{
+    table-layout:auto !important;
+  }
+
+  /* 선택일괄인쇄: 현재 수정 전처럼 1페이지 2개 구조 유지 */
+  body.print-record-mode #print-target-area:has(.lp-page),
+  body.print-record-mode #print-target-area.pf-active:has(.lp-page){
+    width:204mm !important;
+    max-width:204mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode .lp-page{
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
+    width:204mm !important;
+    max-width:204mm !important;
+    height:267mm !important;
+    min-height:267mm !important;
+    max-height:267mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    page-break-after:always !important;
+    break-after:page !important;
+  }
+
+  body.print-record-mode .lp-page.lp-last,
+  body.print-record-mode .lp-page:last-child{
+    page-break-after:auto !important;
+    break-after:auto !important;
+  }
+
+  body.print-record-mode .lp-slot{
+    display:block !important;
+    flex:0 0 132mm !important;
+    width:204mm !important;
+    height:132mm !important;
+    min-height:132mm !important;
+    max-height:132mm !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-slot .excel-frame{
+    width:204mm !important;
+    max-width:204mm !important;
+    height:132mm !important;
+    min-height:132mm !important;
+    max-height:132mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    background:#fff !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs{
+    width:200mm !important;
+    max-width:200mm !important;
+    height:132mm !important;
+    min-height:132mm !important;
+    max-height:132mm !important;
+    margin:0 auto !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs table{
+    table-layout:fixed !important;
+  }
+
+  body.print-record-mode .lp-sep{
+    height:3mm !important;
+    min-height:3mm !important;
+    max-height:3mm !important;
+    margin:0 !important;
+    border-top:1px dashed #bbb !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-sep span{
+    display:inline-block !important;
+    background:#fff !important;
+    padding:0 8px !important;
+    font-size:9px !important;
+    color:#94a3b8 !important;
+  }
+}

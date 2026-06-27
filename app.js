@@ -5464,18 +5464,58 @@
   }
 
   async function applyInventoryImport(parts) {
-    let saved = 0;
-    let skipped = 0;
+    let created = 0;
+    let updated = 0;
+    let failed = 0;
+    let existingParts = [];
+    try {
+      const loaded = await importApi("/api/parts?limit=500");
+      existingParts = Array.isArray(loaded) ? loaded : Array.isArray(loaded.items) ? loaded.items : [];
+    } catch (_) {
+      existingParts = [];
+    }
+    const findExisting = (name) =>
+      existingParts.find((p) => String(p.name || "").trim() === String(name || "").trim());
+
     for (const part of parts) {
       try {
-        await importApi("/api/parts", { method: "POST", body: JSON.stringify(part) });
-        saved++;
+        const existing = findExisting(part.name);
+        if (existing && existing.id) {
+          await importApi("/api/parts/" + encodeURIComponent(existing.id), {
+            method: "PUT",
+            body: JSON.stringify({
+              name: part.name,
+              spec: part.spec,
+              unitPrice: part.unitPrice,
+              minStock: part.minStock,
+              note: part.note,
+            }),
+          });
+          if (Number.isFinite(Number(part.stock))) {
+            await importApi("/api/parts/" + encodeURIComponent(existing.id) + "/adjust", {
+              method: "POST",
+              body: JSON.stringify({
+                newStock: Number(part.stock) || 0,
+                note: "텍스트 재고 가져오기 재고 보정",
+              }),
+            });
+          }
+          Object.assign(existing, part, { id: existing.id });
+          updated++;
+        } else {
+          const saved = await importApi("/api/parts", { method: "POST", body: JSON.stringify(part) });
+          existingParts.push(saved || part);
+          created++;
+        }
       } catch (error) {
-        skipped++;
+        failed++;
       }
     }
     closeEasyImport();
-    importNotify("텍스트 재고 적용 완료", `재고 ${saved}건 등록 완료${skipped ? `, ${skipped}건은 중복/오류로 제외` : ""}했습니다. 화면을 새로고침합니다.`);
+    importNotify(
+      "텍스트 재고 적용 완료",
+      `신규 ${created}건, 기존수정 ${updated}건${failed ? `, 실패 ${failed}건` : ""} 처리했습니다. 화면을 새로고침합니다.`
+    );
     setTimeout(() => location.reload(), 200);
   }
 
@@ -5514,7 +5554,7 @@
       const text = byId("easy-import-text");
       if (!text) return;
       if (easyImportMode === "inventory") {
-        text.value = "품목:예초기날/규격:255mm/수량:10/단가:6500/최소재고:2/비고:샘플\n품목:엔진오일/규격:1L/수량:5/단가:9000/최소재고:1/비고:";
+        text.value = "품목명:테스트 예초기날/규격:255mm/재고:10/단가:6500/최소재고:2/비고:텍스트가져오기 샘플\n품목명:테스트 엔진오일/규격:1L/재고:5/단가:9000/최소재고:1/비고:";
       } else {
         text.value = "1.품목:DMC-800F 액제탱크 세트/규격:/수량:1/단가:60000/공급가액:60000/세액:0/품목비고:\n품목:OT-20L 오성 분무기/규격:/수량:1/단가:100000/공급가액:100000/세액:0/품목비고:\n2.품목:패킹/규격:/수량:1/단가:18000/공급가액:18000/세액:0/품목비고:";
       }
