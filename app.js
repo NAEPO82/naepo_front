@@ -5255,6 +5255,53 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  function normalizeEasyBlank(value) {
+    const v = String(value == null ? "" : value).trim();
+    if (!v || /^(공란|빈칸|없음|skip|넘어감|x)$/i.test(v)) return "";
+    return v;
+  }
+
+  function parseEasySupplier(value) {
+    const v = normalizeEasyBlank(value).replace(/\s/g, "");
+    if (!v || v === "1" || /내포/.test(v)) return "naepo";
+    if (v === "2" || /동아|아세아/.test(v)) return "donga";
+    return "naepo";
+  }
+
+  function formatDateForInput(value) {
+    const raw = normalizeEasyBlank(value);
+    const today = new Date();
+    const fallback = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    if (!raw) return fallback;
+    const nums = raw.match(/\d+/g);
+    if (!nums || nums.length < 3) return fallback;
+    const y = nums[0].length === 2 ? "20" + nums[0] : nums[0];
+    const m = String(nums[1]).padStart(2, "0");
+    const d = String(nums[2]).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function parseEasyCategory(value) {
+    const raw = normalizeEasyBlank(value) || "일반-판매";
+    const parts = raw.split(/[:\-\/>]+/).map((x) => x.trim()).filter(Boolean);
+    let oil = false;
+    let major = "일반";
+    let sub = "판매";
+    if (parts[0] && /급유기/.test(parts[0])) {
+      oil = true;
+      major = parts[1] || "계통";
+      sub = parts[2] || "중앙회";
+    } else {
+      major = parts[0] || "일반";
+      sub = parts[1] || (major === "일반" ? "판매" : "중앙회");
+    }
+    if (/일반/.test(major)) major = "일반";
+    else if (/계통/.test(major)) major = "계통";
+    else if (/자체/.test(major)) major = "자체";
+    const label = `${oil ? "급유기 " : ""}${major} [${sub}]`;
+    return { major, sub, oil, label };
+  }
+
   function parseEasyRecordText(text) {
     const groups = [];
     let current = null;
@@ -5265,15 +5312,57 @@
       .forEach((line) => {
         const match = line.match(/^(\d+)\.\s*(.*)$/);
         if (match) {
-          current = { no: match[1], items: [] };
+          current = {
+            no: match[1],
+            meta: {
+              supplier: "naepo",
+              date: formatDateForInput(""),
+              author: "",
+              company: "-",
+              name: "-",
+              region: "미지정",
+              category: parseEasyCategory("일반-판매"),
+              payMethod: "미기재",
+            },
+            items: [],
+          };
           groups.push(current);
           line = match[2].trim();
         }
         if (!current) {
-          current = { no: String(groups.length + 1), items: [] };
+          current = {
+            no: String(groups.length + 1),
+            meta: {
+              supplier: "naepo",
+              date: formatDateForInput(""),
+              author: "",
+              company: "-",
+              name: "-",
+              region: "미지정",
+              category: parseEasyCategory("일반-판매"),
+              payMethod: "미기재",
+            },
+            items: [],
+          };
           groups.push(current);
         }
+
         const data = parseEasyKeyValueLine(line);
+        if ("공급자" in data) current.meta.supplier = parseEasySupplier(data["공급자"]);
+        if ("작성일자" in data || "날짜" in data) current.meta.date = formatDateForInput(data["작성일자"] || data["날짜"]);
+        if ("작성자" in data || "담당자" in data) current.meta.author = normalizeEasyBlank(data["작성자"] || data["담당자"]);
+        if ("거래대분류" in data || "분류" in data || "거래분류" in data || "카테고리" in data) {
+          current.meta.category = parseEasyCategory(data["거래대분류"] || data["분류"] || data["거래분류"] || data["카테고리"]);
+        }
+        if ("상호" in data || "거래처" in data || "업체명" in data) {
+          current.meta.company = normalizeEasyBlank(data["상호"] || data["거래처"] || data["업체명"]) || "-";
+        }
+        if ("고객명" in data || "성명" in data || "이름" in data) {
+          current.meta.name = normalizeEasyBlank(data["고객명"] || data["성명"] || data["이름"]) || "-";
+        }
+        if ("지역" in data) current.meta.region = normalizeEasyBlank(data["지역"]) || "미지정";
+        if ("결제수단" in data || "결제" in data) current.meta.payMethod = normalizeEasyBlank(data["결제수단"] || data["결제"]) || "미기재";
+
         const itemName = data["품목"] || data["품목명"] || data["item"] || "";
         if (!itemName) return;
         const qty = toNumberLoose(data["수량"] || data["qty"] || 1) || 1;
@@ -5281,13 +5370,13 @@
         const price = toNumberLoose(data["단가"] || data["price"]) || (qty ? Math.round(amount / qty) : 0);
         const tax = toNumberLoose(data["세액"] || data["tax"]);
         current.items.push({
-          item: itemName,
-          spec: data["규격"] || data["규격사항"] || data["spec"] || "-",
+          item: normalizeEasyBlank(itemName),
+          spec: normalizeEasyBlank(data["규격"] || data["규격사항"] || data["spec"]) || "-",
           qty,
           price,
           amount: amount || price * qty,
           tax,
-          note: data["품목비고"] || data["비고"] || data["note"] || "",
+          note: normalizeEasyBlank(data["품목비고"] || data["비고"] || data["note"]) || "",
         });
       });
     return groups.filter((g) => g.items.length);
@@ -5340,13 +5429,13 @@
     if (apply) apply.disabled = true;
     if (mode === "records") {
       title.innerHTML = '<i class="fa-solid fa-file-import"></i> 텍스트 명세서 가져오기';
-      desc.textContent = "1.품목:... 형식으로 붙여넣으면 명세서 단위로 미리보기 후 거래내역에 저장합니다.";
+      desc.innerHTML = "명세서 첫 줄에 공급자/날짜/작성자/분류/고객명/결제수단/품목을 함께 적고, 다음 줄부터 품목을 추가할 수 있습니다. <br><b>공급자 1=내포농기계, 2=동아아세아농기계</b>";
       text.style.display = "";
       text.value = payload || "";
       setTimeout(() => text.focus(), 50);
     } else if (mode === "inventory") {
       title.innerHTML = '<i class="fa-solid fa-boxes-stacked"></i> 텍스트 재고 가져오기';
-      desc.textContent = "품목:.../규격:.../수량:... 형식으로 붙여넣으면 재고 등록 전 미리보기합니다.";
+      desc.innerHTML = "한 줄에 한 품목씩 입력합니다. <br><b>양식: 품목명:부품명/규격:규격/재고:현재고/단가:금액/최소재고:숫자/비고:메모</b>";
       text.style.display = "";
       text.value = payload || "";
       setTimeout(() => text.focus(), 50);
@@ -5377,12 +5466,21 @@
 
   function renderRecordImportPreview(groups) {
     const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0);
+    const supplierLabel = (key) => key === "donga" ? "2 · 동아아세아농기계" : "1 · 내포농기계";
     document.getElementById("easy-import-result").innerHTML = `
       <div class="import-summary">명세서 ${groups.length}건 · 품목 ${totalItems}줄을 미리보기했습니다. 적용하면 거래내역에 저장됩니다.</div>
       <div class="import-preview-list">
         ${groups.map((g, idx) => `
           <div class="import-preview-card">
             <strong>명세서 #${idx + 1}</strong>
+            <div class="import-meta-line">
+              <span>공급자: ${supplierLabel(g.meta.supplier)}</span>
+              <span>작성일자: ${safeText(g.meta.date)}</span>
+              <span>작성자: ${safeText(g.meta.author || "공란")}</span>
+              <span>고객명: ${safeText(g.meta.name)}</span>
+              <span>분류: ${safeText(g.meta.category.label)}</span>
+              <span>결제: ${safeText(g.meta.payMethod)}</span>
+            </div>
             <table><thead><tr><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th><th>비고</th></tr></thead>
             <tbody>${g.items.map((it) => `<tr><td>${safeText(it.item)}</td><td>${safeText(it.spec)}</td><td>${it.qty}</td><td>${importMoney(it.price)}</td><td>${importMoney(it.amount)}</td><td>${importMoney(it.tax)}</td><td>${safeText(it.note)}</td></tr>`).join("")}</tbody></table>
           </div>`).join("")}
@@ -5417,38 +5515,23 @@
   }
 
   async function applyRecordImport(groups) {
-    const byId = (id) => document.getElementById(id);
-    const getVal = (id, fallback) => {
-      const el = byId(id);
-      const value = el && "value" in el ? String(el.value || "").trim() : "";
-      return value || fallback;
-    };
-    const supplierEl = document.querySelector("#supplier-pills .pill.g, #supplier-pills .pill.active, [data-supplier].g, [data-supplier].active");
-    const supplierKey = supplierEl && supplierEl.dataset && supplierEl.dataset.supplier ? supplierEl.dataset.supplier : "naepo";
-    const date = getVal("f-date", new Date().toISOString().slice(0, 10));
-    const author = getVal("f-author", "현장기사");
-    const company = getVal("f-company", "-");
-    const name = getVal("f-name", "-");
-    const region = getVal("f-region", "미지정");
-    const activePay = document.querySelector("#payment-pills .pill.g, #payment-pills .pill.active");
-    const payMethod = activePay ? activePay.textContent.trim() : "미기재";
-    const activeCat = document.querySelector("#cat-pills .pill.g, #category-pills .pill.g, #cat-pills .pill.active, #category-pills .pill.active");
-    const cat = activeCat ? activeCat.textContent.trim() : "일반";
     let saved = 0;
     for (const group of groups) {
       const amount = group.items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
       const tax = group.items.reduce((sum, it) => sum + (Number(it.tax) || 0), 0);
+      const meta = group.meta || {};
+      const catInfo = meta.category || parseEasyCategory("일반-판매");
       const rec = {
         id: "rec_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9),
-        date,
-        author,
-        supplier: supplierKey,
-        company,
-        name,
-        region,
-        cat,
-        part: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
-        payMethod,
+        date: meta.date || formatDateForInput(""),
+        author: meta.author || "",
+        supplier: meta.supplier || "naepo",
+        company: meta.company || "-",
+        name: meta.name || "-",
+        region: meta.region || "미지정",
+        cat: catInfo.major || "일반",
+        part: catInfo.label || "일반 [판매]",
+        payMethod: meta.payMethod || "미기재",
         status: "done",
         note: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
         amount,
@@ -5554,9 +5637,9 @@
       const text = byId("easy-import-text");
       if (!text) return;
       if (easyImportMode === "inventory") {
-        text.value = "품목명:테스트 예초기날/규격:255mm/재고:10/단가:6500/최소재고:2/비고:텍스트가져오기 샘플\n품목명:테스트 엔진오일/규격:1L/재고:5/단가:9000/최소재고:1/비고:";
+        text.value = "품목명:DMC-800F 액제탱크 세트/규격:800F/재고:3/단가:60000/최소재고:1/비고:\n품목명:OT-20L 오성 분무기/규격:20L/재고:5/단가:100000/최소재고:1/비고:\n품목명:패킹/규격:/재고:10/단가:18000/최소재고:2/비고:";
       } else {
-        text.value = "1.품목:DMC-800F 액제탱크 세트/규격:/수량:1/단가:60000/공급가액:60000/세액:0/품목비고:\n품목:OT-20L 오성 분무기/규격:/수량:1/단가:100000/공급가액:100000/세액:0/품목비고:\n2.품목:패킹/규격:/수량:1/단가:18000/공급가액:18000/세액:0/품목비고:";
+        text.value = "1.공급자:2/작성일자:2026.06월.26일/작성자:현장기사/거래대분류:일반-판매/고객명:안광주/지역:미지정/결제수단:계좌이체/품목:DMC-800F 액제탱크 세트/규격:/수량:1/단가:60000/공급가액:60000/세액:0/품목비고:\n품목:OT-20L 오성 분무기/규격:/수량:1/단가:100000/공급가액:100000/세액:0/품목비고:\n2.공급자:1/작성일자:/작성자:/거래대분류:일반-수리/고객명:이회봉/결제수단:외상/품목:패킹/규격:/수량:1/단가:18000/공급가액:18000/세액:0/품목비고:";
       }
     });
     byId("easy-import-preview") && byId("easy-import-preview").addEventListener("click", () => {

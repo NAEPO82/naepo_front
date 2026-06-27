@@ -10072,3 +10072,271 @@ tr:hover td{background:#F8FAFC !important;}
     color:#94a3b8 !important;
   }
 }
+
+
+/* ===== current-design-print-import-v18-20260628 =====
+   현재 디자인은 유지하고, 인쇄 규격/텍스트 가져오기 설명만 보정합니다.
+   - 단일/공급자/받는자: 기존 현재 버전 비율 유지 + 좌우/상하 소폭 확대
+   - 선택일괄인쇄: 오른쪽 잘림 방지용 별도 규격
+*/
+.import-modal-head{
+  align-items:flex-start !important;
+}
+.import-modal-head > div{
+  min-width:0 !important;
+  flex:1 1 auto !important;
+}
+.import-modal-head p,
+#easy-import-desc{
+  white-space:normal !important;
+  overflow:visible !important;
+  text-overflow:clip !important;
+  word-break:keep-all !important;
+  line-height:1.55 !important;
+  max-width:none !important;
+}
+.import-textarea{
+  min-height:230px !important;
+  white-space:pre-wrap !important;
+  overflow:auto !important;
+}
+.import-meta-line{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  margin:6px 0 10px;
+  font-size:12px;
+  color:#475569;
+}
+.import-meta-line span{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:3px 8px;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  background:#f8fafc;
+  font-weight:700;
+}
+
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:4mm 6mm;
+  }
+
+  html,
+  body{
+    background:#fff !important;
+    width:auto !important;
+    min-width:0 !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    overflow:visible !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  body.print-record-mode > *:not(#print-overlay){
+    display:none !important;
+  }
+
+  body.print-record-mode #print-overlay,
+  body.print-record-mode #print-overlay .psheet{
+    display:block !important;
+    position:static !important;
+    inset:auto !important;
+    width:100% !important;
+    max-width:none !important;
+    height:auto !important;
+    margin:0 !important;
+    padding:0 !important;
+    border:0 !important;
+    box-shadow:none !important;
+    background:#fff !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-overlay .pbtns{
+    display:none !important;
+  }
+
+  /* 단일 / 공급자만 / 공급받는자만 — 현재 비율 유지, 조금만 확대 */
+  body.print-record-mode #print-target-area:not(:has(.lp-page)),
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)){
+    width:188mm !important;
+    max-width:188mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame,
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame.single-copy{
+    width:188mm !important;
+    max-width:188mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs{
+    width:188mm !important;
+    max-width:188mm !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 0 10px !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+    table-layout:auto !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs table{
+    table-layout:auto !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-title{
+    padding:9px 11px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs td{
+    padding:4.4px 6.4px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-bottom{
+    padding:6px 14px 8px !important;
+    min-height:24px !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-amt{
+    padding-left:4px !important;
+    padding-right:10px !important;
+    white-space:nowrap !important;
+    line-height:1.15 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-paper{
+    padding-right:4px !important;
+    white-space:nowrap !important;
+  }
+
+  /* 선택일괄인쇄 — 오른쪽 잘림 방지. 단일보다 별도 규격 */
+  body.print-record-mode #print-target-area:has(.lp-page),
+  body.print-record-mode #print-target-area.pf-active:has(.lp-page){
+    width:192mm !important;
+    max-width:192mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode .lp-page{
+    display:flex !important;
+    flex-direction:column !important;
+    box-sizing:border-box !important;
+    width:192mm !important;
+    max-width:192mm !important;
+    height:268mm !important;
+    min-height:268mm !important;
+    max-height:268mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    page-break-after:always !important;
+    break-after:page !important;
+  }
+
+  body.print-record-mode .lp-page.lp-last,
+  body.print-record-mode .lp-page:last-child{
+    page-break-after:auto !important;
+    break-after:auto !important;
+  }
+
+  body.print-record-mode .lp-slot{
+    display:block !important;
+    flex:0 0 132.5mm !important;
+    width:192mm !important;
+    height:132.5mm !important;
+    min-height:132.5mm !important;
+    max-height:132.5mm !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-slot .excel-frame{
+    width:192mm !important;
+    max-width:192mm !important;
+    height:132.5mm !important;
+    min-height:132.5mm !important;
+    max-height:132.5mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs{
+    width:188mm !important;
+    max-width:188mm !important;
+    height:132.5mm !important;
+    min-height:132.5mm !important;
+    max-height:132.5mm !important;
+    margin:0 auto !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs table{
+    table-layout:fixed !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-title{
+    padding:7px 9px !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs td{
+    padding:3px 4.2px !important;
+    font-size:10px !important;
+    line-height:1.13 !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-bottom{
+    padding:4px 13px 6px !important;
+    min-height:21px !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-amt{
+    padding-left:4px !important;
+    padding-right:10px !important;
+    white-space:nowrap !important;
+    line-height:1.1 !important;
+  }
+
+  body.print-record-mode .lp-sep{
+    height:3mm !important;
+    min-height:3mm !important;
+    max-height:3mm !important;
+    margin:0 !important;
+    border-top:1px dashed #bbb !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-sep span{
+    display:inline-block !important;
+    background:#fff !important;
+    padding:0 8px !important;
+    font-size:9px !important;
+    color:#94a3b8 !important;
+  }
+}
