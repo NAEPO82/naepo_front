@@ -84,6 +84,53 @@
       );
     return s;
   }
+
+  let adminPasswordCache = "";
+  function getAdminPassword() {
+    return adminPasswordCache || (document.getElementById("admin-pw") ? document.getElementById("admin-pw").value.trim() : "");
+  }
+  async function downloadWithAuth(path, fallbackName, extraHeaders) {
+    const headers = Object.assign({}, extraHeaders || {});
+    const token = E();
+    if (token) headers.Authorization = "Bearer " + token;
+    const response = await fetch(b + path, { headers });
+    if (!response.ok) {
+      let message = "다운로드 실패 (" + response.status + ")";
+      try {
+        const data = await response.json();
+        message = data && data.error ? data.error : message;
+      } catch (_) {}
+      throw new Error(message);
+    }
+    const blob = await response.blob();
+    const cd = response.headers.get("Content-Disposition") || "";
+    const m = cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+    const filename = m ? decodeURIComponent(m[1] || m[2]) : fallbackName;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || "download.bin";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+  async function adminJson(path, options) {
+    const adminPassword = getAdminPassword();
+    if (!adminPassword) throw new Error("관리자 비밀번호를 입력해주세요.");
+    return await w(path, Object.assign({}, options || {}, {
+      headers: Object.assign({}, (options && options.headers) || {}, { "X-Admin-Password": adminPassword }),
+    }));
+  }
+  async function logClientAction(action, detail, extra) {
+    try {
+      await w("/api/action-log", {
+        method: "POST",
+        body: JSON.stringify({ action, detail, extra }),
+      });
+    } catch (_) {}
+  }
+
   async function k() {
     try {
       const e = await w("/api/records");
@@ -605,6 +652,7 @@
         const a = n.getAttribute("data-id");
         try {
           const o = await getRecordForAction(a);
+          o && await logClientAction("거래내역 보기", (o.date || "") + " " + (o.note || o.part || o.name || ""), { recordId: o.id });
           o &&
             ((e = o),
             (document.getElementById("premium-injected-frame").innerHTML = N(o)),
@@ -839,6 +887,23 @@
     }
     return o;
   }
+  async function loadAdminActionLog() {
+    const body = document.getElementById("admin-action-log-body");
+    if (!body) return;
+    try {
+      const rows = await adminJson("/api/admin/action-log?limit=300");
+      body.innerHTML = (Array.isArray(rows) ? rows : []).map((row) => `
+        <tr>
+          <td>${n(formatKstTimestamp(row.time || ""))}</td>
+          <td><strong>${n(row.action || "")}</strong></td>
+          <td>${n(row.detail || row.path || "")}</td>
+          <td>${n(row.status || "")}</td>
+        </tr>`).join("") || '<tr><td colspan="4" class="empty-td">작업 로그가 없습니다.</td></tr>';
+    } catch (error) {
+      body.innerHTML = `<tr><td colspan="4" class="empty-td">${n(error.message || "로그를 불러오지 못했습니다.")}</td></tr>`;
+    }
+  }
+
   window.addEventListener("DOMContentLoaded", () => {
     (B(), $());
     if (!E()) return;
@@ -1919,212 +1984,6 @@
         },
       })));
   }
-  function et(t, e) {
-    try {
-      let n = "",
-        a = "",
-        o = "",
-        s = "";
-      const l = [];
-      let i = 0,
-        c = 0,
-        d = -1;
-      const r = Math.min(e + 50, t.length);
-      for (let p = e; p < r; p++) {
-        const r = t[p].map((t) => String(t || "").trim()),
-          m = r.join("").replace(/\s/g, "");
-        if (m.includes("##")) break;
-        if (p > e + 5 && m.includes("공급받는자보관용")) break;
-        const u = r.length,
-          g = Math.ceil(u / 2);
-        if (!n)
-          for (let t = 0; t < u - 1; t++) {
-            const e = parseInt(r[t].replace(/[^0-9]/g, "").slice(0, 4), 10);
-            if (
-              e >= 2020 &&
-              e <= 2030 &&
-              r[t].replace(/[^0-9]/g, "").length >= 4
-            ) {
-              const a = parseInt(r[t + 1].replace(/[^0-9]/g, ""), 10);
-              if (a >= 1 && a <= 12) {
-                const o = parseInt((r[t + 2] || "").replace(/[^0-9]/g, ""), 10);
-                if (o >= 1 && o <= 31) {
-                  n =
-                    e +
-                    "-" +
-                    String(a).padStart(2, "0") +
-                    "-" +
-                    String(o).padStart(2, "0");
-                  break;
-                }
-                const s = r[t + 1]
-                  .replace(/[^0-9\/]/g, " ")
-                  .trim()
-                  .split(/[\s\/]+/);
-                if (s.length >= 2) {
-                  const t = parseInt(s[0], 10),
-                    a = parseInt(s[1], 10);
-                  if (t >= 1 && t <= 12 && a >= 1 && a <= 31) {
-                    n =
-                      e +
-                      "-" +
-                      String(t).padStart(2, "0") +
-                      "-" +
-                      String(a).padStart(2, "0");
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        const y = [];
-        if (
-          (r.forEach((t, e) => {
-            const n = t.replace(/\s/g, "");
-            ("성명" !== n && "姓名" !== n) || y.push(e);
-          }),
-          y.length > 0)
-        ) {
-          for (let t = y[y.length - 1] + 1; t < u; t++) {
-            const e = r[t].replace(/\s/g, "");
-            if (e && "성명" !== e && !e.includes("등록번호")) {
-              a || (a = r[t].trim());
-              break;
-            }
-          }
-        }
-        const f = [];
-        if (
-          (r.forEach((t, e) => {
-            (t.replace(/\s/g, "").includes("상호") ||
-              t.replace(/\s/g, "").includes("법인명")) &&
-              f.push(e);
-          }),
-          f.length >= 2 && !o)
-        ) {
-          for (let t = f[f.length - 1] + 1; t < u; t++) {
-            const e = r[t].trim();
-            if (
-              e &&
-              !e.replace(/\s/g, "").includes("상호") &&
-              !e.includes("법인") &&
-              !e.replace(/\s/g, "").includes("성명")
-            ) {
-              o = e;
-              break;
-            }
-          }
-        }
-        if (!s)
-          for (let t = g - 2; t < u; t++)
-            if (
-              "지역" === r[t].replace(/\s/g, "") ||
-              "지 역" === r[t].replace(/\s/g, "")
-            )
-              for (let e = t + 1; e < u; e++)
-                if (r[e] && !r[e].includes("지역")) {
-                  s = r[e].trim();
-                  break;
-                }
-        if (m.includes("품목") && (m.includes("수량") || m.includes("단가")))
-          d = p;
-        else {
-          if (d >= 0) {
-            let t = -1,
-              e = -1,
-              n = 0;
-            for (let a = 0; a < Math.min(4, u); a++) {
-              const o = parseInt(r[a].replace(/[^0-9]/g, ""), 10);
-              if (o >= 1 && o <= 12 && t < 0) ((t = o), (n = a + 1));
-              else if (o >= 1 && o <= 31 && t >= 0 && e < 0) {
-                ((e = o), (n = a + 1));
-                break;
-              }
-            }
-            if (t >= 1 && t <= 12 && e >= 1 && e <= 31) {
-              let t = "",
-                e = n;
-              for (let a = n; a < u; a++) {
-                if (!r[a]) continue;
-                const n = parseFloat(r[a].replace(/,/g, ""));
-                if (isNaN(n)) {
-                  ((t = r[a].trim()), (e = a));
-                  break;
-                }
-              }
-              if (!t) continue;
-              const a = [];
-              for (let t = e + 1; t < u; t++) {
-                const e = parseFloat(String(r[t]).replace(/,/g, ""));
-                !isNaN(e) && e > 0 && a.push({ col: t, val: e });
-              }
-              let o = 0,
-                s = 0,
-                d = 0,
-                p = 0;
-              (a.length >= 1 && (o = a[0].val),
-                a.length >= 2 && (s = a[1].val),
-                a.length >= 3 && (d = a[2].val),
-                a.length >= 4 && (p = a[3].val),
-                o > 1e3 && s < o && ([o, s] = [s, o]),
-                o || (o = 1),
-                !d && s && o && (d = s * o),
-                l.push({
-                  item: t,
-                  spec: "-",
-                  qty: o,
-                  price: s,
-                  amount: d,
-                  tax: p,
-                  note: "",
-                }),
-                (i += d),
-                (c += p));
-            }
-          }
-          if (m.includes("합계금액")) {
-            const e = t[p + 1];
-            if (e)
-              for (let t = 0; t < e.length; t++) {
-                const n = parseFloat(String(e[t] || "").replace(/,/g, ""));
-                if (!isNaN(n) && n > 0) {
-                  i = n;
-                  break;
-                }
-              }
-          }
-        }
-      }
-      return n
-        ? 0 === l.length
-          ? null
-          : (a || o || (a = "미확인"),
-            {
-              id:
-                "imp_" +
-                Date.now().toString(36) +
-                "_" +
-                Math.random().toString(36).slice(2, 7),
-              date: n,
-              author: "가져오기",
-              supplier: "naepo",
-              company: o || "-",
-              name: a || "-",
-              region: s || "미지정",
-              cat: "일반",
-              part: "일반 [판매]",
-              payMethod: "미기재",
-              note: l[0].item + (l.length > 1 ? ` 외 ${l.length - 1}건` : ""),
-              amount: i,
-              tax: c,
-              items: l,
-              createdAt: new Date().toISOString(),
-            })
-        : null;
-    } catch (t) {
-      return null;
-    }
-  }
   (document.getElementById("btn-add-item-row").addEventListener("click", $),
     document.getElementById("save-btn").addEventListener("click", T),
     document.getElementById("page-form").addEventListener("keydown", (t) => {
@@ -2305,90 +2164,6 @@
           window.print();
         }, 200));
     }),
-    document
-      .getElementById("btn-tools-toggle")
-      .addEventListener("click", (t) => {
-        t.stopPropagation();
-        const e = document.getElementById("tools-dropdown");
-        e.style.display = "none" === e.style.display ? "block" : "none";
-      }),
-    document.addEventListener("click", () => {
-      const t = document.getElementById("tools-dropdown");
-      t && (t.style.display = "none");
-    }),
-    document
-      .getElementById("btn-cloud-backup")
-      .addEventListener("click", async () => {
-        try {
-          const t = await w("/api/backup"),
-            e = new Blob([JSON.stringify(t, null, 2)], {
-              type: "application/json;charset=utf-8;",
-            }),
-            n = URL.createObjectURL(e),
-            a = document.createElement("a");
-          ((a.href = n),
-            (a.download =
-              "내포농기계_서버백업_" +
-              new Date().toISOString().slice(0, 10) +
-              ".json"),
-            a.click(),
-            URL.revokeObjectURL(n),
-            M(`백업 파일(${t.count}건)이 다운로드되었습니다.`, "ok"));
-        } catch (t) {
-          I(
-            "백업 실패",
-            t.message || "백업 파일을 가져오는 중 오류가 발생했습니다.",
-          );
-        }
-      }),
-    document
-      .getElementById("btn-cloud-restore")
-      .addEventListener("click", () => {
-        document.getElementById("restore-file-input").click();
-      }),
-    document
-      .getElementById("restore-file-input")
-      .addEventListener("change", async (t) => {
-        const e = t.target.files[0];
-        if (((t.target.value = ""), !e)) return;
-        let n;
-        try {
-          const t = await e.text();
-          n = JSON.parse(t);
-        } catch (t) {
-          return void I(
-            "파일 오류",
-            "선택하신 파일이 올바른 백업 JSON 파일이 아닙니다.",
-          );
-        }
-        const a = n.records || n;
-        Array.isArray(a)
-          ? S(
-              "복원 방식 선택",
-              `이 파일에는 ${a.length}건의 거래내역이 있습니다.\n\n확인을 누르면 기존 서버 데이터와 병합(merge)됩니다 (같은 ID는 덞어쓰기).\n서버 데이터를 전부 지우고 이 파일로만 교체하려면 관리자에게 문의하세요.`,
-              async () => {
-                try {
-                  const t = await w("/api/restore", {
-                    method: "POST",
-                    body: JSON.stringify({ records: a, mode: "merge" }),
-                  });
-                  (await k(),
-                    C(),
-                    I(
-                      "복원 완료",
-                      `${t.restored}건을 병합했습니다. (전체 ${t.total}건)`,
-                    ));
-                } catch (t) {
-                  I("복원 실패", t.message || "복원 중 오류가 발생했습니다.");
-                }
-              },
-              () => {},
-            )
-          : I(
-              "파일 오류",
-              "백업 파일 형식이 올바르지 않습니다 (records 배열이 없습니다).",
-            );
-      }),
     document.getElementById("hdr-logout").addEventListener("click", () => {
       S(
         "로그아웃 확인",
@@ -2399,93 +2174,92 @@
         () => {},
       );
     }),
-    document
-      .getElementById("btn-excel-import")
-      .addEventListener("click", () => {
-        document.getElementById("excel-import-input").click();
-      }),
-    document
-      .getElementById("excel-import-input")
-      .addEventListener("change", async (t) => {
-        const e = t.target.files[0];
-        if (((t.target.value = ""), !e)) return;
-        const n = new FileReader();
-        ((n.onload = async (t) => {
-          try {
-            const e = new Uint8Array(t.target.result),
-              n = XLSX.read(e, { type: "array" }),
-              a = n.Sheets[n.SheetNames[0]],
-              o = XLSX.utils.sheet_to_json(a, { header: 1, defval: "" }),
-              s = o.length,
-              l = o
-                .slice(0, 5)
-                .map(
-                  (t, e) =>
-                    `[${e}] ` + t.filter((t) => String(t).trim()).join(" | "),
-                )
-                .join("\n"),
-              i = (function (t) {
-                const e = [];
-                let n = 0;
-                for (; n < t.length; ) {
-                  const a = t[n].map((t) => String(t || "")).join("");
-                  if (a.includes("거래명세서") || a.includes("별지")) {
-                    const a = et(t, n);
-                    (a && e.push(a), (n += 15));
-                  } else n++;
-                }
-                return e;
-              })(o);
-            if (0 === i.length)
-              return void I(
-                "파싱 실패",
-                `거래명세서 양식을 인식하지 못했습니다.\n\n파일 정보: ${s}행, 시트: ${n.SheetNames[0]}\n\n첫 5행 내용:\n${l}\n\n별지 제11호 서식 엑셀 파일인지 확인해주세요. "거래명세서" 또는 "별지" 텍스트가 포함되어야 합니다.`,
-              );
-            const c = i
-              .map(
-                (t, e) =>
-                  `${e + 1}. ${t.date} | ${"-" !== t.company ? t.company : ""} ${t.name} | ${t.items.length}품목 | ${(t.amount || 0).toLocaleString()}원`,
-              )
-              .join("\n");
-            S(
-              `${i.length}건 인식됨 — 가져오기`,
-              `다음 거래내역을 서버에 병합 저장합니다.\n기존 데이터는 유지됩니다.\n\n${c}`,
-              async () => {
-                try {
-                  const t = await w("/api/restore", {
-                    method: "POST",
-                    body: JSON.stringify({ records: i, mode: "merge" }),
-                  });
-                  (await k(),
-                    C(),
-                    I(
-                      "가져오기 완료",
-                      `${t.restored}건이 저장되었습니다. (전체 ${t.total}건)`,
-                    ));
-                } catch (t) {
-                  I(
-                    "저장 실패",
-                    t.message || "서버 저장 중 오류가 발생했습니다.",
-                  );
-                }
-              },
-              () => {},
-            );
-          } catch (t) {
-            I(
-              "파일 오류",
-              "엑셀 파일을 읽는 중 오류가 발생했습니다: " + t.message,
-            );
-          }
-        }),
-          n.readAsArrayBuffer(e));
-      }),
     document.getElementById("hdr-pwchg").addEventListener("click", () => {
       I(
         "비밀번호 변경 안내",
         "비밀번호는 이제 서버에서 관리됩니다. 변경이 필요하면 관리자에게 새 비밀번호를 알려주세요 — 서버 설정(PASSWORD_HASH)을 갱신해드립니다.",
       );
     }),
+    document.getElementById("hdr-admin") && document.getElementById("hdr-admin").addEventListener("click", () => {
+      const overlay = document.getElementById("admin-overlay");
+      overlay && overlay.classList.add("show");
+      const pw = document.getElementById("admin-pw");
+      pw && setTimeout(() => pw.focus(), 40);
+    }),
+    document.getElementById("btn-admin-close") && document.getElementById("btn-admin-close").addEventListener("click", () => {
+      document.getElementById("admin-overlay").classList.remove("show");
+    }),
+    document.getElementById("btn-admin-login") && document.getElementById("btn-admin-login").addEventListener("click", async () => {
+      const err = document.getElementById("admin-err");
+      try {
+        adminPasswordCache = getAdminPassword();
+        await adminJson("/api/admin/status");
+        err.textContent = "";
+        document.getElementById("admin-login-box").style.display = "none";
+        document.getElementById("admin-panel").style.display = "block";
+        await loadAdminActionLog();
+      } catch (error) {
+        err.textContent = error.message || "관리자 인증 실패";
+      }
+    }),
+    document.getElementById("admin-btn-csv-backup") && document.getElementById("admin-btn-csv-backup").addEventListener("click", async () => {
+      try {
+        await downloadWithAuth("/api/admin/backup/csv.zip", "naepo-csv-backup.zip", { "X-Admin-Password": getAdminPassword() });
+        M("CSV 백업 ZIP을 다운로드했습니다.", "ok");
+      } catch (error) { I("CSV 백업 실패", error.message); }
+    }),
+    document.getElementById("admin-btn-full-backup") && document.getElementById("admin-btn-full-backup").addEventListener("click", async () => {
+      try {
+        await downloadWithAuth("/api/admin/backup/full.zip", "naepo-full-backup.zip", { "X-Admin-Password": getAdminPassword() });
+        M("전체 백업 ZIP을 다운로드했습니다.", "ok");
+      } catch (error) { I("전체 백업 실패", error.message); }
+    }),
+    document.getElementById("admin-btn-restore") && document.getElementById("admin-btn-restore").addEventListener("click", () => {
+      document.getElementById("admin-restore-file-input").click();
+    }),
+    document.getElementById("admin-restore-file-input") && document.getElementById("admin-restore-file-input").addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      ev.target.value = "";
+      if (!file) return;
+      let data;
+      try { data = JSON.parse(await file.text()); } catch (_) { return I("파일 오류", "JSON 백업 파일만 복원할 수 있습니다."); }
+      const records = data.records || data;
+      if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 파일이 필요합니다.");
+      S("백업파일 복원", `${records.length}건의 거래내역을 병합 복원합니다. 계속할까요?`, async () => {
+        try {
+          const result = await w("/api/restore", {
+            method: "POST",
+            body: JSON.stringify({
+              records,
+              parts: data.parts,
+              inventoryLog: data.inventoryLog,
+              orderLog: data.orderLog,
+              customers: data.customers,
+              groups: data.groups,
+              printLog: data.printLog,
+              mode: "merge",
+            }),
+          });
+          await k();
+          C();
+          I("복원 완료", `${result.restored}건을 병합했습니다. 전체 ${result.total}건입니다.`);
+        } catch (error) { I("복원 실패", error.message); }
+      }, () => {});
+    }),
+    document.getElementById("admin-btn-email-backup") && document.getElementById("admin-btn-email-backup").addEventListener("click", async () => {
+      try {
+        const result = await adminJson("/api/admin/backup/email", { method: "POST", body: JSON.stringify({}) });
+        I("수동 이메일 백업 전송", result && result.message ? result.message : "백업 메일 전송을 요청했습니다.");
+      } catch (error) { I("이메일 백업 실패", error.message); }
+    }),
+    document.getElementById("admin-btn-log-refresh") && document.getElementById("admin-btn-log-refresh").addEventListener("click", loadAdminActionLog),
+    document.getElementById("admin-btn-log-csv") && document.getElementById("admin-btn-log-csv").addEventListener("click", async () => {
+      try { await downloadWithAuth("/api/admin/action-log/download.csv", "naepo-action-log.csv", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
+    }),
+    document.getElementById("admin-btn-log-json") && document.getElementById("admin-btn-log-json").addEventListener("click", async () => {
+      try { await downloadWithAuth("/api/admin/action-log/download.json", "naepo-action-log.json", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
+    }),
+    
     document
       .getElementById("btn-print-submit")
       .addEventListener("click", async () => {
@@ -2894,6 +2668,46 @@
     setTimeout(() => overlay.querySelector("#stm-qty").focus(), 50);
   }
 
+  function makePartEditModal(part, onConfirm) {
+    if (!part) return;
+    const overlay = document.createElement("div");
+    overlay.className = "parts-pick-modal-overlay";
+    overlay.innerHTML = `
+      <div class="parts-pick-modal small stock-modal-box">
+        <div class="ppm-head">
+          <div>
+            <h3><i class="fa-solid fa-pen"></i> 재고 수정</h3>
+            <p><b>${n(part.name || "")}</b> 품목 정보를 수정합니다.</p>
+          </div>
+          <button type="button" class="ppm-x" id="pem-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="stock-modal-fields">
+          <div class="field"><label>품목명</label><input type="text" id="pem-name" value="${n(part.name || "")}" /></div>
+          <div class="field"><label>규격</label><input type="text" id="pem-spec" value="${n(part.spec || "")}" /></div>
+          <div class="field"><label>기본 단가</label><input type="number" id="pem-price" min="0" step="1" value="${Number(part.unitPrice || 0)}" /></div>
+          <div class="field"><label>최소 재고</label><input type="number" id="pem-min" min="0" step="1" value="${Number(part.minStock || 0)}" /></div>
+        </div>
+        <div class="ppm-foot">
+          <button type="button" class="btn btn-o" id="pem-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="pem-ok"><i class="fa-solid fa-check"></i> 수정 저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+    overlay.querySelector("#pem-close").addEventListener("click", close);
+    overlay.querySelector("#pem-cancel").addEventListener("click", close);
+    overlay.querySelector("#pem-ok").addEventListener("click", () => {
+      const name = overlay.querySelector("#pem-name").value.trim();
+      if (!name) return I("입력 오류", "품목명을 입력해주세요.");
+      const spec = overlay.querySelector("#pem-spec").value.trim();
+      const unitPrice = parseFloat(overlay.querySelector("#pem-price").value) || 0;
+      const minStock = parseInt(overlay.querySelector("#pem-min").value, 10) || 0;
+      onConfirm && onConfirm({ name, spec, unitPrice, minStock });
+      close();
+    });
+    setTimeout(() => overlay.querySelector("#pem-name").focus(), 50);
+  }
+
   function makeGroupPickModal(title, selectedGroupIds, onConfirm) {
     if (!Array.isArray(ot) || ot.length === 0) {
       I("그룹 없음", "먼저 부품 그룹을 생성해주세요.");
@@ -3225,33 +3039,23 @@
             });
           });
         }),
-        document.querySelectorAll(".btn-part-edit").forEach((t) => {
-          t.addEventListener("click", async () => {
-            const e = t.getAttribute("data-id"),
-              n = nt.find((t) => t.id === e),
-              a = prompt("품목명:", n.name);
-            if (null === a) return;
-            const o = prompt("규격:", n.spec || "");
-            if (null === o) return;
-            const s = prompt("기본 단가:", String(n.unitPrice));
-            if (null === s) return;
-            const l = prompt("최소 재고:", String(n.minStock));
-            if (null !== l)
+        document.querySelectorAll(".btn-part-edit").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const partId = btn.getAttribute("data-id"),
+              part = nt.find((p) => p.id === partId);
+            if (!part) return;
+            makePartEditModal(part, async (payload) => {
               try {
-                (await w(`/api/parts/${encodeURIComponent(e)}`, {
+                await w(`/api/parts/${encodeURIComponent(partId)}`, {
                   method: "PUT",
-                  body: JSON.stringify({
-                    name: a.trim(),
-                    spec: o.trim(),
-                    unitPrice: parseFloat(s) || 0,
-                    minStock: parseInt(l, 10) || 0,
-                  }),
-                }),
-                  M("부품 정보가 수정되었습니다.", "ok"),
-                  await ut());
-              } catch (t) {
-                I("수정 실패", t.message || "수정 중 오류가 발생했습니다.");
+                  body: JSON.stringify(payload),
+                });
+                M("부품 정보가 수정되었습니다.", "ok");
+                await ut();
+              } catch (err) {
+                I("수정 실패", err.message || "수정 중 오류가 발생했습니다.");
               }
+            });
           });
         }),
         document.querySelectorAll(".btn-part-delete").forEach((t) => {
@@ -4199,16 +4003,22 @@
         .filter(Boolean)
         .filter((part) => partMatches(part, group.name));
       if (!parts.length) return;
-      blocks.push(`<div class="order-part-group"><div class="order-part-group-title"><i class="fa-solid fa-layer-group"></i> ${escapeHtml(group.name)}</div>${parts.map((part) => {
+      blocks.push(`<div class="order-part-group ${q ? "" : "is-collapsed"}"><button type="button" class="order-part-group-title"><i class="fa-solid fa-layer-group"></i> ${escapeHtml(group.name)} <span>${parts.length}개</span></button><div class="order-part-group-body">${parts.map((part) => {
         used.add(part.id);
         return partPickCard(part);
-      }).join("")}</div>`);
+      }).join("")}</div></div>`);
     });
     const ungrouped = orderParts.filter((part) => !used.has(part.id)).filter((part) => partMatches(part, "미분류"));
     if (ungrouped.length) {
-      blocks.push(`<div class="order-part-group"><div class="order-part-group-title"><i class="fa-solid fa-box"></i> 미분류 품목</div>${ungrouped.map(partPickCard).join("")}</div>`);
+      blocks.push(`<div class="order-part-group ${q ? "" : "is-collapsed"}"><button type="button" class="order-part-group-title"><i class="fa-solid fa-box"></i> 미분류 품목 <span>${ungrouped.length}개</span></button><div class="order-part-group-body">${ungrouped.map(partPickCard).join("")}</div></div>`);
     }
     list.innerHTML = blocks.join("") || '<div class="empty-td">검색 결과가 없습니다.</div>';
+    list.querySelectorAll(".order-part-group-title").forEach((button) => {
+      button.addEventListener("click", () => {
+        const group = button.closest(".order-part-group");
+        group && group.classList.toggle("is-collapsed");
+      });
+    });
     list.querySelectorAll(".order-part-pick").forEach((button) => {
       button.addEventListener("click", () => {
         const part = orderParts.find((p) => p.id === button.dataset.pid);
@@ -4405,7 +4215,7 @@
       <td><input type="number" class="order-item-qty" min="0" step="any" value="1" /></td>
       <td><input type="number" class="order-item-unit" min="0" step="1" value="0" /></td>
       <td><input type="number" class="order-item-amount" min="0" step="1" value="0" /></td>
-      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i> 선택</button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i> 삭제</button></td>
+      <td class="order-row-tools"><button type="button" class="ibtn order-row-pick" title="재고에서 선택"><i class="fa-solid fa-boxes-stacked"></i> 재고선택</button><button type="button" class="ibtn d order-row-remove" title="행 삭제"><i class="fa-solid fa-trash"></i> 삭제</button></td>
     `;
     tr.querySelectorAll("input").forEach((input) =>
       input.addEventListener("input", handleItemInput),

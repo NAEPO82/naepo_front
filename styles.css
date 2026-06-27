@@ -4607,3 +4607,46 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 @media (max-width: 899px){
   #page-list .records-table{width:1180px!important;min-width:1180px!important;}
 }
+
+/* ============================================================
+   관리자 페이지 / 작업로그 / 요청 보정 패치
+   ============================================================ */
+#admin-overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,23,42,.62);backdrop-filter:blur(4px);
+  z-index:10060;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px;
+}
+#admin-overlay.show{display:flex;}
+.admin-box{max-width:980px!important;margin-top:2%!important;}
+.admin-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;border-bottom:1px solid #e2e8f0;padding-bottom:14px;}
+.admin-section{border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;padding:16px;margin-top:14px;}
+.admin-section h3{display:flex;align-items:center;gap:8px;margin:0 0 5px;font-size:15px;color:#0f172a;font-weight:900;}
+.admin-section p{margin:0 0 12px;font-size:12px;color:#64748b;line-height:1.5;}
+.admin-tool-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.admin-tool-btn{border:1px solid #cbd5e1;background:#fff;border-radius:14px;padding:14px 12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;cursor:pointer;text-align:left;transition:.15s;color:#0f172a;}
+.admin-tool-btn:hover{border-color:#93c5fd;background:#eff6ff;transform:translateY(-1px);}
+.admin-tool-btn i{color:#1e3a5f;font-size:18px;}
+.admin-tool-btn span{font-weight:900;font-size:13px;}
+.admin-tool-btn small{font-size:11px;color:#64748b;line-height:1.35;}
+.admin-log-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;}
+.admin-log-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.admin-log-table-wrap{max-height:360px;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;background:#fff;}
+.admin-log-table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px;}
+.admin-log-table th,.admin-log-table td{padding:9px 10px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top;}
+.admin-log-table th{position:sticky;top:0;background:#f1f5f9;z-index:1;color:#334155;font-weight:900;}
+.admin-log-table td:nth-child(1){width:145px;white-space:nowrap;color:#475569;}
+.admin-log-table td:nth-child(2){width:160px;color:#0f172a;}
+.admin-log-table td:nth-child(4){width:70px;text-align:center;color:#64748b;}
+@media(max-width:900px){.admin-tool-grid{grid-template-columns:1fr 1fr}.admin-head,.admin-log-head{flex-direction:column;align-items:stretch}.admin-box{padding:20px!important}}
+@media(max-width:560px){.admin-tool-grid{grid-template-columns:1fr}}
+
+/* 거래내역 분류 파트가 길어도 대표 품목 요약을 밀지 않게 고정/말줄임 */
+#page-list .records-table td:nth-child(6){white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;}
+#page-list .records-table td:nth-child(6) .badge.bo{max-width:92px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;display:inline-flex!important;}
+#page-list .records-table td:nth-child(7){overflow:hidden!important;text-overflow:ellipsis!important;word-break:keep-all!important;}
+
+/* 발주서 재고 선택 모달: 그룹은 기본 축소, 제목 클릭으로 펼침 */
+.order-part-group{padding:0!important;overflow:hidden!important;}
+.order-part-group-title{width:100%;border:0;background:#f8fafc;margin:0!important;padding:10px 12px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px!important;cursor:pointer;text-align:left;}
+.order-part-group-title span{margin-left:auto;color:#64748b;font-size:11px;font-weight:800;}
+.order-part-group-body{padding:8px 10px 10px;display:block;}
+.order-part-group.is-collapsed .order-part-group-body{display:none!important;}
