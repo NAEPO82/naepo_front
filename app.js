@@ -785,7 +785,8 @@
       }
     })();
   });
-  var N = function (t) {
+  var N = function (t, copyMode) {
+    copyMode = copyMode || "both";
     var e = t.amount + t.tax,
       a = t.date.split("-"),
       o = a[0],
