@@ -5168,4 +5168,315 @@
       if (ev.key === "Escape") closeMenu();
     });
   });
+
+
+  // ===== easy text/backup preview import =====
+  let easyImportMode = "";
+  let easyImportPreviewData = null;
+
+  function parseEasyKeyValueLine(line) {
+    const obj = {};
+    String(line || "")
+      .split("/")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => {
+        const idx = part.indexOf(":");
+        if (idx < 0) return;
+        const key = part.slice(0, idx).trim().replace(/^\d+\./, "");
+        let value = part.slice(idx + 1).trim();
+        if (/^(공란|빈칸|없음|skip|넘어감)$/i.test(value)) value = "";
+        obj[key] = value;
+      });
+    return obj;
+  }
+
+  function toNumberLoose(value) {
+    if (value === null || value === undefined) return 0;
+    const n = Number(String(value).replace(/[,원\s]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function parseEasyRecordText(text) {
+    const groups = [];
+    let current = null;
+    String(text || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        const match = line.match(/^(\d+)\.\s*(.*)$/);
+        if (match) {
+          current = { no: match[1], items: [] };
+          groups.push(current);
+          line = match[2].trim();
+        }
+        if (!current) {
+          current = { no: String(groups.length + 1), items: [] };
+          groups.push(current);
+        }
+        const data = parseEasyKeyValueLine(line);
+        const itemName = data["품목"] || data["품목명"] || data["item"] || "";
+        if (!itemName) return;
+        const qty = toNumberLoose(data["수량"] || data["qty"] || 1) || 1;
+        const amount = toNumberLoose(data["공급가액"] || data["금액"] || data["amount"]);
+        const price = toNumberLoose(data["단가"] || data["price"]) || (qty ? Math.round(amount / qty) : 0);
+        const tax = toNumberLoose(data["세액"] || data["tax"]);
+        current.items.push({
+          item: itemName,
+          spec: data["규격"] || data["규격사항"] || data["spec"] || "-",
+          qty,
+          price,
+          amount: amount || price * qty,
+          tax,
+          note: data["품목비고"] || data["비고"] || data["note"] || "",
+        });
+      });
+    return groups.filter((g) => g.items.length);
+  }
+
+  function parseEasyInventoryText(text) {
+    return String(text || "")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        line = line.replace(/^\d+\.\s*/, "");
+        const data = parseEasyKeyValueLine(line);
+        const name = data["품목"] || data["품목명"] || data["재고명"] || data["name"] || "";
+        if (!name) return null;
+        return {
+          name,
+          spec: data["규격"] || data["규격사항"] || data["spec"] || "",
+          unitPrice: toNumberLoose(data["단가"] || data["가격"] || data["unitPrice"]),
+          stock: toNumberLoose(data["재고"] || data["수량"] || data["stock"]),
+          minStock: toNumberLoose(data["최소재고"] || data["최소"] || data["minStock"]),
+          note: data["비고"] || data["메모"] || data["note"] || "",
+        };
+      })
+      .filter(Boolean);
+  }
+
+  function safeText(v) {
+    return n(String(v == null ? "" : v));
+  }
+
+  function openEasyImport(mode, payload) {
+    easyImportMode = mode;
+    easyImportPreviewData = null;
+    const modal = document.getElementById("easy-import-modal");
+    const title = document.getElementById("easy-import-title");
+    const desc = document.getElementById("easy-import-desc");
+    const text = document.getElementById("easy-import-text");
+    const result = document.getElementById("easy-import-result");
+    const apply = document.getElementById("easy-import-apply");
+    if (!modal) return;
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+    if (result) result.innerHTML = "";
+    if (apply) apply.disabled = true;
+    if (mode === "records") {
+      title.innerHTML = '<i class="fa-solid fa-file-import"></i> 텍스트 명세서 가져오기';
+      desc.textContent = "1.품목:... 형식으로 붙여넣으면 명세서 단위로 미리보기 후 거래내역에 저장합니다.";
+      text.style.display = "";
+      text.value = payload || "";
+      setTimeout(() => text.focus(), 50);
+    } else if (mode === "inventory") {
+      title.innerHTML = '<i class="fa-solid fa-boxes-stacked"></i> 텍스트 재고 가져오기';
+      desc.textContent = "품목:.../규격:.../수량:... 형식으로 붙여넣으면 재고 등록 전 미리보기합니다.";
+      text.style.display = "";
+      text.value = payload || "";
+      setTimeout(() => text.focus(), 50);
+    } else if (mode === "backup") {
+      title.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 백업파일 미리보기';
+      desc.textContent = "JSON/SQL 백업 파일 내용을 바로 복원하지 않고 먼저 미리보기합니다.";
+      text.value = "";
+      text.style.display = "none";
+      easyImportPreviewData = payload;
+      renderBackupPreview(payload);
+      if (apply) apply.disabled = false;
+    }
+  }
+
+  function closeEasyImport() {
+    const modal = document.getElementById("easy-import-modal");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    const text = document.getElementById("easy-import-text");
+    if (text) text.style.display = "";
+    easyImportMode = "";
+    easyImportPreviewData = null;
+  }
+
+  function renderRecordImportPreview(groups) {
+    const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0);
+    document.getElementById("easy-import-result").innerHTML = `
+      <div class="import-summary">명세서 ${groups.length}건 · 품목 ${totalItems}줄을 미리보기했습니다. 적용하면 거래내역에 저장됩니다.</div>
+      <div class="import-preview-list">
+        ${groups.map((g, idx) => `
+          <div class="import-preview-card">
+            <strong>명세서 #${idx + 1}</strong>
+            <table><thead><tr><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th><th>비고</th></tr></thead>
+            <tbody>${g.items.map((it) => `<tr><td>${safeText(it.item)}</td><td>${safeText(it.spec)}</td><td>${it.qty}</td><td>${money(it.price)}</td><td>${money(it.amount)}</td><td>${money(it.tax)}</td><td>${safeText(it.note)}</td></tr>`).join("")}</tbody></table>
+          </div>`).join("")}
+      </div>`;
+  }
+
+  function renderInventoryImportPreview(parts) {
+    document.getElementById("easy-import-result").innerHTML = `
+      <div class="import-summary">재고 ${parts.length}건을 미리보기했습니다. 적용하면 재고현황에 등록됩니다.</div>
+      <div class="import-preview-card">
+        <table><thead><tr><th>품목명</th><th>규격</th><th>단가</th><th>재고</th><th>최소재고</th><th>비고</th></tr></thead>
+        <tbody>${parts.map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td>${money(p.unitPrice)}</td><td>${money(p.stock)}</td><td>${money(p.minStock)}</td><td>${safeText(p.note)}</td></tr>`).join("")}</tbody></table>
+      </div>`;
+  }
+
+  function renderBackupPreview(data) {
+    const records = Array.isArray(data.records) ? data.records : Array.isArray(data) ? data : [];
+    const parts = Array.isArray(data.parts) ? data.parts : [];
+    const customers = Array.isArray(data.customers) ? data.customers : [];
+    const groups = Array.isArray(data.groups) ? data.groups : [];
+    const orderLog = Array.isArray(data.orderLog) ? data.orderLog : [];
+    const inventoryLog = Array.isArray(data.inventoryLog) ? data.inventoryLog : [];
+    const printLog = Array.isArray(data.printLog) ? data.printLog : [];
+    document.getElementById("easy-import-result").innerHTML = `
+      <div class="import-summary">백업파일 미리보기: 거래내역 ${records.length}건 · 재고 ${parts.length}건 · 거래처 ${customers.length}건 · 부품그룹 ${groups.length}건 · 입출고 ${inventoryLog.length}건 · 발주서 ${orderLog.length}건 · 인쇄기록 ${printLog.length}건</div>
+      <div class="import-preview-grid">
+        <div class="import-preview-card"><strong>거래내역 샘플</strong><table><tbody>${records.slice(0,5).map((r) => `<tr><td>${safeText(r.date)}</td><td>${safeText(r.company || r.name)}</td><td>${safeText(r.note || r.part)}</td><td class="tr">${money(r.amount || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>재고 샘플</strong><table><tbody>${parts.slice(0,5).map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td class="tr">${money(p.stock || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>거래처 샘플</strong><table><tbody>${customers.slice(0,5).map((c) => `<tr><td>${safeText(c.company || c.name)}</td><td>${safeText(c.name)}</td><td>${safeText(c.region)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>발주서 샘플</strong><table><tbody>${orderLog.slice(0,5).map((o) => `<tr><td>${safeText(o.orderDate)}</td><td>${safeText(o.title)}</td><td class="tr">${money(o.total || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+      </div>`;
+  }
+
+  async function applyRecordImport(groups) {
+    if (!u || !g[u]) return I("적용 실패", "먼저 명세서 작성 화면에서 공급자를 선택해주세요.");
+    const date = document.getElementById("f-date").value || new Date().toISOString().slice(0, 10);
+    const author = document.getElementById("f-author").value.trim() || "현장기사";
+    const company = document.getElementById("f-company").value.trim() || "-";
+    const name = document.getElementById("f-name").value.trim() || "-";
+    const region = document.getElementById("f-region").value.trim() || "미지정";
+    const payMethod = d || "미기재";
+    let saved = 0;
+    for (const group of groups) {
+      const amount = group.items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
+      const tax = group.items.reduce((sum, it) => sum + (Number(it.tax) || 0), 0);
+      const rec = {
+        id: "rec_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9),
+        date, author, supplier: u, company, name, region,
+        cat: o || "일반",
+        part: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
+        payMethod,
+        status: "done",
+        note: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
+        amount, tax,
+        items: group.items,
+      };
+      const created = await w("/api/records", { method: "POST", body: JSON.stringify(rec) });
+      t.unshift(created || rec);
+      saved++;
+    }
+    C();
+    Q();
+    closeEasyImport();
+    I("텍스트 명세서 적용 완료", `${saved}건의 명세서를 거래내역에 저장했습니다.`);
+  }
+
+  async function applyInventoryImport(parts) {
+    let saved = 0;
+    let skipped = 0;
+    for (const part of parts) {
+      try {
+        await w("/api/parts", { method: "POST", body: JSON.stringify(part) });
+        saved++;
+      } catch (error) {
+        skipped++;
+      }
+    }
+    await ut();
+    Q();
+    closeEasyImport();
+    I("텍스트 재고 적용 완료", `재고 ${saved}건 등록 완료${skipped ? `, ${skipped}건은 중복/오류로 제외` : ""}했습니다.`);
+  }
+
+  async function applyBackupPreview(data) {
+    const records = Array.isArray(data.records) ? data.records : Array.isArray(data) ? data : [];
+    if (!Array.isArray(records)) return I("복원 실패", "records 배열이 있는 JSON/SQL 백업만 복원할 수 있습니다.");
+    try {
+      const result = await w("/api/restore", {
+        method: "POST",
+        headers: { "X-Admin-Password": getAdminPassword() },
+        body: JSON.stringify({
+          records,
+          parts: data.parts,
+          inventoryLog: data.inventoryLog,
+          orderLog: data.orderLog,
+          customers: data.customers,
+          groups: data.groups,
+          printLog: data.printLog,
+          mode: "merge",
+        }),
+      });
+      await k();
+      await ut();
+      C();
+      closeEasyImport();
+      I("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 전체 거래내역 ${result.total}건입니다.`);
+    } catch (error) {
+      I("복원 실패", error.message);
+    }
+  }
+
+  window.addEventListener("DOMContentLoaded", () => {
+    const byId = (id) => document.getElementById(id);
+    byId("btn-easy-record-import") && byId("btn-easy-record-import").addEventListener("click", () => openEasyImport("records"));
+    byId("btn-easy-inventory-import") && byId("btn-easy-inventory-import").addEventListener("click", () => openEasyImport("inventory"));
+    byId("easy-import-close") && byId("easy-import-close").addEventListener("click", closeEasyImport);
+    byId("easy-import-sample") && byId("easy-import-sample").addEventListener("click", () => {
+      const text = byId("easy-import-text");
+      if (!text) return;
+      if (easyImportMode === "inventory") {
+        text.value = "품목:예초기날/규격:255mm/수량:10/단가:6500/최소재고:2/비고:샘플\n품목:엔진오일/규격:1L/수량:5/단가:9000/최소재고:1/비고:";
+      } else {
+        text.value = "1.품목:DMC-800F 액제탱크 세트/규격:/수량:1/단가:60000/공급가액:60000/세액:0/품목비고:\n품목:OT-20L 오성 분무기/규격:/수량:1/단가:100000/공급가액:100000/세액:0/품목비고:\n2.품목:패킹/규격:/수량:1/단가:18000/공급가액:18000/세액:0/품목비고:";
+      }
+    });
+    byId("easy-import-preview") && byId("easy-import-preview").addEventListener("click", () => {
+      const text = byId("easy-import-text").value;
+      try {
+        if (easyImportMode === "records") {
+          const groups = parseEasyRecordText(text);
+          if (!groups.length) return I("미리보기 실패", "인식된 명세서 품목이 없습니다.");
+          easyImportPreviewData = groups;
+          renderRecordImportPreview(groups);
+          byId("easy-import-apply").disabled = false;
+        } else if (easyImportMode === "inventory") {
+          const parts = parseEasyInventoryText(text);
+          if (!parts.length) return I("미리보기 실패", "인식된 재고 품목이 없습니다.");
+          easyImportPreviewData = parts;
+          renderInventoryImportPreview(parts);
+          byId("easy-import-apply").disabled = false;
+        }
+      } catch (error) {
+        I("미리보기 실패", error.message || "텍스트를 해석하지 못했습니다.");
+      }
+    });
+    byId("easy-import-apply") && byId("easy-import-apply").addEventListener("click", async () => {
+      if (!easyImportPreviewData) return;
+      if (easyImportMode === "records") return applyRecordImport(easyImportPreviewData);
+      if (easyImportMode === "inventory") return applyInventoryImport(easyImportPreviewData);
+      if (easyImportMode === "backup") return applyBackupPreview(easyImportPreviewData);
+    });
+    byId("list-body") && byId("list-body").addEventListener("click", (ev) => {
+      if (ev.target.closest("button,a,input,label,.inline-record-preview-row")) return;
+      const row = ev.target.closest("tr[data-record-id]");
+      if (!row) return;
+      const chk = row.querySelector(".chk-row");
+      if (!chk) return;
+      chk.checked = !chk.checked;
+      O();
+    });
+  });
+
 })();

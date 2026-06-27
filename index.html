@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=invoice-print-v9-table-fixed-20260628" />
+    <link rel="stylesheet" href="styles.css?v=easy-import-preview-20260628b" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -685,6 +685,13 @@
               >
                 <i class="fa-solid fa-plus"></i> 명세 품목 추가하기
               </button>
+              <button
+                class="btn btn-o btn-sm"
+                id="btn-easy-record-import"
+                style="border-color: #bfdbfe; color: #2563eb"
+              >
+                <i class="fa-solid fa-file-import"></i> 텍스트 명세서 가져오기
+              </button>
             </div>
             <div class="preview" id="f-preview" style="display: none">
               최종 정산 합계 금액 (공급가액 총액 + 세액 총액):
@@ -979,6 +986,11 @@
               <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로
               차감됩니다.
             </p>
+            <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+              <button class="btn btn-o btn-sm" id="btn-easy-inventory-import" style="border-color:#bfdbfe;color:#2563eb">
+                <i class="fa-solid fa-file-import"></i> 텍스트 재고 가져오기
+              </button>
+            </div>
             <div class="g5e">
               <div class="field">
                 <label>품목명 *</label
@@ -1586,6 +1598,26 @@
       </main>
     </div>
 
+
+    <div id="easy-import-modal" class="import-modal" aria-hidden="true">
+      <div class="import-modal-box">
+        <div class="import-modal-head">
+          <div>
+            <h2 id="easy-import-title"><i class="fa-solid fa-file-import"></i> 데이터 가져오기</h2>
+            <p id="easy-import-desc">텍스트를 붙여넣고 미리보기 후 적용하세요.</p>
+          </div>
+          <button type="button" class="btn btn-o btn-sm" id="easy-import-close"><i class="fa-solid fa-xmark"></i> 닫기</button>
+        </div>
+        <textarea id="easy-import-text" class="import-textarea" spellcheck="false"></textarea>
+        <div class="import-modal-actions">
+          <button type="button" class="btn btn-o btn-sm" id="easy-import-sample"><i class="fa-solid fa-lightbulb"></i> 예시 넣기</button>
+          <button type="button" class="btn btn-o btn-sm" id="easy-import-preview"><i class="fa-solid fa-eye"></i> 미리보기</button>
+          <button type="button" class="btn btn-p btn-sm" id="easy-import-apply" disabled><i class="fa-solid fa-check"></i> 적용</button>
+        </div>
+        <div id="easy-import-result" class="import-result"></div>
+      </div>
+    </div>
+
     <div id="print-overlay">
       <div class="psheet">
         <div class="pbtns">
@@ -1676,7 +1708,7 @@
             <div class="admin-tool-grid">
               <button class="admin-tool-btn" id="admin-btn-csv-backup"><i class="fa-solid fa-file-csv"></i><span>CSV 백업</span><small>CSV 묶음 ZIP 다운로드</small></button>
               <button class="admin-tool-btn" id="admin-btn-full-backup"><i class="fa-solid fa-box-archive"></i><span>전체백업 다운로드</span><small>JSON + SQL + CSV ZIP 묶음</small></button>
-              <button class="admin-tool-btn" id="admin-btn-restore"><i class="fa-solid fa-cloud-arrow-up"></i><span>백업파일 복원</span><small>JSON / SQL 백업 병합 복원</small></button>
+              <button class="admin-tool-btn" id="admin-btn-restore"><i class="fa-solid fa-cloud-arrow-up"></i><span>백업파일 복원</span><small>JSON / SQL 백업 미리보기 후 복원</small></button>
               <button class="admin-tool-btn" id="admin-btn-email-backup"><i class="fa-solid fa-envelope-circle-check"></i><span>수동 이메일 백업</span><small>백업 메일 즉시 전송</small></button>
             </div>
             <input type="file" id="admin-restore-file-input" accept=".json,.sql,application/json,text/plain,application/sql" style="display:none" />
@@ -1749,6 +1781,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=invoice-print-v9-table-fixed-20260628"></script>
+    <script src="app.js?v=easy-import-preview-20260628b"></script>
   </body>
 </html>
