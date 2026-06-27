@@ -6432,3 +6432,82 @@ tr:hover td{background:#F8FAFC !important;}
     font-size:10px !important;
   }
 }
+
+/* ===== naepo-final-overrides-20260627-d ===== */
+/* 1) 거래내역 행 미리보기 헤더 깨짐 제거: 양식만 안정적으로 표시 */
+.inline-record-preview-head{display:none!important;}
+.inline-record-preview-row>td{padding:10px!important;background:#f8fafc!important;}
+.inline-record-preview-box{border:1px solid #d8e0e8!important;border-radius:12px!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important;}
+.inline-record-preview-frame{padding:10px!important;background:#fff!important;overflow:auto!important;max-height:76vh!important;}
+.inline-record-preview-frame .excel-frame{width:760px!important;max-width:760px!important;min-width:760px!important;margin:0 auto!important;padding:12px!important;background:#e8e4df!important;box-sizing:border-box!important;}
+.inline-record-preview-frame .tfs{display:block!important;width:100%!important;height:auto!important;min-height:0!important;margin:0 0 9px!important;padding:0!important;overflow:hidden!important;}
+.inline-record-preview-frame .tfs table{table-layout:auto!important;width:100%!important;border-collapse:collapse!important;}
+.inline-record-preview-frame .tfs td{font-size:10.5px!important;padding:4px 6px!important;line-height:1.25!important;word-break:keep-all!important;white-space:normal!important;overflow:visible!important;writing-mode:horizontal-tb!important;text-orientation:mixed!important;}
+.inline-record-preview-frame .tfs-sl{width:22px!important;min-width:22px!important;max-width:22px!important;line-height:1.45!important;}
+.inline-record-preview-frame .tfs-title{padding:8px 10px!important;}
+.inline-record-preview-frame .tfs-name{font-size:18px!important;letter-spacing:5px!important;}
+.inline-record-preview-frame .tfs-sub{font-size:12px!important;}
+
+/* 2) 거래내역 출력/관리 버튼 더 축소 */
+.records-table{min-width:1160px!important;table-layout:fixed!important;}
+.records-table th:nth-child(10),.records-table td:nth-child(10){width:104px!important;}
+.records-table th:nth-child(11),.records-table td:nth-child(11){width:72px!important;padding-right:16px!important;}
+.records-table th:nth-child(12),.records-table td:nth-child(12){width:108px!important;min-width:108px!important;padding-left:10px!important;padding-right:5px!important;}
+.records-table th:nth-child(13),.records-table td:nth-child(13){width:78px!important;min-width:78px!important;padding-left:5px!important;padding-right:6px!important;}
+.records-output-cell,.records-manage-cell{padding:5px!important;vertical-align:middle!important;}
+.ibtns-output{display:grid!important;grid-template-columns:1fr 1fr!important;gap:3px!important;width:100%!important;}
+.ibtns-manage{display:grid!important;grid-template-columns:1fr!important;gap:3px!important;width:100%!important;}
+.ibtns-output .ibtn,.ibtns-manage .ibtn{min-height:21px!important;height:21px!important;padding:2px 4px!important;font-size:9.4px!important;line-height:1!important;border-radius:6px!important;letter-spacing:-.04em!important;justify-content:center!important;white-space:nowrap!important;}
+.ibtns-output .ibtn i,.ibtns-manage .ibtn i{font-size:9px!important;margin-right:2px!important;}
+
+/* 3) 사이드바 메뉴 글자 조금 확대 */
+.sidebar .tab,.side-menu .tab,.app-sidebar .tab,.sidebar-nav .tab,nav.side-nav .tab{font-size:14px!important;font-weight:800!important;}
+.sidebar .tab i,.side-menu .tab i,.app-sidebar .tab i,.sidebar-nav .tab i,nav.side-nav .tab i{font-size:15px!important;}
+
+/* 4) 발주서 기록 품목 카드 가로/세로 스크롤 제거: 작게 접기 */
+.order-history-items.compact.all-items{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;max-width:365px!important;max-height:none!important;overflow:visible!important;padding:2px!important;border:0!important;background:transparent!important;}
+.order-history-items.compact.all-items .order-history-item{min-width:0!important;min-height:32px!important;padding:4px 6px!important;border-radius:7px!important;}
+.order-history-items.compact.all-items .order-history-item b{font-size:10.5px!important;max-width:86px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;}
+.order-history-items.compact.all-items .order-history-item small{font-size:9.5px!important;}
+.order-arrival-btn,.order-history-item .arrived{min-height:20px!important;padding:2px 6px!important;font-size:9.5px!important;}
+
+/* 5) 품목 연동 슬롯 제목/삭제 버튼 정리 */
+.item-row-header{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;align-items:center!important;gap:8px!important;padding:8px 10px!important;}
+.item-row-title{display:block!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important;text-orientation:mixed!important;font-size:13px!important;font-weight:800!important;letter-spacing:0!important;}
+.item-row-title i{display:none!important;}
+.item-row-header .btn-remove-item-row{position:static!important;justify-self:end!important;height:25px!important;min-height:25px!important;min-width:52px!important;padding:3px 8px!important;font-size:10.5px!important;border-radius:7px!important;line-height:1!important;}
+
+/* 6) 인쇄 최종: A4 안에 182x128 양식 2개가 잘리지 않게 */
+@media print{
+  @page{size:A4 portrait;margin:8mm!important;}
+  html,body{margin:0!important;padding:0!important;background:#fff!important;width:auto!important;height:auto!important;}
+  body.print-record-mode > *:not(#print-overlay){display:none!important;}
+  body.print-record-mode #print-overlay{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;margin:0!important;padding:0!important;background:#fff!important;overflow:visible!important;}
+  body.print-record-mode #print-overlay .psheet{display:block!important;width:auto!important;max-width:none!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;background:#fff!important;overflow:visible!important;}
+  body.print-record-mode .pbtns{display:none!important;}
+  body.print-record-mode #print-target-area{display:block!important;width:182mm!important;max-width:182mm!important;margin:0 auto!important;padding:0!important;overflow:visible!important;transform:none!important;}
+  body.print-record-mode .excel-frame{display:block!important;width:182mm!important;max-width:182mm!important;margin:0 auto!important;padding:0!important;background:#fff!important;overflow:visible!important;box-sizing:border-box!important;}
+  body.print-record-mode .excel-frame.single-copy{width:182mm!important;max-width:182mm!important;height:auto!important;}
+  body.print-record-mode .tfs{display:block!important;box-sizing:border-box!important;width:182mm!important;height:128mm!important;min-height:128mm!important;margin:0 auto!important;padding:0!important;background:#fff!important;overflow:hidden!important;break-inside:avoid!important;page-break-inside:avoid!important;}
+  body.print-record-mode .tfs table{width:100%!important;table-layout:auto!important;border-collapse:collapse!important;}
+  body.print-record-mode .tfs td{padding:2.5px 3.5px!important;font-size:9.45px!important;line-height:1.1!important;word-break:keep-all!important;white-space:normal!important;overflow:visible!important;writing-mode:horizontal-tb!important;text-orientation:mixed!important;}
+  body.print-record-mode .tfs-sl{width:22px!important;min-width:22px!important;max-width:22px!important;padding-left:1px!important;padding-right:1px!important;line-height:1.42!important;}
+  body.print-record-mode .tfs-title{padding:3.1mm 3mm 2.2mm!important;}
+  body.print-record-mode .tfs-name{font-size:14px!important;letter-spacing:4px!important;}
+  body.print-record-mode .tfs-sub{font-size:8.8px!important;}
+  body.print-record-mode .tfs table:nth-of-type(3) td{height:20.2px!important;}
+  body.print-record-mode .tfs-bottom{padding:3px 5px!important;}
+  body.print-record-mode .tfs-amt{font-size:11.5px!important;}
+  body.print-record-mode .tfs-paper{font-size:8px!important;}
+  body.print-record-mode .excel-divider{display:flex!important;align-items:center!important;justify-content:center!important;height:6mm!important;margin:0!important;color:#94a3b8!important;border:0!important;}
+  body.print-record-mode .excel-divider::before,body.print-record-mode .excel-divider::after{content:""!important;flex:1!important;border-top:1px dashed #cbd5e1!important;}
+  body.print-record-mode .excel-divider span{padding:0 8px!important;background:#fff!important;font-size:10px!important;}
+  body.print-record-mode .lp-page{display:flex!important;flex-direction:column!important;width:182mm!important;height:281mm!important;margin:0 auto!important;padding:0!important;overflow:hidden!important;page-break-after:always!important;break-after:page!important;}
+  body.print-record-mode .lp-page:last-child{page-break-after:auto!important;break-after:auto!important;}
+  body.print-record-mode .lp-slot{display:block!important;flex:0 0 128mm!important;width:182mm!important;height:128mm!important;overflow:hidden!important;}
+  body.print-record-mode .lp-slot .excel-frame{width:182mm!important;max-width:182mm!important;height:128mm!important;}
+  body.print-record-mode .lp-slot .tfs{width:182mm!important;height:128mm!important;min-height:128mm!important;}
+  body.print-record-mode .lp-sep{display:flex!important;align-items:center!important;justify-content:center!important;flex:0 0 6mm!important;height:6mm!important;margin:0!important;color:#94a3b8!important;}
+  body.print-record-mode .lp-sep::before,body.print-record-mode .lp-sep::after{content:""!important;flex:1!important;border-top:1px dashed #cbd5e1!important;}
+  body.print-record-mode .lp-sep span{padding:0 8px!important;background:#fff!important;font-size:10px!important;}
+}
