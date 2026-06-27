@@ -4963,38 +4963,80 @@
     const body = $("order-history-body");
     if (!body) return;
     const filtered = getFilteredOrders();
-    $("order-history-summary").textContent =
-      `저장된 발주서 ${orders.length}건 · 표시 ${filtered.length}건`;
+    const summary = $("order-history-summary");
+    if (summary) {
+      summary.textContent = `저장된 발주서 ${orders.length}건 · 표시 ${filtered.length}건`;
+    }
     if (!orders.length) {
       body.innerHTML =
-        '<tr><td colspan="5" class="empty-td">저장된 발주서 기록이 없습니다.</td></tr>';
+        '<tr class="order-history-card-row"><td colspan="5"><div class="order-card-empty">저장된 발주서 기록이 없습니다.</div></td></tr>';
       return;
     }
     if (!filtered.length) {
       body.innerHTML =
-        '<tr><td colspan="5" class="empty-td">필터 조건에 맞는 발주서가 없습니다.</td></tr>';
+        '<tr class="order-history-card-row"><td colspan="5"><div class="order-card-empty">필터 조건에 맞는 발주서가 없습니다.</div></td></tr>';
       return;
     }
     body.innerHTML = filtered
-      .map(
-        (order) => `
-        <tr>
-          <td class="order-history-date">${escapeHtml(order.orderDate)}</td>
-          <td><strong class="order-history-title">${escapeHtml(order.title)}</strong><br><small class="order-history-purpose">${escapeHtml(order.purpose || "-")}</small>${Array.isArray(order.activities) && order.activities.length ? `<div class="order-history-activity"><i class="fa-solid fa-clock-rotate-left"></i> 최근 기록: ${escapeHtml(order.activities[order.activities.length - 1].action || "인쇄")} · ${escapeHtml(String(order.activities[order.activities.length - 1].createdAt || "").replace("T", " ").slice(0, 16))}</div>` : ""}<div class="order-history-items compact all-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><span class="ohi-main"><b>${escapeHtml(item.item || "품목")}</b><small>${escapeHtml(item.spec || "")}</small></span><em>${money(item.qty || 0)}개</em>${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
-          <td>${escapeHtml(order.author || "-")}</td>
-          <td class="tr">${money(order.total || order.paymentAmount)} 원</td>
-          <td>
-            <div class="ibtns">
-              <button type="button" class="ibtn order-history-view" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-eye"></i> 보기</button>
-              <button type="button" class="ibtn order-history-print" data-id="${escapeHtml(order.id)}" style="color:#0284c7"><i class="fa-solid fa-print"></i> 인쇄</button>
-              ${(order.items || []).some((item) => !(item.receivedAt || item.inventoryAddedAt)) ? `<button type="button" class="ibtn order-arrival-all-btn" data-id="${escapeHtml(order.id)}" style="color:#0f766e"><i class="fa-solid fa-boxes-packing"></i> 전체 도착</button>` : ""}
-              <button type="button" class="ibtn order-history-download" data-id="${escapeHtml(order.id)}" style="color:#047857"><i class="fa-solid fa-download"></i> 다운로드</button>
-              <button type="button" class="ibtn d order-history-delete" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
-            </div>
-          </td>
-        </tr>
-      `,
-      )
+      .map((order) => {
+        const items = Array.isArray(order.items) ? order.items : [];
+        const arrivedCount = items.filter((item) => item.receivedAt || item.inventoryAddedAt).length;
+        const totalItems = items.length || 0;
+        const pct = totalItems ? Math.round((arrivedCount / totalItems) * 100) : 0;
+        const isAllArrived = totalItems > 0 && arrivedCount === totalItems;
+        const lastActivity = Array.isArray(order.activities) && order.activities.length
+          ? order.activities[order.activities.length - 1]
+          : null;
+        const itemBadges = items.length
+          ? items.map((item, idx) => {
+              const arrived = item.receivedAt || item.inventoryAddedAt;
+              const statusText = arrived ? "도착완료" : "택배 도착";
+              return `<span class="order-card-item ${arrived ? "is-arrived" : "is-pending"}">
+                <span class="order-card-item-dot"></span>
+                <span class="order-card-item-name">${escapeHtml(item.item || "품목")}${item.qty ? ` · ${money(item.qty)}개` : ""}</span>
+                ${arrived ? '<em>도착완료</em>' : `<button type="button" class="order-arrival-btn order-card-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}
+              </span>`;
+            }).join("")
+          : '<span class="order-card-item is-empty"><span class="order-card-item-dot"></span><span class="order-card-item-name">품목 없음</span></span>';
+        return `
+          <tr class="order-history-card-row">
+            <td colspan="5">
+              <article class="order-history-new-card">
+                <div class="order-card-main">
+                  <div class="order-card-icon"><i class="fa-solid fa-box-open"></i></div>
+                  <div class="order-card-title-block">
+                    <strong class="order-card-title">${escapeHtml(order.title || "발주서")}</strong>
+                    <div class="order-card-meta">
+                      <span><i class="fa-regular fa-calendar-days"></i> ${escapeHtml(order.orderDate || "-")}</span>
+                      <span><i class="fa-regular fa-user"></i> ${escapeHtml(order.author || "-")}</span>
+                      ${order.purpose ? `<span><i class="fa-solid fa-clipboard-list"></i> ${escapeHtml(order.purpose)}</span>` : ""}
+                    </div>
+                    ${lastActivity ? `<div class="order-card-activity"><i class="fa-solid fa-clock-rotate-left"></i> 최근 기록: ${escapeHtml(lastActivity.action || "인쇄")} · ${escapeHtml(String(lastActivity.createdAt || "").replace("T", " ").slice(0, 16))}</div>` : ""}
+                  </div>
+                  <div class="order-card-stats">
+                    <div class="order-card-money">
+                      <span>금액</span>
+                      <b><i class="fa-solid fa-won-sign"></i> ${money(order.total || order.paymentAmount)}원</b>
+                    </div>
+                    <div class="order-card-progress">
+                      <span>도착 현황</span>
+                      <div class="order-progress-line"><i style="width:${pct}%"></i></div>
+                      <b>${arrivedCount}/${totalItems}</b>
+                    </div>
+                  </div>
+                </div>
+                <div class="order-card-items">${itemBadges}</div>
+                <div class="order-card-actions">
+                  <button type="button" class="ibtn order-history-view" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-eye"></i> 보기</button>
+                  <button type="button" class="ibtn order-history-print" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-print"></i> 인쇄</button>
+                  ${!isAllArrived && totalItems ? `<button type="button" class="ibtn order-arrival-all-btn" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-circle-check"></i> 전체 도착</button>` : ""}
+                  <button type="button" class="ibtn order-history-download" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-download"></i> 다운로드</button>
+                  <button type="button" class="ibtn d order-history-delete" data-id="${escapeHtml(order.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+                </div>
+              </article>
+            </td>
+          </tr>`;
+      })
       .join("");
     bindHistoryButtons();
   }
