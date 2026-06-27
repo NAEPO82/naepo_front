@@ -567,6 +567,14 @@
   }
 
 
+  function resetSortHeaders() {
+    try {
+      document.querySelectorAll(".records-table thead th[data-sort]").forEach((th) => {
+        th.textContent = th.textContent.replace(/ [▲▼]$/, "");
+      });
+    } catch (_) {}
+  }
+
   function clearInlineRecordPreview() {
     document
       .querySelectorAll(".inline-record-preview-row")
@@ -895,6 +903,7 @@
                 ((a.style.display = "block"),
                 (a.textContent =
                   '✏️ 수정 모드 — 수정 후 "수정 내용 저장"을 누르세요. 취소하려면 "양식 초기화" 클릭.')),
+                (editReturnTab = "list"),
                 (editReturnTab = "list"),
                 J("form"),
                 window.scrollTo({ top: 0, behavior: "smooth" }));
@@ -1726,6 +1735,7 @@
         setVal("fl-payment", "");
         sortCol = null;
         sortDir = 1;
+        resetSortHeaders();
         clearInlineRecordPreview && clearInlineRecordPreview();
       }
       if (tabName === "inventory") {
