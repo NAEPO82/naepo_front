@@ -143,6 +143,25 @@
       a = String(t.getDate()).padStart(2, "0");
     document.getElementById("f-date").value = `${e}-${n}-${a}`;
   }
+  function formatKstTimestamp(value) {
+    if (!value) return "시간 없음";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value).replace("T", " ").slice(0, 19);
+    const parts = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    }).formatToParts(d).reduce((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+    return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+  }
   function $() {
     const t = document.getElementById("items-builder-root"),
       e = t.querySelectorAll(".item-row-card").length + 1,
@@ -469,7 +488,7 @@
     if ((b && (b.checked = !1), O(), 0 === g))
       return (
         (u.innerHTML =
-          '<tr><td colspan="12" class="empty-td"><i class="fa-solid fa-folder-open" style="display:block; font-size:32px; margin-bottom:10px; color:#cbd5e1;"></i>조건에 부합하는 거래명세 내역 레코드가 존재하지 않습니다.</td></tr>'),
+          '<tr><td colspan="13" class="empty-td"><i class="fa-solid fa-folder-open" style="display:block; font-size:32px; margin-bottom:10px; color:#cbd5e1;"></i>조건에 부합하는 거래명세 내역 레코드가 존재하지 않습니다.</td></tr>'),
         void (document.getElementById("pagination-root").innerHTML = "")
       );
     const v = Math.ceil(g / h);
@@ -477,7 +496,23 @@
     const E = (y - 1) * h;
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
-      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>\n          <td>\n            <div class="ibtns">\n              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>\n              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>\n              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;" title="인쇄기록"><i class="fa-solid fa-clock-rotate-left"></i> 기록</button>\n              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>\n              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>\n              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n            </div>\n          </td>\n        `),
+      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#b45309;border-color:#fde68a;background:#fffbeb;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
+          <td class="records-output-cell">
+            <div class="ibtns ibtns-output">
+              <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>
+              <button class="ibtn btn-print-direct" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-print"></i> 인쇄</button>
+              <button class="ibtn btn-print-supplier-direct" data-id="${n(t.id)}" title="공급자 보관용만 인쇄" style="color:#dc2626;"><i class="fa-solid fa-file-invoice"></i> 공급자</button>
+              <button class="ibtn btn-print-receiver-direct" data-id="${n(t.id)}" title="공급받는자 보관용만 인쇄" style="color:#2563eb;"><i class="fa-solid fa-file-invoice"></i> 받는자</button>
+              <button class="ibtn btn-excel-direct" data-id="${n(t.id)}" style="color:#047857;"><i class="fa-solid fa-file-excel"></i> 엑셀</button>
+            </div>
+          </td>
+          <td class="records-manage-cell">
+            <div class="ibtns ibtns-manage">
+              <button class="ibtn btn-printlog-direct" data-id="${n(t.id)}" style="color:#7c3aed;" title="인쇄/엑셀 기록"><i class="fa-solid fa-clock-rotate-left"></i> 기록</button>
+              <button class="ibtn btn-edit-direct" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-pen"></i> 수정</button>
+              <button class="ibtn d btn-delete-direct" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+            </div>
+          </td>\n        `),
         u.appendChild(e));
     }),
       (function (t) {
@@ -521,19 +556,24 @@
               I("인쇄 기록 없음", "이 명세서의 인쇄 기록이 없습니다.");
               return;
             }
-            const txt = logs
-              .map((l, i) => {
-                const stamp = l.printedAt ? l.printedAt.replace("T", " ").slice(0, 19) : "시간 없음";
-                return `${i + 1}. ${stamp} · ${l.action || "인쇄"}`;
-              })
+            const usableLogs = logs.filter((l) => String(l.action || "인쇄") !== "PDF 저장");
+            if (!usableLogs.length) {
+              I("출력 기록 없음", "이 명세서의 인쇄/엑셀 다운로드 기록이 없습니다.");
+              return;
+            }
+            const normalizedLogs = usableLogs
+              .map((l) => ({ ...l, _stamp: formatKstTimestamp(l.printedAt), _action: l.action || "인쇄" }))
+              .sort((a, b) => String(b.printedAt || "").localeCompare(String(a.printedAt || "")));
+            const visibleLogs = normalizedLogs.slice(0, 5);
+            const txt = visibleLogs
+              .map((l, i) => `${i + 1}. ${l._stamp} · ${l._action}`)
               .join("\n");
+            const hiddenCount = Math.max(0, normalizedLogs.length - visibleLogs.length);
             I(
-              "인쇄 기록 — 총 " + logs.length + "회",
-              "최근 기록: " +
-                (logs[0].printedAt ? logs[0].printedAt.replace("T", " ").slice(0, 19) : "시간 없음") +
-                " · " + (logs[0].action || "인쇄") +
-                "\n\n전체 타임스탬프\n" +
-                txt,
+              "출력 기록 — 총 " + normalizedLogs.length + "회",
+              "최근 기록: " + normalizedLogs[0]._stamp + " · " + normalizedLogs[0]._action +
+                "\n\n최근 5개 타임스탬프\n" + txt +
+                (hiddenCount > 0 ? "\n\n외 " + hiddenCount + "건은 기록에는 저장되어 있고, 화면에는 최근 5개만 표시합니다." : ""),
             );
           } catch (e) {
             I("조회 실패", e.message);
@@ -689,6 +729,32 @@
           }
         });
       }),
+      document.querySelectorAll(".btn-print-supplier-direct").forEach((e) => {
+        e.addEventListener("click", async (ev) => {
+          ev && ev.preventDefault();
+          ev && ev.stopPropagation();
+          const n = e.getAttribute("data-id");
+          try {
+            const a = await getRecordForAction(n);
+            a && X(a, "supplier");
+          } catch (err) {
+            I("공급자 인쇄 실패", err.message || "거래내역을 불러오지 못했습니다.");
+          }
+        });
+      }),
+      document.querySelectorAll(".btn-print-receiver-direct").forEach((e) => {
+        e.addEventListener("click", async (ev) => {
+          ev && ev.preventDefault();
+          ev && ev.stopPropagation();
+          const n = e.getAttribute("data-id");
+          try {
+            const a = await getRecordForAction(n);
+            a && X(a, "receiver");
+          } catch (err) {
+            I("공급받는자 인쇄 실패", err.message || "거래내역을 불러오지 못했습니다.");
+          }
+        });
+      }),
       document.querySelectorAll(".btn-delete-direct").forEach((n) => {
         n.addEventListener("click", () => {
           const a = n.getAttribute("data-id");
@@ -723,10 +789,13 @@
         });
       }),
       document.querySelectorAll(".btn-excel-direct").forEach((n) => {
-        n.addEventListener("click", () => {
-          const a = n.getAttribute("data-id"),
-            o = t.find((t) => t.id === a);
-          o && ((e = o), U([o]));
+        n.addEventListener("click", async () => {
+          const a = n.getAttribute("data-id");
+          let o = t.find((t) => t.id === a);
+          if (!o) {
+            try { o = await getRecordForAction(a); } catch (_) {}
+          }
+          o && ((e = o), await logExcelActions([o]), U([o]));
         });
       }));
   }
@@ -944,8 +1013,12 @@
     const list = Array.isArray(records) ? records : [records];
     await Promise.all(list.filter(Boolean).map((rec) => logPrintAction(rec, action)));
   }
-  function X(t) {
-    currentPrintCopyMode = "both";
+  async function logExcelActions(records) {
+    const list = Array.isArray(records) ? records : [records];
+    await Promise.all(list.filter(Boolean).map((rec) => logPrintAction(rec, "엑셀 다운로드")));
+  }
+  function X(t, copyMode) {
+    currentPrintCopyMode = copyMode || "both";
     (document.body.classList.add("print-record-mode"),
       (document.getElementById("print-target-area").innerHTML = N(t, currentPrintCopyMode)),
       (e = t),
@@ -2152,7 +2225,7 @@
     document.getElementById("list-body").addEventListener("change", (t) => {
       t.target && t.target.classList.contains("chk-row") && O();
     }),
-    document.getElementById("btn-sel-excel").addEventListener("click", () => {
+    document.getElementById("btn-sel-excel").addEventListener("click", async () => {
       const e = document.querySelectorAll(".chk-row:checked");
       if (0 === e.length)
         return void I(
@@ -2160,15 +2233,17 @@
           "엑셀 변환을 수행할 명세 내역 체크박스를 최소 1개 선택하세요.",
         );
       let n = [];
-      (e.forEach((e) => {
+      e.forEach((e) => {
         const a = e.getAttribute("data-id"),
           o = t.find((t) => t.id === a);
         o && n.push(o);
-      }),
-        U(n));
+      });
+      await logExcelActions(n);
+      U(n);
     }),
-    document.getElementById("btn-excel").addEventListener("click", () => {
+    document.getElementById("btn-excel").addEventListener("click", async () => {
       if (0 !== t.length) {
+        await logExcelActions(t);
         var e = [
           "날짜,작성자,거래처,성명,지역,분류,총공급가액,총세액,합계금액,품목상세,비고",
         ];
@@ -2414,25 +2489,40 @@
     document
       .getElementById("btn-print-submit")
       .addEventListener("click", async () => {
-        if (e) await logPrintAction(e, "인쇄");
+        if (e) {
+          document.body.classList.add("print-record-mode");
+          document.getElementById("print-target-area").innerHTML = N(e, currentPrintCopyMode);
+          D();
+          await logPrintAction(e, "인쇄");
+        }
         window.print();
       }),
     document.getElementById("btn-print-pdf") &&
       document.getElementById("btn-print-pdf").addEventListener("click", async () => {
-        if (e) await logPrintAction(e, "PDF 저장");
+        if (e) {
+          document.body.classList.add("print-record-mode");
+          document.getElementById("print-target-area").innerHTML = N(e, currentPrintCopyMode);
+          D();
+        }
         window.print();
       }),
     document.getElementById("btn-print-supplier") &&
       document.getElementById("btn-print-supplier").addEventListener("click", () => setPrintCopyMode("supplier")),
     document.getElementById("btn-print-receiver") &&
       document.getElementById("btn-print-receiver").addEventListener("click", () => setPrintCopyMode("receiver")),
-    document.getElementById("btn-print-excel").addEventListener("click", () => {
-      e && U([e]);
+    document.getElementById("btn-print-excel").addEventListener("click", async () => {
+      if (e) {
+        await logExcelActions([e]);
+        U([e]);
+      }
     }),
     document
       .getElementById("btn-download-live-excel")
-      .addEventListener("click", () => {
-        e && U([e]);
+      .addEventListener("click", async () => {
+        if (e) {
+          await logExcelActions([e]);
+          U([e]);
+        }
       }),
     document
       .getElementById("btn-print-live-excel")

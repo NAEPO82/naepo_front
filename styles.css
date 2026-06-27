@@ -4376,3 +4376,30 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 .order-preview-card .order-sheet table{width:100%!important;}
 @media(max-width:780px){.order-preview-card .order-sheet{max-width:100%!important;padding:24px 16px!important;font-size:11px!important}.order-doc-title{font-size:19px!important;letter-spacing:.22em!important}}
 .order-history-activity{display:inline-flex;align-items:center;gap:5px;margin:2px 0 8px;padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:700;}
+
+
+/* v-final: 거래내역 출력/관리 버튼 컬럼 분리 + 기록 5개 표시 대응 */
+.records-table{min-width:1360px!important;}
+.records-table th:nth-child(12), .records-table td:nth-child(12){width:180px!important;min-width:180px!important;}
+.records-table th:nth-child(13), .records-table td:nth-child(13){width:170px!important;min-width:170px!important;}
+.records-output-cell,.records-manage-cell{background:#fff!important;vertical-align:middle!important;}
+.ibtns-output,.ibtns-manage{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;align-items:center!important;justify-content:center!important;width:100%!important;}
+.ibtns-output .ibtn,.ibtns-manage .ibtn{width:100%!important;min-width:0!important;min-height:32px!important;padding:6px 6px!important;font-size:11px!important;line-height:1.1!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;justify-content:center!important;}
+@media(max-width:1180px){.records-table{min-width:1320px!important}.records-table th:nth-child(12),.records-table td:nth-child(12){width:170px!important;min-width:170px!important}.records-table th:nth-child(13),.records-table td:nth-child(13){width:160px!important;min-width:160px!important}}
+@media print{
+  body.print-record-mode #print-overlay.show{display:block!important;}
+  body.print-record-mode .excel-frame.single-copy{width:200mm!important;max-width:200mm!important;height:auto!important;display:block!important;background:#fff!important;margin:0 auto!important;overflow:visible!important;}
+  body.print-record-mode .excel-frame.single-copy .tfs{display:flex!important;width:200mm!important;height:136mm!important;min-height:136mm!important;margin:0 auto!important;visibility:visible!important;opacity:1!important;}
+}
+
+/* v-final-2: 출력 컬럼 공급자/공급받는자 인쇄 버튼 추가 및 컬럼 재정렬 */
+.records-table{min-width:1480px!important;}
+.records-table th:nth-child(12), .records-table td:nth-child(12){width:270px!important;min-width:270px!important;}
+.records-table th:nth-child(13), .records-table td:nth-child(13){width:170px!important;min-width:170px!important;}
+.ibtns-output{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:5px!important;}
+.ibtns-output .ibtn{min-height:30px!important;padding:5px 4px!important;font-size:10.5px!important;letter-spacing:-.02em!important;}
+@media(max-width:1180px){
+  .records-table{min-width:1460px!important;}
+  .records-table th:nth-child(12),.records-table td:nth-child(12){width:260px!important;min-width:260px!important;}
+  .records-table th:nth-child(13),.records-table td:nth-child(13){width:165px!important;min-width:165px!important;}
+}
