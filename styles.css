@@ -10835,3 +10835,221 @@ tr:hover td{background:#F8FAFC !important;}
     white-space:nowrap !important;
   }
 }
+
+
+/* ===== invoice-print-v22-balance-cutline-amount-20260628 =====
+   v21 기준 유지. 요청사항만 반영:
+   1) 출력물이 너무 위로 붙지 않도록 위쪽 여백을 추가해서 상/하 여백 균형 보정
+   2) 절취선 색/두께/텍스트를 강화해서 잘 보이게 수정
+   3) "금 xxx원정" 문구가 애매하게 테두리에 붙지 않도록 위치 재조정
+*/
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:1mm 3.5mm !important;
+  }
+
+  /* 단일 / 공급자 / 받는자: 좌우는 v21 그대로, 전체를 조금 아래로 내려 상하 균형 보정 */
+  body.print-record-mode #print-target-area:not(:has(.lp-page)),
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)){
+    width:197mm !important;
+    max-width:197mm !important;
+    margin:12mm auto 0 !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame,
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .excel-frame.single-copy{
+    width:197mm !important;
+    max-width:197mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs{
+    width:197mm !important;
+    max-width:197mm !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    margin:0 0 4px !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 금액 문구 위치 재조정: 좌측/하단 여유 확보 */
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-bottom{
+    padding:7px 18px 11px !important;
+    min-height:28px !important;
+    overflow:visible !important;
+    align-items:center !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-amt{
+    display:block !important;
+    padding-left:13px !important;
+    padding-right:14px !important;
+    padding-bottom:2px !important;
+    white-space:nowrap !important;
+    line-height:1.16 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(:has(.lp-page)) .tfs-paper{
+    padding-right:8px !important;
+    padding-bottom:1px !important;
+    white-space:nowrap !important;
+  }
+
+  /* 단일 출력 중 공급자/받는자 2장 사이 절취선 */
+  body.print-record-mode .excel-divider{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:197mm !important;
+    max-width:197mm !important;
+    height:6mm !important;
+    min-height:6mm !important;
+    max-height:6mm !important;
+    margin:4mm auto 4mm !important;
+    border:0 !important;
+    overflow:visible !important;
+    color:#475569 !important;
+    opacity:1 !important;
+  }
+
+  body.print-record-mode .excel-divider::before,
+  body.print-record-mode .excel-divider::after{
+    content:"" !important;
+    flex:1 1 auto !important;
+    border-top:1.3px dashed #64748b !important;
+  }
+
+  body.print-record-mode .excel-divider span{
+    display:inline-block !important;
+    padding:0 10px !important;
+    background:#fff !important;
+    color:#475569 !important;
+    font-size:10px !important;
+    font-weight:800 !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+  }
+
+  /* 선택일괄인쇄: 현재 폭/높이 유지, 위쪽으로 붙는 문제와 절취선만 보정 */
+  body.print-record-mode #print-target-area:has(.lp-page),
+  body.print-record-mode #print-target-area.pf-active:has(.lp-page){
+    width:186mm !important;
+    max-width:186mm !important;
+    margin:7mm auto 0 !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode .lp-page{
+    width:186mm !important;
+    max-width:186mm !important;
+    height:276mm !important;
+    min-height:276mm !important;
+    max-height:276mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode .lp-slot{
+    flex:0 0 135mm !important;
+    width:186mm !important;
+    height:135mm !important;
+    min-height:135mm !important;
+    max-height:135mm !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode .lp-slot .excel-frame{
+    width:186mm !important;
+    max-width:186mm !important;
+    height:135mm !important;
+    min-height:135mm !important;
+    max-height:135mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:hidden !important;
+    background:#fff !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs{
+    width:186mm !important;
+    max-width:186mm !important;
+    height:135mm !important;
+    min-height:135mm !important;
+    max-height:135mm !important;
+    margin:0 auto !important;
+    overflow:hidden !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-bottom{
+    padding:7px 17px 10px !important;
+    min-height:27px !important;
+    overflow:visible !important;
+    align-items:center !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-amt{
+    display:block !important;
+    padding-left:12px !important;
+    padding-right:14px !important;
+    padding-bottom:2px !important;
+    white-space:nowrap !important;
+    line-height:1.14 !important;
+  }
+
+  body.print-record-mode .lp-slot .tfs-paper{
+    padding-right:8px !important;
+    padding-bottom:1px !important;
+    white-space:nowrap !important;
+  }
+
+  /* 선택일괄인쇄 절취선 강화 */
+  body.print-record-mode .lp-sep{
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    flex:0 0 6mm !important;
+    width:186mm !important;
+    height:6mm !important;
+    min-height:6mm !important;
+    max-height:6mm !important;
+    margin:0 auto !important;
+    border:0 !important;
+    overflow:visible !important;
+    color:#475569 !important;
+    opacity:1 !important;
+  }
+
+  body.print-record-mode .lp-sep::before,
+  body.print-record-mode .lp-sep::after{
+    content:"" !important;
+    flex:1 1 auto !important;
+    border-top:1.3px dashed #64748b !important;
+  }
+
+  body.print-record-mode .lp-sep span{
+    display:inline-block !important;
+    padding:0 10px !important;
+    background:#fff !important;
+    color:#475569 !important;
+    font-size:10px !important;
+    font-weight:800 !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+  }
+}
