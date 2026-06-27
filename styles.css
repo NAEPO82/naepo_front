@@ -4654,3 +4654,85 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 /* 관리자 화면 위로 완료/오류 알림 모달이 항상 표시되도록 보정 */
 #pretty-modal-container.show{z-index:20000!important;}
 #pretty-modal-container.show .pretty-modal-box{position:relative;z-index:20001!important;}
+
+/* ============================================================
+   2026-06-27 최종 보정: 거래내역 가로 스크롤 제거 + 긴 분류/대표품목 줄바꿈
+   - 기존 중복 테이블 폭 보정 규칙보다 뒤에 위치해야 적용됩니다.
+   ============================================================ */
+#page-list .table-wrap,
+#page-list .table-responsive,
+#page-list .records-table-wrap {
+  overflow-x: hidden !important;
+  width: 100% !important;
+}
+#page-list .records-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  table-layout: fixed !important;
+}
+#page-list .records-table th,
+#page-list .records-table td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-break: keep-all !important;
+  overflow-wrap: anywhere !important;
+  line-height: 1.35 !important;
+}
+#page-list .records-table th:nth-child(1), #page-list .records-table td:nth-child(1){width:3.2%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(2), #page-list .records-table td:nth-child(2){width:7.2%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(3), #page-list .records-table td:nth-child(3){width:5.8%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(4), #page-list .records-table td:nth-child(4){width:10.4%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(5), #page-list .records-table td:nth-child(5){width:6.2%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(6), #page-list .records-table td:nth-child(6){width:9.8%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(7), #page-list .records-table td:nth-child(7){width:12.2%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(8), #page-list .records-table td:nth-child(8){width:6.8%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(9), #page-list .records-table td:nth-child(9){width:8.0%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(10), #page-list .records-table td:nth-child(10){width:7.0%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(11), #page-list .records-table td:nth-child(11){width:4.8%!important;min-width:0!important;max-width:none!important;}
+#page-list .records-table th:nth-child(12), #page-list .records-table td:nth-child(12){width:11.6%!important;min-width:0!important;max-width:none!important;position:static!important;}
+#page-list .records-table th:nth-child(13), #page-list .records-table td:nth-child(13){width:7.0%!important;min-width:0!important;max-width:none!important;position:static!important;}
+#page-list .records-table td:nth-child(6) .badge.bo,
+#page-list .records-table td:nth-child(5) .badge.bn {
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  line-height: 1.25 !important;
+}
+#page-list .records-table td:nth-child(7) {
+  text-align: left !important;
+}
+#page-list .records-table .ibtns-output,
+#page-list .records-table .ibtns-manage {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 5px !important;
+  width: 100% !important;
+}
+#page-list .records-table .ibtn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 30px !important;
+  padding: 0 4px !important;
+  font-size: 11px !important;
+  white-space: nowrap !important;
+  justify-content: center !important;
+}
+#page-list .records-table .ibtn i {
+  margin-right: 3px !important;
+}
+@media (max-width: 1180px) {
+  #page-list .records-table th:nth-child(2), #page-list .records-table td:nth-child(2),
+  #page-list .records-table th:nth-child(3), #page-list .records-table td:nth-child(3),
+  #page-list .records-table th:nth-child(5), #page-list .records-table td:nth-child(5) {
+    font-size: 11px !important;
+  }
+  #page-list .records-table .ibtn {
+    font-size: 10.5px !important;
+    height: 28px !important;
+  }
+}

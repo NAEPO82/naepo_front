@@ -2100,58 +2100,6 @@
       await logExcelActions(n);
       U(n);
     }),
-    (() => {
-      const legacyExcelBtn = document.getElementById("btn-excel");
-      // 거래내역 화면의 기존 도구 버튼은 제거되었으므로, 버튼이 없는 상태에서
-      // 초기화가 중단되지 않게 안전 처리합니다. 이 부분이 멈추면 아래쪽의
-      // 인쇄/재고/거래처/발주서/관리자 이벤트까지 전부 등록되지 않습니다.
-      if (!legacyExcelBtn) return;
-      legacyExcelBtn.addEventListener("click", async () => {
-      if (0 !== t.length) {
-        await logExcelActions(t);
-        var e = [
-          "날짜,작성자,거래처,성명,지역,분류,총공급가액,총세액,합계금액,품목상세,비고",
-        ];
-        t.forEach(function (t) {
-          var n = t.items
-              .map(function (t) {
-                return t.item + "(" + t.qty + "x" + t.price + ")";
-              })
-              .join(" / "),
-            o = [
-              a(t.date),
-              a(t.author),
-              '"' + a(t.company || "").replace(/"/g, '""') + '"',
-              '"' + a(t.name || "").replace(/"/g, '""') + '"',
-              a(t.region),
-              '"' + a(t.part || "").replace(/"/g, '""') + '"',
-              t.amount,
-              t.tax,
-              t.amount + t.tax,
-              '"' + a(n).replace(/"/g, '""') + '"',
-              '"' + a(t.note || "").replace(/"/g, '""') + '"',
-            ].join(",");
-          e.push(o);
-        });
-        var n = new Blob(["\ufeff" + e.join("\n")], {
-            type: "text/csv;charset=utf-8;",
-          }),
-          o = URL.createObjectURL(n),
-          s = document.createElement("a");
-        ((s.href = o),
-          (s.download =
-            "내포농기계_전체백업_" +
-            new Date().toISOString().slice(0, 10) +
-            ".csv"),
-          s.click(),
-          URL.revokeObjectURL(o));
-      } else
-        I(
-          "백업 데이터 없음",
-          "스토리지에 저장된 전체 거래내역 데이터가 존재하지 않습니다.",
-        );
-      });
-    })(),
     document.getElementById("btn-list-print").addEventListener("click", () => {
       const e = Array.from(document.querySelectorAll(".chk-row:checked")).map(
         (t) => t.getAttribute("data-id"),
@@ -2236,6 +2184,7 @@
         try {
           const result = await w("/api/restore", {
             method: "POST",
+            headers: { "X-Admin-Password": getAdminPassword() },
             body: JSON.stringify({
               records,
               parts: data.parts,
