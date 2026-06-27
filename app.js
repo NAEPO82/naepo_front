@@ -47,7 +47,8 @@
     f = [],
     h = 10,
     sortCol = null,
-    sortDir = 1;
+    sortDir = 1,
+    editReturnTab = "list";
   const b = "https://naepo-back.onrender.com",
     v = "npo_session_token";
   function E() {
@@ -482,7 +483,7 @@
         const e = t.findIndex((t) => t.id === r);
         (-1 !== e && (t[e] = E),
           I("수정 완료", "거래 명세 내역이 수정되었습니다.", () => {
-            (q(), (y = 1), C(), J("list"));
+            (q(), (y = 1), C(), J(editReturnTab || "list"));
           }));
       } else
         (await w("/api/records", { method: "POST", body: JSON.stringify(E) }),
@@ -894,6 +895,7 @@
                 ((a.style.display = "block"),
                 (a.textContent =
                   '✏️ 수정 모드 — 수정 후 "수정 내용 저장"을 누르세요. 취소하려면 "양식 초기화" 클릭.')),
+                (editReturnTab = "list"),
                 J("form"),
                 window.scrollTo({ top: 0, behavior: "smooth" }));
             })(a);
@@ -1704,6 +1706,46 @@
       (document.getElementById("pw-old").value = ""),
       (document.getElementById("pw-new").value = ""));
   }
+  function resetPageSettings(tabName) {
+    try {
+      const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val;
+      };
+      const setText = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val;
+      };
+      if (tabName === "list") {
+        setVal("fl-search", "");
+        setVal("fl-region", "");
+        setVal("fl-sdate", "");
+        setVal("fl-edate", "");
+        setVal("fl-cat", "");
+        setVal("fl-status", "");
+        setVal("fl-payment", "");
+        sortCol = null;
+        sortDir = 1;
+        clearInlineRecordPreview && clearInlineRecordPreview();
+      }
+      if (tabName === "inventory") {
+        setVal("invlog-filter-month", "");
+        setVal("invlog-filter-part", "");
+        setVal("invlog-filter-group", "");
+        setVal("invlog-filter-type", "");
+      }
+      if (tabName === "order") {
+        setVal("order-filter-search", "");
+        setVal("order-filter-start", "");
+        setVal("order-filter-end", "");
+        setVal("order-filter-arrival", "");
+      }
+      if (tabName === "dashboard") {
+        resetDashboardRangeOnLeave();
+      }
+    } catch (_) {}
+  }
+
   function J(t, e) {
     if ("form" !== t) {
       if (r) {
@@ -1718,6 +1760,7 @@
       }
     }
     if (t !== "dashboard") resetDashboardRangeOnLeave();
+    if (e !== false && t !== "form") resetPageSettings(t);
     const n = {
       dashboard: "page-dashboard",
       form: "page-form",
@@ -2301,6 +2344,18 @@
           (t.preventDefault(), T()));
     }),
     document.getElementById("btn-reset").addEventListener("click", () => {
+      if (r) {
+        S(
+          "수정 취소 확인",
+          "수정 작업을 취소하고 이전 페이지로 돌아가시겠습니까?",
+          () => {
+            q();
+            J(editReturnTab || "list");
+          },
+          () => {},
+        );
+        return;
+      }
       S(
         "양식 초기화 확인",
         "현재 작성 중인 거래명세서 폼 데이터 전체가 리셋됩니다. 진행하시겠습니까?",
