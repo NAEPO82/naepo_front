@@ -5015,3 +5015,34 @@
 
   document.addEventListener("DOMContentLoaded", initOrderPage);
 })();
+
+/* 2026-06-27 UI only: 모바일 사이드바 토글 보조 로직
+   - 저장/수정/삭제/조회/인쇄/엑셀/API 로직은 변경하지 않음
+   - 기존 탭 버튼 ID와 이벤트는 유지하고, 모바일에서 메뉴 열기/닫기 class만 토글 */
+(() => {
+  document.addEventListener("DOMContentLoaded", () => {
+    const main = document.getElementById("main-content");
+    const toggle = document.getElementById("mobile-menu-toggle");
+    const backdrop = document.getElementById("mobile-menu-backdrop");
+    if (!main || !toggle) return;
+
+    const closeMenu = () => main.classList.remove("mobile-nav-open");
+    const toggleMenu = () => main.classList.toggle("mobile-nav-open");
+
+    toggle.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      toggleMenu();
+    });
+
+    backdrop && backdrop.addEventListener("click", closeMenu);
+
+    document.querySelectorAll("#main-content nav .tab").forEach((btn) => {
+      btn.addEventListener("click", closeMenu);
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") closeMenu();
+    });
+  });
+})();
