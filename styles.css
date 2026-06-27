@@ -6511,3 +6511,475 @@ tr:hover td{background:#F8FAFC !important;}
   body.print-record-mode .lp-sep::before,body.print-record-mode .lp-sep::after{content:""!important;flex:1!important;border-top:1px dashed #cbd5e1!important;}
   body.print-record-mode .lp-sep span{padding:0 8px!important;background:#fff!important;font-size:10px!important;}
 }
+
+
+/* ===== invoice-original-output-restore-20260627 =====
+   기존 파일의 거래명세서 양식/인쇄 방식을 우선 적용합니다.
+   다른 화면 기능은 건드리지 않고 .excel-frame/.tfs/인쇄/미리보기만 분리합니다. */
+
+/* 거래명세서 양식 기본값을 예전 양식으로 되돌림 */
+.excel-frame{
+  width:100% !important;
+  max-width:740px !important;
+  margin:0 auto !important;
+  padding:14px !important;
+  font-family:"맑은 고딕","Malgun Gothic",sans-serif !important;
+  color:#222 !important;
+  font-size:11px !important;
+  background:#e8e4df !important;
+}
+.tfs{
+  display:block !important;
+  background:#fff !important;
+  border:1.5px dashed #b33a3a !important;
+  padding:0 !important;
+  margin-bottom:10px !important;
+  box-sizing:border-box !important;
+  overflow:hidden !important;
+}
+.tfs.bl{border-color:#2c5f8a !important;}
+.tfs-title{
+  display:block !important;
+  text-align:center !important;
+  padding:8px 10px !important;
+  border-bottom:1.5px dashed #b33a3a !important;
+  background:#fff !important;
+  white-space:normal !important;
+}
+.tfs.bl .tfs-title{border-bottom-color:#2c5f8a !important;background:#fff !important;}
+.tfs-name{
+  display:inline !important;
+  font-size:18px !important;
+  font-weight:900 !important;
+  letter-spacing:5px !important;
+  color:#b33a3a !important;
+  white-space:normal !important;
+  writing-mode:horizontal-tb !important;
+  text-orientation:mixed !important;
+}
+.tfs.bl .tfs-name{color:#2c5f8a !important;}
+.tfs-sub{
+  display:inline !important;
+  font-size:12px !important;
+  font-weight:700 !important;
+  color:#b33a3a !important;
+  margin-left:14px !important;
+  letter-spacing:0 !important;
+  white-space:nowrap !important;
+  writing-mode:horizontal-tb !important;
+}
+.tfs.bl .tfs-sub{color:#2c5f8a !important;}
+.tfs table{
+  width:100% !important;
+  border-collapse:collapse !important;
+  table-layout:auto !important;
+}
+.tfs td{
+  border:1px dashed #b33a3a !important;
+  padding:4px 6px !important;
+  vertical-align:middle !important;
+  font-size:10.5px !important;
+  line-height:1.22 !important;
+  word-break:keep-all !important;
+  overflow:visible !important;
+  white-space:normal !important;
+  text-overflow:clip !important;
+  writing-mode:horizontal-tb !important;
+  text-orientation:mixed !important;
+  box-sizing:border-box !important;
+}
+.tfs.bl td{border-color:#2c5f8a !important;}
+.tfs-sl{
+  background:#fff !important;
+  color:#b33a3a !important;
+  text-align:center !important;
+  width:22px !important;
+  max-width:22px !important;
+  min-width:22px !important;
+  padding:6px 1px !important;
+  font-size:9.5px !important;
+  font-weight:800 !important;
+  line-height:1.5 !important;
+  letter-spacing:0 !important;
+  white-space:nowrap !important;
+}
+.tfs.bl .tfs-sl{background:#fff !important;color:#2c5f8a !important;}
+.tfs-k{
+  background:#fff !important;
+  font-weight:700 !important;
+  text-align:center !important;
+  font-size:9.5px !important;
+  color:#444 !important;
+  white-space:nowrap !important;
+  min-width:58px !important;
+  width:62px !important;
+}
+.tfs-k small{
+  font-size:7.5px !important;
+  color:#999 !important;
+  font-weight:500 !important;
+  display:block !important;
+  line-height:1 !important;
+}
+.tfs-mid-k{
+  background:#fff !important;
+  color:#b33a3a !important;
+  font-weight:700 !important;
+  text-align:center !important;
+  font-size:9px !important;
+  white-space:nowrap !important;
+  width:48px !important;
+  line-height:1.3 !important;
+}
+.tfs.bl .tfs-mid-k{background:#fff !important;color:#2c5f8a !important;}
+.tfs-mid-v{
+  color:#222 !important;
+  font-weight:700 !important;
+  text-align:center !important;
+  font-size:10.5px !important;
+  white-space:nowrap !important;
+  width:96px !important;
+}
+.tfs-mid-r{
+  color:#444 !important;
+  font-size:9.5px !important;
+  text-align:left !important;
+  padding-left:8px !important;
+}
+.tfs-v{font-weight:500 !important;color:#222 !important;}
+.tfs-vb{font-weight:800 !important;color:#222 !important;font-size:11px !important;}
+.tfs-ih{
+  background:#fff !important;
+  color:#b33a3a !important;
+  font-weight:700 !important;
+  text-align:center !important;
+  letter-spacing:2px !important;
+  font-size:10px !important;
+  padding:5px 2px !important;
+}
+.tfs.bl .tfs-ih{background:#fff !important;color:#2c5f8a !important;}
+.tfs-ic{text-align:center !important;height:21px !important;font-size:10px !important;}
+.tfs-il{text-align:left !important;padding-left:8px !important;}
+.tfs-ir{text-align:right !important;padding-right:8px !important;font-family:Consolas,"Courier New",monospace !important;}
+.tfs-fl{
+  background:#fff !important;
+  color:#b33a3a !important;
+  font-weight:700 !important;
+  text-align:center !important;
+  letter-spacing:2px !important;
+  font-size:10px !important;
+}
+.tfs.bl .tfs-fl{background:#fff !important;color:#2c5f8a !important;}
+.tfs-fv{
+  font-weight:800 !important;
+  color:#b33a3a !important;
+  text-align:right !important;
+  padding-right:8px !important;
+  font-family:Consolas,"Courier New",monospace !important;
+}
+.tfs.bl .tfs-fv{color:#2c5f8a !important;}
+.tfs-rc{text-align:center !important;font-weight:700 !important;color:#444 !important;}
+.tfs-rc b{color:#b33a3a !important;font-size:15px !important;}
+.tfs.bl .tfs-rc b{color:#2c5f8a !important;}
+.tfs-bottom{
+  display:flex !important;
+  justify-content:space-between !important;
+  align-items:center !important;
+  padding:5px 8px !important;
+  color:#b33a3a !important;
+  font-weight:800 !important;
+}
+.tfs.bl .tfs-bottom{color:#2c5f8a !important;}
+.tfs-amt{font-size:14px !important;letter-spacing:1px !important;}
+.tfs.bl .tfs-amt{color:#2c5f8a !important;}
+.tfs-paper{font-size:8px !important;color:#999 !important;font-weight:400 !important;letter-spacing:0 !important;}
+.excel-divider{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:8px !important;
+  margin:8px 0 !important;
+  color:#94a3b8 !important;
+  font-size:11px !important;
+}
+.excel-divider::before,.excel-divider::after{
+  content:"" !important;
+  flex:1 !important;
+  border-top:1px dashed #cbd5e1 !important;
+}
+.excel-divider span{background:transparent !important;padding:0 6px !important;}
+
+/* 인라인 미리보기: 스크롤 없이 해당 행 아래에 전체 표시 */
+.inline-record-preview-row > td{
+  padding:14px !important;
+  background:#f8fafc !important;
+  overflow:visible !important;
+}
+.inline-record-preview-box{
+  background:#fff !important;
+  border:1px solid #dbe3ee !important;
+  border-radius:14px !important;
+  overflow:visible !important;
+  box-shadow:0 12px 28px rgba(15,23,42,.08) !important;
+}
+.inline-record-preview-head{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-end !important;
+  padding:8px 12px !important;
+  background:#fff !important;
+  border-bottom:1px solid #e2e8f0 !important;
+  color:#0f172a !important;
+}
+.inline-record-preview-head strong{display:none !important;}
+.inline-record-preview-close{
+  height:30px !important;
+  min-height:30px !important;
+  padding:5px 12px !important;
+  background:#fff !important;
+  color:#334155 !important;
+  border-color:#cbd5e1 !important;
+}
+.inline-record-preview-frame{
+  padding:14px !important;
+  background:#f8fafc !important;
+  overflow:visible !important;
+  max-height:none !important;
+}
+.inline-record-preview-frame .excel-frame{
+  width:740px !important;
+  max-width:100% !important;
+  min-width:0 !important;
+  margin:0 auto !important;
+  padding:14px !important;
+  background:#e8e4df !important;
+}
+.inline-record-preview-frame .tfs table{table-layout:auto !important;}
+.inline-record-preview-frame .tfs td{font-size:10.5px !important;padding:4px 6px !important;}
+
+/* 거래내역 버튼: 글자 가독성은 유지하면서 높이와 점유 면적 축소 */
+.records-table{
+  min-width:1180px !important;
+  table-layout:fixed !important;
+  font-size:12px !important;
+}
+.records-table th,.records-table td{
+  font-size:12px !important;
+}
+.records-table th:nth-child(10),.records-table td:nth-child(10){width:106px !important;}
+.records-table th:nth-child(11),.records-table td:nth-child(11){
+  width:78px !important;
+  padding-right:16px !important;
+}
+.records-table th:nth-child(12),.records-table td:nth-child(12){
+  width:118px !important;
+  min-width:118px !important;
+  padding-left:8px !important;
+  padding-right:5px !important;
+}
+.records-table th:nth-child(13),.records-table td:nth-child(13){
+  width:88px !important;
+  min-width:88px !important;
+  padding-left:5px !important;
+  padding-right:5px !important;
+}
+.records-output-cell,.records-manage-cell{padding:6px 5px !important;}
+.ibtns-output{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:4px !important;
+}
+.ibtns-manage{
+  display:grid !important;
+  grid-template-columns:1fr !important;
+  gap:4px !important;
+}
+.ibtns-output .ibtn,.ibtns-manage .ibtn{
+  min-height:23px !important;
+  height:23px !important;
+  padding:3px 5px !important;
+  font-size:10px !important;
+  line-height:1 !important;
+  border-radius:7px !important;
+  gap:3px !important;
+  justify-content:center !important;
+}
+.ibtns-output .ibtn i,.ibtns-manage .ibtn i{font-size:9.5px !important;margin:0 !important;}
+
+/* 사이드바 메뉴 글자 살짝 확대 */
+.app-sidebar .tab,
+.sidebar .tab,
+#main-content .app-sidebar button,
+#main-content aside button{
+  font-size:14px !important;
+}
+
+/* 발주서 기록 품목 스크롤 제거 */
+.order-history-items.compact.all-items{
+  overflow:visible !important;
+  max-height:none !important;
+  max-width:100% !important;
+  grid-template-columns:repeat(auto-fit,minmax(118px,1fr)) !important;
+  gap:5px !important;
+  padding:0 !important;
+  border:0 !important;
+  background:transparent !important;
+}
+.order-history-items.compact.all-items .order-history-item{
+  min-width:0 !important;
+  min-height:30px !important;
+  padding:4px 6px !important;
+  gap:2px 5px !important;
+}
+.order-arrival-btn,.order-history-item .arrived{
+  min-height:20px !important;
+  padding:2px 6px !important;
+  font-size:9.5px !important;
+}
+
+/* 품목 연동 슬롯 */
+.item-row-header{
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) auto !important;
+  align-items:center !important;
+  gap:10px !important;
+  padding:10px 12px !important;
+}
+.item-row-title{
+  display:block !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  white-space:nowrap !important;
+  word-break:keep-all !important;
+  writing-mode:horizontal-tb !important;
+  text-orientation:mixed !important;
+  font-family:"Noto Sans KR","Malgun Gothic",sans-serif !important;
+  font-size:13px !important;
+  line-height:1.2 !important;
+  letter-spacing:0 !important;
+}
+.item-row-title i{display:none !important;}
+.item-row-header .btn-remove-item-row{
+  position:static !important;
+  justify-self:end !important;
+  min-width:54px !important;
+  height:26px !important;
+  padding:3px 8px !important;
+  font-size:10.5px !important;
+  line-height:1 !important;
+  border-radius:8px !important;
+}
+
+/* 인쇄는 업로드된 기존 파일의 print 구조를 우선 적용 */
+@media print{
+  @page{
+    size:182mm 289mm portrait;
+    margin:0mm 8mm;
+  }
+  body,html{
+    background:#fff !important;
+    width:100% !important;
+    margin:0 !important;
+    padding:0 !important;
+    font-size:11px !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+    overflow:visible !important;
+  }
+  ::-webkit-scrollbar{display:none !important;}
+  body.print-record-mode > *:not(#print-overlay){display:none !important;}
+  body.print-record-mode #print-overlay{
+    display:block !important;
+    position:static !important;
+    background:#fff !important;
+    padding:0 !important;
+    margin:0 !important;
+    overflow:visible !important;
+    inset:auto !important;
+  }
+  body.print-record-mode .psheet{
+    box-shadow:none !important;
+    border-radius:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    max-width:none !important;
+    border:none !important;
+    margin:0 !important;
+    background:#fff !important;
+    overflow:visible !important;
+  }
+  body.print-record-mode .pbtns{display:none !important;}
+  body.print-record-mode #print-target-area{
+    width:182mm !important;
+    max-width:182mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+  body.print-record-mode #print-target-area.pf-active{width:182mm !important;max-width:182mm !important;transform:none !important;}
+  body.print-record-mode .excel-frame{
+    background:#fff !important;
+    padding:0 !important;
+    width:182mm !important;
+    max-width:182mm !important;
+    box-sizing:border-box !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+    overflow:visible !important;
+  }
+  body.print-record-mode .tfs{
+    width:182mm !important;
+    height:auto !important;
+    min-height:0 !important;
+    margin:0 0 10px !important;
+    padding:0 !important;
+    page-break-inside:avoid !important;
+    break-inside:avoid !important;
+    overflow:hidden !important;
+  }
+  body.print-record-mode .excel-frame > .tfs + .excel-divider,
+  body.print-record-mode .excel-frame > .excel-divider + .tfs{
+    page-break-before:avoid !important;
+    break-before:avoid !important;
+  }
+  body.print-record-mode .lp-page{
+    page-break-after:always !important;
+    break-after:page !important;
+    width:182mm !important;
+    display:block !important;
+    overflow:hidden !important;
+    margin:0 auto !important;
+    padding:0 !important;
+  }
+  body.print-record-mode .lp-page.lp-last,
+  body.print-record-mode .lp-page:last-child{
+    page-break-after:auto !important;
+    break-after:auto !important;
+  }
+  body.print-record-mode .lp-slot{
+    height:128mm !important;
+    overflow:hidden !important;
+    width:182mm !important;
+    display:block !important;
+  }
+  body.print-record-mode .lp-slot .excel-frame{
+    padding:0 !important;
+    width:182mm !important;
+    max-width:182mm !important;
+    background:#fff !important;
+  }
+  body.print-record-mode .lp-slot .tfs{
+    width:182mm !important;
+    max-width:182mm !important;
+    margin:0 !important;
+  }
+  body.print-record-mode .lp-sep{
+    border-top:1px dashed #bbb !important;
+    margin:1mm 0 !important;
+    height:1mm !important;
+    display:block !important;
+  }
+  body.print-record-mode .lp-sep span{display:none !important;}
+}

@@ -597,8 +597,7 @@
     previewRow.innerHTML = `
       <td colspan="${inlineColspan}">
         <div class="inline-record-preview-box">
-          <div class="inline-record-preview-head">
-            <strong><i class="fa-solid fa-eye"></i> ${n(record.date || "")} ${n(record.company && record.company !== "-" ? record.company : record.name || "")} 명세서 미리보기</strong>
+          <div class="inline-record-preview-head inline-record-preview-head-simple">
             <button type="button" class="ibtn inline-record-preview-close"><i class="fa-solid fa-xmark"></i> 닫기</button>
           </div>
           <div class="inline-record-preview-frame">${N(record)}</div>
