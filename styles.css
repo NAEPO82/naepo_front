@@ -4403,3 +4403,101 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
   .records-table th:nth-child(12),.records-table td:nth-child(12){width:260px!important;min-width:260px!important;}
   .records-table th:nth-child(13),.records-table td:nth-child(13){width:165px!important;min-width:165px!important;}
 }
+
+/* === Naepo layout hotfix: 거래내역 출력 컬럼 / 거래처 관리 버튼 깨짐 방지 === */
+.tbl-wrap{
+  overflow-x:auto !important;
+  overflow-y:visible !important;
+  max-width:100% !important;
+}
+.records-table{
+  table-layout:fixed !important;
+  min-width:1580px !important;
+  width:1580px !important;
+}
+.records-table th,
+.records-table td{
+  box-sizing:border-box !important;
+  vertical-align:middle !important;
+}
+.records-table th:nth-child(10), .records-table td:nth-child(10){width:96px!important;min-width:96px!important;}
+.records-table th:nth-child(11), .records-table td:nth-child(11){width:78px!important;min-width:78px!important;}
+.records-table th:nth-child(12), .records-table td:nth-child(12){width:250px!important;min-width:250px!important;max-width:250px!important;}
+.records-table th:nth-child(13), .records-table td:nth-child(13){width:168px!important;min-width:168px!important;max-width:168px!important;}
+.records-output-cell,
+.records-manage-cell{
+  padding:8px 10px !important;
+  overflow:visible !important;
+  background:#fff !important;
+}
+.ibtns-output{
+  display:grid!important;
+  grid-template-columns:repeat(2, minmax(0, 1fr))!important;
+  gap:6px!important;
+  width:100%!important;
+  min-width:0!important;
+}
+.ibtns-output .ibtn,
+.ibtns-manage .ibtn{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  min-height:31px!important;
+  padding:6px 5px!important;
+  font-size:10.5px!important;
+  line-height:1.1!important;
+  letter-spacing:-.03em!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:4px!important;
+}
+.ibtns-output .btn-excel-direct{
+  grid-column:1 / -1 !important;
+}
+.ibtns-manage{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:6px!important;
+  width:100%!important;
+  min-width:0!important;
+}
+
+#page-customer .tbl-wrap table{
+  min-width:1040px !important;
+  table-layout:fixed !important;
+}
+#page-customer .tbl-wrap th:nth-child(1), #page-customer .tbl-wrap td:nth-child(1){width:20%!important;}
+#page-customer .tbl-wrap th:nth-child(2), #page-customer .tbl-wrap td:nth-child(2){width:14%!important;}
+#page-customer .tbl-wrap th:nth-child(3), #page-customer .tbl-wrap td:nth-child(3){width:12%!important;}
+#page-customer .tbl-wrap th:nth-child(4), #page-customer .tbl-wrap td:nth-child(4){width:14%!important;}
+#page-customer .tbl-wrap th:nth-child(5), #page-customer .tbl-wrap td:nth-child(5){width:14%!important;}
+#page-customer .tbl-wrap th:nth-child(6), #page-customer .tbl-wrap td:nth-child(6){width:12%!important;}
+#page-customer .tbl-wrap th:nth-child(7), #page-customer .tbl-wrap td:nth-child(7){width:180px!important;min-width:180px!important;max-width:180px!important;}
+#customer-body td:last-child{
+  padding:10px 12px!important;
+  overflow:visible!important;
+}
+#customer-body td:last-child .ibtns{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:8px!important;
+  width:100%!important;
+  min-width:0!important;
+}
+#customer-body td:last-child .ibtn{
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  padding:7px 8px!important;
+  font-size:11.5px!important;
+  justify-content:center!important;
+  white-space:nowrap!important;
+}
+@media(max-width:1200px){
+  .records-table{min-width:1580px!important;width:1580px!important;}
+  #page-customer .tbl-wrap table{min-width:1040px!important;}
+}
