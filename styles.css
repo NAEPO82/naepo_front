@@ -4324,3 +4324,55 @@ nav.wrap{padding:0 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr)
 #main-content.visible {
   display: block !important;
 }
+
+/* ============================================================
+   Final requested fixes: item inputs, print spacing, modals, order preview
+   ============================================================ */
+.item-row-card{overflow:visible!important;}
+.item-row-card .g4{grid-template-columns:minmax(190px,1.6fr) minmax(120px,1fr) 72px 96px!important;gap:10px!important;align-items:end!important;}
+.item-row-card input{min-width:0!important;}
+.item-row-card .p-item{width:100%!important;}
+.item-row-card .g2{grid-template-columns:minmax(0,1.15fr) minmax(130px,.85fr)!important;gap:10px!important;}
+.item-row-card .g2 > .field:first-child > div{display:grid!important;grid-template-columns:minmax(96px,1fr) 72px 54px!important;gap:6px!important;align-items:center!important;}
+.item-row-card .p-tax{max-width:none!important;width:100%!important;}
+.btn-remove-item-row{min-width:68px!important;white-space:nowrap!important;}
+@media(max-width:900px){.item-row-card .g4{grid-template-columns:1fr 1fr!important}.item-row-card .g2{grid-template-columns:1fr!important}}
+
+/* 발주 입력 테이블: 하단 가로 스크롤 제거 + 선택/삭제 노출 */
+.order-input-table-wrap{overflow-x:visible!important;width:100%!important;}
+.order-input-table{width:100%!important;min-width:0!important;table-layout:fixed!important;}
+.order-input-table th,.order-input-table td{padding:8px 6px!important;}
+.order-input-table input{width:100%!important;min-width:0!important;padding:9px 8px!important;font-size:12px!important;}
+.order-input-table colgroup col:nth-child(1){width:22%!important;}
+.order-input-table colgroup col:nth-child(2){width:18%!important;}
+.order-input-table colgroup col:nth-child(3){width:9%!important;}
+.order-input-table colgroup col:nth-child(4){width:13%!important;}
+.order-input-table colgroup col:nth-child(5){width:14%!important;}
+.order-input-table colgroup col:nth-child(6){width:112px!important;}
+.order-row-tools{width:112px!important;min-width:112px!important;display:grid!important;grid-template-columns:1fr!important;gap:6px!important;overflow:visible!important;}
+.order-row-tools .ibtn,.order-row-pick,.order-row-remove{width:100%!important;min-width:0!important;min-height:30px!important;padding:5px 6px!important;font-size:11px!important;justify-content:center!important;}
+
+/* 선택 일괄인쇄: 1개 거래명세서 = 1페이지, 3번째 사진처럼 위/아래 간격 유지 */
+@media print{
+  body.print-record-mode .lp-page{width:200mm!important;height:287mm!important;padding:0!important;display:block!important;overflow:hidden!important;page-break-after:always!important;break-after:page!important;}
+  body.print-record-mode .lp-page .excel-frame{height:287mm!important;width:200mm!important;padding:0!important;background:#fff!important;display:flex!important;flex-direction:column!important;justify-content:flex-start!important;gap:5mm!important;}
+  body.print-record-mode .lp-page .excel-divider{display:flex!important;align-items:center!important;justify-content:center!important;height:6mm!important;margin:0!important;color:#94a3b8!important;border-top:1px dashed #cbd5e1!important;border-bottom:0!important;}
+  body.print-record-mode .lp-page .excel-divider span{background:#fff!important;padding:0 8px!important;font-size:10px!important;}
+  body.print-record-mode .lp-page .tfs{width:200mm!important;height:136mm!important;min-height:0!important;margin:0!important;padding:3.6mm 4.2mm!important;overflow:hidden!important;}
+  body.print-record-mode .excel-frame.single-copy{height:auto!important;display:block!important;}
+  body.print-record-mode .excel-frame.single-copy .tfs{height:136mm!important;margin:0!important;}
+}
+
+/* 재고/그룹 모달 입력창 정리 */
+.ppm-name-tools{display:block!important;}
+.ppm-name-tools input{width:100%!important;}
+.stock-modal-fields{display:grid;grid-template-columns:1fr;gap:12px;margin:14px 0;}
+.stock-modal-box .field label{display:block;margin-bottom:6px;font-weight:800;color:#334155;}
+.stock-modal-box .field input{width:100%;height:42px;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;}
+
+/* 발주서 미리보기: 카드 안에서 문서가 잘리지 않게 */
+.order-preview-card{overflow-x:auto!important;align-items:center!important;}
+.order-preview-card .order-sheet{width:100%!important;max-width:560px!important;min-width:0!important;margin-left:auto!important;margin-right:auto!important;}
+.order-preview-card .order-sheet table{width:100%!important;}
+@media(max-width:780px){.order-preview-card .order-sheet{max-width:100%!important;padding:24px 16px!important;font-size:11px!important}.order-doc-title{font-size:19px!important;letter-spacing:.22em!important}}
+.order-history-activity{display:inline-flex;align-items:center;gap:5px;margin:2px 0 8px;padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#475569;font-size:11px;font-weight:700;}

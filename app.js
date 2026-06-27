@@ -507,13 +507,14 @@
             const txt = logs
               .map((l, i) => {
                 const stamp = l.printedAt ? l.printedAt.replace("T", " ").slice(0, 19) : "시간 없음";
-                return `${i + 1}. ${stamp}`;
+                return `${i + 1}. ${stamp} · ${l.action || "인쇄"}`;
               })
               .join("\n");
             I(
               "인쇄 기록 — 총 " + logs.length + "회",
-              "최근 인쇄: " +
+              "최근 기록: " +
                 (logs[0].printedAt ? logs[0].printedAt.replace("T", " ").slice(0, 19) : "시간 없음") +
+                " · " + (logs[0].action || "인쇄") +
                 "\n\n전체 타임스탬프\n" +
                 txt,
             );
@@ -850,6 +851,12 @@
         '</span><span class="tfs-paper">182mm × 128mm 인쇄용지</span></div></div>'
       );
     }
+    if (copyMode === "supplier") {
+      return '<div class="excel-frame single-copy">' + y("", "공급자 보관용") + "</div>";
+    }
+    if (copyMode === "receiver") {
+      return '<div class="excel-frame single-copy">' + y("bl", "공급받는자 보관용") + "</div>";
+    }
     return (
       '<div class="excel-frame">' +
       y("", "공급자 보관용") +
@@ -881,13 +888,41 @@
     document.getElementById("print-overlay");
     _(Math.max(300, window.innerHeight - 80 - 24));
   }
+  let currentPrintCopyMode = "both";
+  function setPrintCopyMode(mode) {
+    currentPrintCopyMode = mode || "both";
+    if (e) {
+      document.getElementById("print-target-area").innerHTML = N(e, currentPrintCopyMode);
+      P();
+    }
+  }
+  async function logPrintAction(record, action) {
+    if (!record || !record.id) return;
+    try {
+      await w("/api/print-log", {
+        method: "POST",
+        body: JSON.stringify({
+          recordId: record.id,
+          recordNote: record.note,
+          recordDate: record.date,
+          action: action || "인쇄",
+        }),
+      });
+    } catch (_) {}
+  }
+  async function logPrintActions(records, action) {
+    const list = Array.isArray(records) ? records : [records];
+    await Promise.all(list.filter(Boolean).map((rec) => logPrintAction(rec, action)));
+  }
   function X(t) {
+    currentPrintCopyMode = "both";
     (document.body.classList.add("print-record-mode"),
-      (document.getElementById("print-target-area").innerHTML = N(t)),
+      (document.getElementById("print-target-area").innerHTML = N(t, currentPrintCopyMode)),
       (e = t),
       document.getElementById("print-overlay").classList.add("show"),
       P(),
-      setTimeout(() => {
+      setTimeout(async () => {
+        await logPrintAction(t, "인쇄");
         (D(), window.print());
       }, 150));
   }
@@ -2154,27 +2189,16 @@
         return void I("선택 없음", "인쇄할 항목을 먼저 선택해주세요.");
       const n = e.map((e) => t.find((t) => t.id === e)).filter(Boolean);
       if (0 === n.length) return;
-      function a(t) {
-        const e = document.createElement("div");
-        e.innerHTML = N(t);
-        const n = e.querySelector(".tfs");
-        return n
-          ? `<div class="excel-frame" style="padding:0;background:#fff;">${n.outerHTML}</div>`
-          : "";
-      }
-      let o = "";
-      for (let t = 0; t < n.length; t += 2) {
-        o +=
-          `<div class="lp-page${t + 2 >= n.length ? " lp-last" : ""}"><div class="lp-slot">${a(n[t])}</div>` +
-          (n[t + 1]
-            ? `<div class="lp-sep"></div><div class="lp-slot">${a(n[t + 1])}</div>`
-            : "") +
-          "</div>";
-      }
+      const o = n
+        .map((record, idx) => `<div class="lp-page${idx === n.length - 1 ? " lp-last" : ""}">${N(record)}</div>`)
+        .join("");
       ((document.getElementById("print-target-area").innerHTML = o),
         document.body.classList.add("print-record-mode"),
         document.getElementById("print-overlay").classList.add("show"),
-        setTimeout(() => window.print(), 200));
+        setTimeout(async () => {
+          await logPrintActions(n, "인쇄");
+          window.print();
+        }, 200));
     }),
     document
       .getElementById("btn-tools-toggle")
@@ -2359,21 +2383,19 @@
     }),
     document
       .getElementById("btn-print-submit")
-      .addEventListener("click", () => {
-        if (e) {
-          try {
-            w("/api/print-log", {
-              method: "POST",
-              body: JSON.stringify({
-                recordId: e.id,
-                recordNote: e.note,
-                recordDate: e.date,
-              }),
-            });
-          } catch (_) {}
-        }
+      .addEventListener("click", async () => {
+        if (e) await logPrintAction(e, "인쇄");
         window.print();
       }),
+    document.getElementById("btn-print-pdf") &&
+      document.getElementById("btn-print-pdf").addEventListener("click", async () => {
+        if (e) await logPrintAction(e, "PDF 저장");
+        window.print();
+      }),
+    document.getElementById("btn-print-supplier") &&
+      document.getElementById("btn-print-supplier").addEventListener("click", () => setPrintCopyMode("supplier")),
+    document.getElementById("btn-print-receiver") &&
+      document.getElementById("btn-print-receiver").addEventListener("click", () => setPrintCopyMode("receiver")),
     document.getElementById("btn-print-excel").addEventListener("click", () => {
       e && U([e]);
     }),
@@ -2508,9 +2530,7 @@
               const e = t.getAttribute("data-id"),
                 group = ot.find((t) => t.id === e);
               if (!group) return;
-              const newName = prompt("그룹명:", group.name);
-              if (null === newName) return;
-              makePartPickModal(`그룹 수정 - ${newName.trim() || group.name}`, group.partIds || [], async (partIds) => {
+              makeGroupEditModal(group, async (newName, partIds) => {
                 try {
                   await w(`/api/groups/${encodeURIComponent(e)}`, {
                     method: "PUT",
@@ -2635,6 +2655,123 @@
     });
     updateCount();
     setTimeout(() => overlay.querySelector("#ppm-search").focus(), 50);
+  }
+
+  function makeGroupEditModal(group, onConfirm) {
+    if (!group) return;
+    if (!Array.isArray(nt) || nt.length === 0) {
+      I("부품 없음", "먼저 재고현황에 부품을 등록해주세요.");
+      return;
+    }
+    const selectedIds = new Set(group.partIds || []);
+    const overlay = document.createElement("div");
+    overlay.className = "parts-pick-modal-overlay";
+    overlay.innerHTML = `
+      <div class="parts-pick-modal">
+        <div class="ppm-head">
+          <div>
+            <h3><i class="fa-solid fa-layer-group"></i> 그룹 수정</h3>
+            <p>그룹명과 포함 품목을 한 번에 수정합니다.</p>
+          </div>
+          <button type="button" class="ppm-x" id="gem-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="ppm-tools ppm-name-tools">
+          <input type="text" id="gem-name" value="${n(group.name || "")}" placeholder="그룹명" />
+        </div>
+        <div class="ppm-tools">
+          <input type="text" id="gem-search" placeholder="품목명 / 규격 검색" />
+          <button type="button" class="btn btn-o btn-sm" id="gem-all">전체선택</button>
+          <button type="button" class="btn btn-o btn-sm" id="gem-none">전체해제</button>
+        </div>
+        <div class="ppm-count" id="gem-count"></div>
+        <div class="ppm-list" id="gem-list">
+          ${nt.map((part) => `
+            <label class="ppm-item" data-key="${n((part.name + ' ' + (part.spec || '')).toLowerCase())}">
+              <input type="checkbox" class="gem-chk" data-pid="${n(part.id)}" ${selectedIds.has(part.id) ? "checked" : ""}/>
+              <span class="ppm-main"><strong>${n(part.name)}</strong><small>${n(part.spec || "규격 없음")}</small></span>
+              <span class="ppm-stock">재고 ${Number(part.stock || 0).toLocaleString()}</span>
+            </label>`).join("")}
+        </div>
+        <div class="ppm-foot">
+          <button type="button" class="btn btn-o" id="gem-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="gem-ok"><i class="fa-solid fa-check"></i> 수정 저장</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+    const updateCount = () => {
+      const checked = overlay.querySelectorAll(".gem-chk:checked").length;
+      overlay.querySelector("#gem-count").textContent = `선택된 품목 ${checked}개 / 전체 ${nt.length}개`;
+    };
+    const applyFilter = () => {
+      const q = overlay.querySelector("#gem-search").value.trim().toLowerCase();
+      overlay.querySelectorAll(".ppm-item").forEach((el) => {
+        el.style.display = !q || (el.getAttribute("data-key") || "").includes(q) ? "flex" : "none";
+      });
+    };
+    overlay.querySelector("#gem-close").addEventListener("click", close);
+    overlay.querySelector("#gem-cancel").addEventListener("click", close);
+    overlay.querySelector("#gem-search").addEventListener("input", applyFilter);
+    overlay.querySelector("#gem-all").addEventListener("click", () => {
+      overlay.querySelectorAll(".ppm-item").forEach((el) => { if (el.style.display !== "none") el.querySelector(".gem-chk").checked = true; });
+      updateCount();
+    });
+    overlay.querySelector("#gem-none").addEventListener("click", () => {
+      overlay.querySelectorAll(".ppm-item").forEach((el) => { if (el.style.display !== "none") el.querySelector(".gem-chk").checked = false; });
+      updateCount();
+    });
+    overlay.querySelectorAll(".gem-chk").forEach((chk) => chk.addEventListener("change", updateCount));
+    overlay.querySelector("#gem-ok").addEventListener("click", () => {
+      const name = overlay.querySelector("#gem-name").value.trim();
+      if (!name) return I("입력 오류", "그룹명을 입력해주세요.");
+      const ids = Array.from(overlay.querySelectorAll(".gem-chk:checked")).map((el) => el.getAttribute("data-pid"));
+      onConfirm && onConfirm(name, ids);
+      close();
+    });
+    updateCount();
+    setTimeout(() => overlay.querySelector("#gem-name").focus(), 50);
+  }
+
+  function makeStockModal(part, mode, onConfirm) {
+    if (!part) return;
+    const isIn = mode === "in";
+    const overlay = document.createElement("div");
+    overlay.className = "parts-pick-modal-overlay";
+    overlay.innerHTML = `
+      <div class="parts-pick-modal small stock-modal-box">
+        <div class="ppm-head">
+          <div>
+            <h3><i class="fa-solid ${isIn ? "fa-truck-ramp-box" : "fa-sliders"}"></i> ${isIn ? "재고 입고" : "재고 보정"}</h3>
+            <p><b>${n(part.name)}</b> ${n(part.spec || "")} · 현재 재고 ${Number(part.stock || 0).toLocaleString()}개</p>
+          </div>
+          <button type="button" class="ppm-x" id="stm-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="stock-modal-fields">
+          <div class="field"><label>${isIn ? "입고 수량" : "실제 재고 수량"}</label><input type="number" id="stm-qty" min="${isIn ? 1 : 0}" step="1" value="${isIn ? 1 : Number(part.stock || 0)}"></div>
+          ${isIn ? `<div class="field"><label>입고 날짜</label><input type="date" id="stm-date" value="${new Date().toISOString().slice(0,10)}"></div>` : ""}
+          <div class="field"><label>비고</label><input type="text" id="stm-note" placeholder="${isIn ? "거래처명, 입고사유 등" : "재고 실사 보정"}"></div>
+        </div>
+        <div class="ppm-foot">
+          <button type="button" class="btn btn-o" id="stm-cancel">취소</button>
+          <button type="button" class="btn btn-p" id="stm-ok"><i class="fa-solid fa-check"></i> ${isIn ? "입고 처리" : "보정 저장"}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => document.body.contains(overlay) && document.body.removeChild(overlay);
+    overlay.querySelector("#stm-close").addEventListener("click", close);
+    overlay.querySelector("#stm-cancel").addEventListener("click", close);
+    overlay.querySelector("#stm-ok").addEventListener("click", () => {
+      const qty = parseInt(overlay.querySelector("#stm-qty").value, 10);
+      if (isIn && (!qty || qty <= 0)) return I("입력 오류", "1 이상의 숫자를 입력해주세요.");
+      if (!isIn && (isNaN(qty) || qty < 0)) return I("입력 오류", "0 이상의 숫자를 입력해주세요.");
+      const dateEl = overlay.querySelector("#stm-date");
+      const date = dateEl ? dateEl.value : "";
+      if (isIn && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return I("날짜 형식 오류", "입고 날짜를 선택해주세요.");
+      const note = overlay.querySelector("#stm-note").value.trim();
+      onConfirm && onConfirm({ qty, date, note });
+      close();
+    });
+    setTimeout(() => overlay.querySelector("#stm-qty").focus(), 50);
   }
 
   function makeGroupPickModal(title, selectedGroupIds, onConfirm) {
@@ -2904,68 +3041,43 @@
         }));
       ((t.innerHTML = a),
         document.querySelectorAll(".btn-stock-in").forEach((t) => {
-          t.addEventListener("click", async () => {
+          t.addEventListener("click", () => {
             const e = t.getAttribute("data-id"),
-              n = nt.find((t) => t.id === e),
-              a = prompt(`[${n.name}] 입고할 수량을 입력하세요:`, "1");
-            if (null === a) return;
-            const o = parseInt(a, 10);
-            if (!o || o <= 0)
-              return void I("입력 오류", "1 이상의 숫자를 입력해주세요.");
-            const s = new Date().toISOString().slice(0, 10),
-              l = prompt("입고 날짜 (YYYY-MM-DD):", s);
-            if (null === l) return;
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(l))
-              return void I(
-                "날짜 형식 오류",
-                "YYYY-MM-DD 형식으로 입력해주세요 (예: 2026-06-21).",
-              );
-            const i =
-              prompt("비고 (선택, 예: 거래처명, 입고사유 등):", "") || "";
-            try {
-              (await w(`/api/parts/${encodeURIComponent(e)}/stock-in`, {
-                method: "POST",
-                body: JSON.stringify({
-                  qty: o,
-                  date: l,
-                  note: i || "수동 입고 등록",
-                }),
-              }),
-                M(`${n.name} 입고 ${o}개 처리되었습니다.`, "ok"),
-                await ut(),
-                await gt());
-            } catch (t) {
-              I("입고 실패", t.message || "입고 처리 중 오류가 발생했습니다.");
-            }
+              part = nt.find((p) => p.id === e);
+            if (!part) return;
+            makeStockModal(part, "in", async ({ qty, date, note }) => {
+              try {
+                await w(`/api/parts/${encodeURIComponent(e)}/stock-in`, {
+                  method: "POST",
+                  body: JSON.stringify({ qty, date, note: note || "수동 입고 등록" }),
+                });
+                M(`${part.name} 입고 ${qty}개 처리되었습니다.`, "ok");
+                await ut();
+                await gt();
+              } catch (err) {
+                I("입고 실패", err.message || "입고 처리 중 오류가 발생했습니다.");
+              }
+            });
           });
         }),
         document.querySelectorAll(".btn-stock-adjust").forEach((t) => {
-          t.addEventListener("click", async () => {
+          t.addEventListener("click", () => {
             const e = t.getAttribute("data-id"),
-              n = nt.find((t) => t.id === e),
-              a = prompt(
-                `[${n.name}] 실제 재고 수량을 입력하세요 (현재: ${n.stock}):`,
-                String(n.stock),
-              );
-            if (null === a) return;
-            const o = parseInt(a, 10);
-            if (isNaN(o) || o < 0)
-              I("입력 오류", "0 이상의 숫자를 입력해주세요.");
-            else
+              part = nt.find((p) => p.id === e);
+            if (!part) return;
+            makeStockModal(part, "adjust", async ({ qty, note }) => {
               try {
-                (await w(`/api/parts/${encodeURIComponent(e)}/adjust`, {
+                await w(`/api/parts/${encodeURIComponent(e)}/adjust`, {
                   method: "POST",
-                  body: JSON.stringify({ newStock: o, note: "재고 실사 보정" }),
-                }),
-                  M(`${n.name} 재고가 ${o}개로 보정되었습니다.`, "ok"),
-                  await ut(),
-                  await gt());
-              } catch (t) {
-                I(
-                  "보정 실패",
-                  t.message || "재고 보정 중 오류가 발생했습니다.",
-                );
+                  body: JSON.stringify({ newStock: qty, note: note || "재고 실사 보정" }),
+                });
+                M(`${part.name} 재고가 ${qty}개로 보정되었습니다.`, "ok");
+                await ut();
+                await gt();
+              } catch (err) {
+                I("보정 실패", err.message || "재고 보정 중 오류가 발생했습니다.");
               }
+            });
           });
         }),
         document.querySelectorAll(".btn-part-group").forEach((btn) => {
@@ -4346,7 +4458,18 @@
     `;
   }
 
+  async function logOrderAction(order, action) {
+    if (!order || !order.id) return;
+    try {
+      await api(`/api/orders/${encodeURIComponent(order.id)}/activity`, {
+        method: "POST",
+        body: JSON.stringify({ action: action || "인쇄" }),
+      });
+    } catch (_) {}
+  }
+
   function printOrder(order) {
+    logOrderAction(order, "인쇄");
     const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='202mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.996;sheet.style.transform='scale('+sc+')';sheet.style.width=(202/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},220);};window.onbeforeprint=fitOrder;<\/script></body></html>`;
     const win = window.open("", "_blank", "width=900,height=900");
     if (!win) {
@@ -4359,6 +4482,7 @@
   }
 
   function downloadOrder(order) {
+    logOrderAction(order, "다운로드");
     if (typeof XLSX === "undefined") {
       alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
       return;
@@ -4520,7 +4644,7 @@
         (order) => `
         <tr>
           <td class="order-history-date">${escapeHtml(order.orderDate)}</td>
-          <td><strong class="order-history-title">${escapeHtml(order.title)}</strong><br><small class="order-history-purpose">${escapeHtml(order.purpose || "-")}</small><div class="order-history-items compact all-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><span class="ohi-main"><b>${escapeHtml(item.item || "품목")}</b><small>${escapeHtml(item.spec || "")}</small></span><em>${money(item.qty || 0)}개</em>${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
+          <td><strong class="order-history-title">${escapeHtml(order.title)}</strong><br><small class="order-history-purpose">${escapeHtml(order.purpose || "-")}</small>${Array.isArray(order.activities) && order.activities.length ? `<div class="order-history-activity"><i class="fa-solid fa-clock-rotate-left"></i> 최근 기록: ${escapeHtml(order.activities[order.activities.length - 1].action || "인쇄")} · ${escapeHtml(String(order.activities[order.activities.length - 1].createdAt || "").replace("T", " ").slice(0, 16))}</div>` : ""}<div class="order-history-items compact all-items">${(order.items || []).map((item, idx) => `<span class="order-history-item"><span class="ohi-main"><b>${escapeHtml(item.item || "품목")}</b><small>${escapeHtml(item.spec || "")}</small></span><em>${money(item.qty || 0)}개</em>${item.receivedAt || item.inventoryAddedAt ? '<em class="arrived">도착완료</em>' : `<button type="button" class="order-arrival-btn" data-id="${escapeHtml(order.id)}" data-idx="${idx}">택배 도착</button>`}</span>`).join("")}</div></td>
           <td>${escapeHtml(order.author || "-")}</td>
           <td class="tr">${money(order.total || order.paymentAmount)} 원</td>
           <td>
