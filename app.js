@@ -1142,7 +1142,7 @@
         l +
         '일</td><td class="tfs-mid-k">요청사항</td><td class="tfs-mid-r">&nbsp;</td></tr></table><table><colgroup><col style="width:8%"/><col style="width:24%"/><col style="width:10%"/><col style="width:7%"/><col style="width:13%"/><col style="width:16%"/><col style="width:12%"/><col style="width:10%"/></colgroup><tr><td class="tfs-ih">월&nbsp;일</td><td class="tfs-ih">품&nbsp;&nbsp;목</td><td class="tfs-ih">규&nbsp;격</td><td class="tfs-ih">수&nbsp;량</td><td class="tfs-ih">단&nbsp;가</td><td class="tfs-ih">공급가액</td><td class="tfs-ih">세&nbsp;액</td><td class="tfs-ih">비&nbsp;고</td></tr>' +
         f +
-        '</table><table style="table-layout:fixed;"><colgroup><col style="width:18%"/><col style="width:10%"/><col style="width:10%"/><col style="width:10%"/><col style="width:13%"/><col style="width:10%"/><col style="width:29%"/></colgroup>' +
+        '</table><table class="tfs-pay-table" style="table-layout:fixed;"><colgroup><col style="width:18%"/><col style="width:10%"/><col style="width:11%"/><col style="width:11%"/><col style="width:14%"/><col style="width:12%"/><col style="width:24%"/></colgroup>' +
         ((y = t.payMethod || ""),
         '<tr><td class="tfs-fl">합계금액</td><td class="tfs-fl">분&nbsp;&nbsp;류</td><td class="tfs-fl">현금</td><td class="tfs-fl">카드</td><td class="tfs-fl">계좌이체</td><td class="tfs-fl">외상</td><td class="tfs-rc" rowspan="2">위 금액을&nbsp;&nbsp;<b>영수</b>&nbsp;&nbsp;함</td></tr><tr><td class="tfs-fv">' +
           e.toLocaleString() +
@@ -5174,6 +5174,17 @@
   let easyImportMode = "";
   let easyImportPreviewData = null;
 
+  function importNotify(title, message) {
+    const text = `${title || "알림"}\n\n${message || ""}`;
+    if (typeof window !== "undefined" && window.alert) window.alert(text);
+  }
+
+  function importMoney(value) {
+    const n = Number(String(value == null ? 0 : value).replace(/[,원\s]/g, ""));
+    return (Number.isFinite(n) ? n : 0).toLocaleString("ko-KR");
+  }
+
+
   function parseEasyKeyValueLine(line) {
     const obj = {};
     String(line || "")
@@ -5323,7 +5334,7 @@
           <div class="import-preview-card">
             <strong>명세서 #${idx + 1}</strong>
             <table><thead><tr><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th><th>비고</th></tr></thead>
-            <tbody>${g.items.map((it) => `<tr><td>${safeText(it.item)}</td><td>${safeText(it.spec)}</td><td>${it.qty}</td><td>${money(it.price)}</td><td>${money(it.amount)}</td><td>${money(it.tax)}</td><td>${safeText(it.note)}</td></tr>`).join("")}</tbody></table>
+            <tbody>${g.items.map((it) => `<tr><td>${safeText(it.item)}</td><td>${safeText(it.spec)}</td><td>${it.qty}</td><td>${importMoney(it.price)}</td><td>${importMoney(it.amount)}</td><td>${importMoney(it.tax)}</td><td>${safeText(it.note)}</td></tr>`).join("")}</tbody></table>
           </div>`).join("")}
       </div>`;
   }
@@ -5333,7 +5344,7 @@
       <div class="import-summary">재고 ${parts.length}건을 미리보기했습니다. 적용하면 재고현황에 등록됩니다.</div>
       <div class="import-preview-card">
         <table><thead><tr><th>품목명</th><th>규격</th><th>단가</th><th>재고</th><th>최소재고</th><th>비고</th></tr></thead>
-        <tbody>${parts.map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td>${money(p.unitPrice)}</td><td>${money(p.stock)}</td><td>${money(p.minStock)}</td><td>${safeText(p.note)}</td></tr>`).join("")}</tbody></table>
+        <tbody>${parts.map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td>${importMoney(p.unitPrice)}</td><td>${importMoney(p.stock)}</td><td>${importMoney(p.minStock)}</td><td>${safeText(p.note)}</td></tr>`).join("")}</tbody></table>
       </div>`;
   }
 
@@ -5348,44 +5359,59 @@
     document.getElementById("easy-import-result").innerHTML = `
       <div class="import-summary">백업파일 미리보기: 거래내역 ${records.length}건 · 재고 ${parts.length}건 · 거래처 ${customers.length}건 · 부품그룹 ${groups.length}건 · 입출고 ${inventoryLog.length}건 · 발주서 ${orderLog.length}건 · 인쇄기록 ${printLog.length}건</div>
       <div class="import-preview-grid">
-        <div class="import-preview-card"><strong>거래내역 샘플</strong><table><tbody>${records.slice(0,5).map((r) => `<tr><td>${safeText(r.date)}</td><td>${safeText(r.company || r.name)}</td><td>${safeText(r.note || r.part)}</td><td class="tr">${money(r.amount || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
-        <div class="import-preview-card"><strong>재고 샘플</strong><table><tbody>${parts.slice(0,5).map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td class="tr">${money(p.stock || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>거래내역 샘플</strong><table><tbody>${records.slice(0,5).map((r) => `<tr><td>${safeText(r.date)}</td><td>${safeText(r.company || r.name)}</td><td>${safeText(r.note || r.part)}</td><td class="tr">${importMoney(r.amount || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>재고 샘플</strong><table><tbody>${parts.slice(0,5).map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td class="tr">${importMoney(p.stock || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
         <div class="import-preview-card"><strong>거래처 샘플</strong><table><tbody>${customers.slice(0,5).map((c) => `<tr><td>${safeText(c.company || c.name)}</td><td>${safeText(c.name)}</td><td>${safeText(c.region)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
-        <div class="import-preview-card"><strong>발주서 샘플</strong><table><tbody>${orderLog.slice(0,5).map((o) => `<tr><td>${safeText(o.orderDate)}</td><td>${safeText(o.title)}</td><td class="tr">${money(o.total || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
+        <div class="import-preview-card"><strong>발주서 샘플</strong><table><tbody>${orderLog.slice(0,5).map((o) => `<tr><td>${safeText(o.orderDate)}</td><td>${safeText(o.title)}</td><td class="tr">${importMoney(o.total || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
       </div>`;
   }
 
   async function applyRecordImport(groups) {
-    if (!u || !g[u]) return I("적용 실패", "먼저 명세서 작성 화면에서 공급자를 선택해주세요.");
-    const date = document.getElementById("f-date").value || new Date().toISOString().slice(0, 10);
-    const author = document.getElementById("f-author").value.trim() || "현장기사";
-    const company = document.getElementById("f-company").value.trim() || "-";
-    const name = document.getElementById("f-name").value.trim() || "-";
-    const region = document.getElementById("f-region").value.trim() || "미지정";
-    const payMethod = d || "미기재";
+    const byId = (id) => document.getElementById(id);
+    const getVal = (id, fallback) => {
+      const el = byId(id);
+      const value = el && "value" in el ? String(el.value || "").trim() : "";
+      return value || fallback;
+    };
+    const supplierKey =
+      (document.querySelector("#supplier-pills .pill.g, #supplier-pills .pill.active, [data-supplier].active, [data-supplier].g") || {}).dataset?.supplier ||
+      "naepo";
+    const date = getVal("f-date", new Date().toISOString().slice(0, 10));
+    const author = getVal("f-author", "현장기사");
+    const company = getVal("f-company", "-");
+    const name = getVal("f-name", "-");
+    const region = getVal("f-region", "미지정");
+    const activePay = document.querySelector("#payment-pills .pill.g, #payment-pills .pill.active");
+    const payMethod = activePay ? activePay.textContent.trim() : "미기재";
+    const activeCat = document.querySelector("#category-pills .pill.g, #category-pills .pill.active");
+    const cat = activeCat ? activeCat.textContent.trim() : "일반";
     let saved = 0;
     for (const group of groups) {
       const amount = group.items.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
       const tax = group.items.reduce((sum, it) => sum + (Number(it.tax) || 0), 0);
       const rec = {
         id: "rec_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 9),
-        date, author, supplier: u, company, name, region,
-        cat: o || "일반",
+        date,
+        author,
+        supplier: supplierKey,
+        company,
+        name,
+        region,
+        cat,
         part: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
         payMethod,
         status: "done",
         note: group.items[0].item + (group.items.length > 1 ? ` 외 ${group.items.length - 1}건` : ""),
-        amount, tax,
+        amount,
+        tax,
         items: group.items,
       };
-      const created = await w("/api/records", { method: "POST", body: JSON.stringify(rec) });
-      t.unshift(created || rec);
+      await api("/api/records", { method: "POST", body: JSON.stringify(rec) });
       saved++;
     }
-    C();
-    Q();
     closeEasyImport();
-    I("텍스트 명세서 적용 완료", `${saved}건의 명세서를 거래내역에 저장했습니다.`);
+    importNotify("텍스트 명세서 적용 완료", `${saved}건의 명세서를 거래내역에 저장했습니다. 화면을 새로고침합니다.`);
+    setTimeout(() => location.reload(), 200);
   }
 
   async function applyInventoryImport(parts) {
@@ -5393,23 +5419,22 @@
     let skipped = 0;
     for (const part of parts) {
       try {
-        await w("/api/parts", { method: "POST", body: JSON.stringify(part) });
+        await api("/api/parts", { method: "POST", body: JSON.stringify(part) });
         saved++;
       } catch (error) {
         skipped++;
       }
     }
-    await ut();
-    Q();
     closeEasyImport();
-    I("텍스트 재고 적용 완료", `재고 ${saved}건 등록 완료${skipped ? `, ${skipped}건은 중복/오류로 제외` : ""}했습니다.`);
+    importNotify("텍스트 재고 적용 완료", `재고 ${saved}건 등록 완료${skipped ? `, ${skipped}건은 중복/오류로 제외` : ""}했습니다. 화면을 새로고침합니다.`);
+    setTimeout(() => location.reload(), 200);
   }
 
   async function applyBackupPreview(data) {
     const records = Array.isArray(data.records) ? data.records : Array.isArray(data) ? data : [];
-    if (!Array.isArray(records)) return I("복원 실패", "records 배열이 있는 JSON/SQL 백업만 복원할 수 있습니다.");
+    if (!Array.isArray(records)) return importNotify("복원 실패", "records 배열이 있는 JSON/SQL 백업만 복원할 수 있습니다.");
     try {
-      const result = await w("/api/restore", {
+      const result = await api("/api/restore", {
         method: "POST",
         headers: { "X-Admin-Password": getAdminPassword() },
         body: JSON.stringify({
@@ -5423,13 +5448,11 @@
           mode: "merge",
         }),
       });
-      await k();
-      await ut();
-      C();
       closeEasyImport();
-      I("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 전체 거래내역 ${result.total}건입니다.`);
+      importNotify("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 화면을 새로고침합니다.`);
+      setTimeout(() => location.reload(), 200);
     } catch (error) {
-      I("복원 실패", error.message);
+      importNotify("복원 실패", error.message);
     }
   }
 
@@ -5452,19 +5475,19 @@
       try {
         if (easyImportMode === "records") {
           const groups = parseEasyRecordText(text);
-          if (!groups.length) return I("미리보기 실패", "인식된 명세서 품목이 없습니다.");
+          if (!groups.length) return importNotify("미리보기 실패", "인식된 명세서 품목이 없습니다.");
           easyImportPreviewData = groups;
           renderRecordImportPreview(groups);
           byId("easy-import-apply").disabled = false;
         } else if (easyImportMode === "inventory") {
           const parts = parseEasyInventoryText(text);
-          if (!parts.length) return I("미리보기 실패", "인식된 재고 품목이 없습니다.");
+          if (!parts.length) return importNotify("미리보기 실패", "인식된 재고 품목이 없습니다.");
           easyImportPreviewData = parts;
           renderInventoryImportPreview(parts);
           byId("easy-import-apply").disabled = false;
         }
       } catch (error) {
-        I("미리보기 실패", error.message || "텍스트를 해석하지 못했습니다.");
+        importNotify("미리보기 실패", error.message || "텍스트를 해석하지 못했습니다.");
       }
     });
     byId("easy-import-apply") && byId("easy-import-apply").addEventListener("click", async () => {
