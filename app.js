@@ -2100,7 +2100,13 @@
       await logExcelActions(n);
       U(n);
     }),
-    document.getElementById("btn-excel").addEventListener("click", async () => {
+    (() => {
+      const legacyExcelBtn = document.getElementById("btn-excel");
+      // 거래내역 화면의 기존 도구 버튼은 제거되었으므로, 버튼이 없는 상태에서
+      // 초기화가 중단되지 않게 안전 처리합니다. 이 부분이 멈추면 아래쪽의
+      // 인쇄/재고/거래처/발주서/관리자 이벤트까지 전부 등록되지 않습니다.
+      if (!legacyExcelBtn) return;
+      legacyExcelBtn.addEventListener("click", async () => {
       if (0 !== t.length) {
         await logExcelActions(t);
         var e = [
@@ -2144,7 +2150,8 @@
           "백업 데이터 없음",
           "스토리지에 저장된 전체 거래내역 데이터가 존재하지 않습니다.",
         );
-    }),
+      });
+    })(),
     document.getElementById("btn-list-print").addEventListener("click", () => {
       const e = Array.from(document.querySelectorAll(".chk-row:checked")).map(
         (t) => t.getAttribute("data-id"),
