@@ -389,6 +389,23 @@
     const supplierPills = document.getElementById("supplier-pills");
     supplierPills && supplierPills.classList.remove("bad");
   }
+
+  async function getRecordForAction(id) {
+    const key = String(id || "");
+    let rec = t.find((row) => String(row.id) === key);
+    if (rec) return rec;
+    try {
+      rec = await w("/api/records/" + encodeURIComponent(key));
+      if (rec && rec.id) {
+        if (!t.some((row) => String(row.id) === String(rec.id))) t.push(rec);
+        return rec;
+      }
+    } catch (err) {
+      throw err;
+    }
+    return null;
+  }
+
   function C() {
     const a = document.getElementById("fl-search").value.toLowerCase().trim(),
       o = document.getElementById("fl-region").value.trim(),
@@ -542,16 +559,22 @@
       });
     });
     (document.querySelectorAll(".btn-view-direct").forEach((n) => {
-      n.addEventListener("click", () => {
-        const a = n.getAttribute("data-id"),
-          o = t.find((t) => t.id === a);
-        o &&
-          ((e = o),
-          (document.getElementById("premium-injected-frame").innerHTML = N(o)),
-          document.getElementById("live-preview-space").classList.add("show"),
-          document
-            .getElementById("live-preview-space")
-            .scrollIntoView({ behavior: "smooth" }));
+      n.addEventListener("click", async (ev) => {
+        ev && ev.preventDefault();
+        ev && ev.stopPropagation();
+        const a = n.getAttribute("data-id");
+        try {
+          const o = await getRecordForAction(a);
+          o &&
+            ((e = o),
+            (document.getElementById("premium-injected-frame").innerHTML = N(o)),
+            document.getElementById("live-preview-space").classList.add("show"),
+            document
+              .getElementById("live-preview-space")
+              .scrollIntoView({ behavior: "smooth" }));
+        } catch (err) {
+          I("보기 실패", err.message || "거래내역을 불러오지 못했습니다.");
+        }
       });
     }),
       document.querySelectorAll(".btn-edit-direct").forEach((e) => {
@@ -654,10 +677,16 @@
         });
       }),
       document.querySelectorAll(".btn-print-direct").forEach((e) => {
-        e.addEventListener("click", () => {
-          const n = e.getAttribute("data-id"),
-            a = t.find((t) => t.id === n);
-          a && X(a);
+        e.addEventListener("click", async (ev) => {
+          ev && ev.preventDefault();
+          ev && ev.stopPropagation();
+          const n = e.getAttribute("data-id");
+          try {
+            const a = await getRecordForAction(n);
+            a && X(a);
+          } catch (err) {
+            I("인쇄 실패", err.message || "거래내역을 불러오지 못했습니다.");
+          }
         });
       }),
       document.querySelectorAll(".btn-delete-direct").forEach((n) => {
@@ -3872,6 +3901,35 @@
           (document.getElementById("premium-injected-frame").innerHTML = ""),
           (e = null));
       }),
+    // 거래내역 버튼 안전 보강: CSS/렌더 재생성 영향으로 직접 바인딩이 빠져도 보기/인쇄는 항상 동작하게 합니다.
+    document.getElementById("list-body") &&
+      document.getElementById("list-body").addEventListener("click", async (ev) => {
+        const viewBtn = ev.target.closest && ev.target.closest(".btn-view-direct");
+        const printBtn = ev.target.closest && ev.target.closest(".btn-print-direct");
+        if (!viewBtn && !printBtn) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const btn = viewBtn || printBtn;
+        const id = btn.getAttribute("data-id");
+        try {
+          const rec = await getRecordForAction(id);
+          if (!rec) {
+            I("조회 실패", "선택한 거래내역을 찾지 못했습니다. 새로고침 후 다시 시도해주세요.");
+            return;
+          }
+          if (viewBtn) {
+            e = rec;
+            document.getElementById("premium-injected-frame").innerHTML = N(rec);
+            document.getElementById("live-preview-space").classList.add("show");
+            document.getElementById("live-preview-space").scrollIntoView({ behavior: "smooth" });
+          } else {
+            X(rec);
+          }
+        } catch (err) {
+          I(viewBtn ? "보기 실패" : "인쇄 실패", err.message || "거래내역을 불러오지 못했습니다.");
+        }
+      }),
+
     document
       .getElementById("items-builder-root")
       .addEventListener("change", (t) => {
