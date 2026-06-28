@@ -430,6 +430,7 @@
           : (t.querySelector(".p-item").classList.add("bad"), (b = !1)),
           m.push({
             item: e,
+            partId: t.dataset.partId || "",
             spec: n || "-",
             qty: a,
             price: o,
@@ -2855,6 +2856,19 @@
       e && (t.value = e));
   }
 
+
+  function formatInvoicePartNameWithGroup(groupName, partName) {
+    const g = String(groupName || "").trim();
+    const p = String(partName || "").trim();
+    if (!g || !p) return p;
+    if (p.startsWith(`[${g}]`)) return p;
+    return `[${g}]${p}`;
+  }
+
+  function stripInvoiceGroupPrefix(name) {
+    return String(name || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+  }
+
   function makePartPickModal(title, selectedIds, onConfirm) {
     if (!Array.isArray(nt) || nt.length === 0) {
       I("부품 없음", "먼저 재고현황에 부품을 등록해주세요.");
@@ -3914,12 +3928,13 @@
                 const n = document
                     .getElementById("items-builder-root")
                     .querySelectorAll(".item-row-card"),
-                  a = n[n.length - 1];
-                ((a.querySelector(".p-item").value = e.name),
-                  (a.querySelector(".p-spec").value = e.spec || ""),
-                  (a.querySelector(".p-price").value = e.unitPrice || 0),
-                  (a.querySelector(".p-qty").value = 1),
-                  a
+                  row = n[n.length - 1];
+                ((row.dataset.partId = e.id || ""),
+                  (row.querySelector(".p-item").value = formatInvoicePartNameWithGroup(a.name, e.name)),
+                  (row.querySelector(".p-spec").value = e.spec || ""),
+                  (row.querySelector(".p-price").value = e.unitPrice || 0),
+                  (row.querySelector(".p-qty").value = 1),
+                  row
                     .querySelector(".p-price")
                     .dispatchEvent(new Event("input")));
               }),
@@ -4806,15 +4821,60 @@
 
   function printOrder(order) {
     logOrderAction(order, "인쇄");
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${escapeHtml(order.title || "발주서")}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='202mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.996;sheet.style.transform='scale('+sc+')';sheet.style.width=(202/sc)+'mm';}window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},220);};window.onbeforeprint=fitOrder;<\/script></body></html>`;
-    const win = window.open("", "_blank", "width=900,height=900");
-    if (!win) {
-      alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 인쇄해주세요.");
-      return;
+    const title = escapeHtml(order.title || "발주서");
+    const docHtml = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><title>${title}</title><style>${orderPrintCss()}</style></head><body><div class="order-print-page"><div class="order-sheet">${renderSheet(order)}</div></div><script>function fitOrder(){var page=document.querySelector('.order-print-page');var sheet=document.querySelector('.order-sheet');if(!page||!sheet)return;sheet.style.transform='scale(1)';sheet.style.width='202mm';var sx=page.clientWidth/sheet.scrollWidth;var sy=page.clientHeight/sheet.scrollHeight;var sc=Math.min(1,sx,sy)*0.996;sheet.style.transform='scale('+sc+')';sheet.style.width=(202/sc)+'mm';}window.onbeforeprint=fitOrder;<\/script></body></html>`;
+
+    const oldFrame = document.getElementById("order-print-frame");
+    if (oldFrame && oldFrame.parentNode) oldFrame.parentNode.removeChild(oldFrame);
+
+    const frame = document.createElement("iframe");
+    frame.id = "order-print-frame";
+    frame.setAttribute("title", "발주서 인쇄");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "1px";
+    frame.style.height = "1px";
+    frame.style.opacity = "0";
+    frame.style.pointerEvents = "none";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+
+    const cleanup = () => {
+      setTimeout(() => {
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }, 1200);
+    };
+
+    try {
+      const doc = frame.contentWindow.document;
+      doc.open();
+      doc.write(docHtml);
+      doc.close();
+      setTimeout(() => {
+        try {
+          const win = frame.contentWindow;
+          if (!win) throw new Error("print frame unavailable");
+          if (typeof win.fitOrder === "function") win.fitOrder();
+          win.focus();
+          win.print();
+          cleanup();
+        } catch (err) {
+          cleanup();
+          const popup = window.open("", "_blank", "width=900,height=900");
+          if (!popup) {
+            alert("인쇄창을 열 수 없습니다. 브라우저 팝업/인쇄 권한을 확인해주세요.");
+            return;
+          }
+          popup.document.open();
+          popup.document.write(docHtml.replace("window.onbeforeprint=fitOrder;", "window.onload=function(){setTimeout(function(){fitOrder();window.focus();window.print();},180);};window.onbeforeprint=fitOrder;"));
+          popup.document.close();
+        }
+      }, 180);
+    } catch (err) {
+      cleanup();
+      alert("발주서 인쇄 준비 중 오류가 발생했습니다. 새로고침 후 다시 시도해주세요.");
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
   }
 
   function downloadOrder(order) {
