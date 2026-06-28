@@ -11218,3 +11218,51 @@ tr:hover td{background:#F8FAFC !important;}
     font-weight:900 !important;
   }
 }
+
+
+/* ===== excel-paste-record-import-v24-20260628 ===== */
+#import-modal,
+.import-modal{
+  z-index:10000;
+}
+#easy-import-title{
+  word-break:keep-all;
+}
+#easy-import-desc{
+  display:block;
+  max-width:100%;
+  white-space:normal !important;
+  word-break:keep-all;
+  line-height:1.55;
+}
+.import-textarea{
+  min-height:260px !important;
+  white-space:pre !important;
+  overflow:auto !important;
+  tab-size:12;
+  font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace !important;
+}
+.import-preview-card{
+  max-width:100%;
+}
+.import-preview-card table{
+  min-width:980px;
+}
+.import-meta-line{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  margin:8px 0 10px;
+}
+.import-meta-line span{
+  display:inline-flex;
+  align-items:center;
+  min-height:24px;
+  padding:3px 8px;
+  border:1px solid #e2e8f0;
+  border-radius:999px;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  font-weight:700;
+}

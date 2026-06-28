@@ -5281,28 +5281,280 @@
     return `${y}-${m}-${d}`;
   }
 
+  function parseEasyBoolean(value) {
+    const v = normalizeEasyBlank(value).replace(/\s/g, "").toLowerCase();
+    if (!v) return false;
+    if (/^(false|n|no|0|아니오|미사용|해제|해당없음)$/i.test(v)) return false;
+    if (/^(true|y|yes|1|예|사용|선택|급유기)$/i.test(v)) return true;
+    return /농협|중앙회|중부|자재|유통|급유/.test(v);
+  }
+
+  function normalizeEasyMajor(value) {
+    const v = normalizeEasyBlank(value);
+    if (!v) return "";
+    if (/급유기/.test(v)) return "급유기";
+    if (/일반/.test(v)) return "일반";
+    if (/계통/.test(v)) return "계통";
+    if (/자체/.test(v)) return "자체";
+    return v;
+  }
+
+  function normalizeEasyOilOption(value) {
+    const v = normalizeEasyBlank(value).replace(/\s/g, "");
+    if (!v) return "농협중앙회";
+    if (/해당없음|없음|무/.test(v)) return "해당없음";
+    if (/중부|자재|유통/.test(v)) return "중부자재유통";
+    if (/농협|중앙회/.test(v)) return "농협중앙회";
+    return v;
+  }
+
+  function parseEasyCategoryFromFields(majorValue, subValue, oilValue, oilOptionValue) {
+    let major = normalizeEasyMajor(majorValue);
+    let sub = normalizeEasyBlank(subValue);
+    const oilOptionText = normalizeEasyBlank(oilOptionValue);
+    let oil = parseEasyBoolean(oilValue) || major === "급유기" || !!oilOptionText;
+    let oilOption = normalizeEasyOilOption(oilOptionText || (oil ? sub : ""));
+
+    if (oil) {
+      // 빠른입력에서 급유기는 일반/계통/자체 소분류가 아니라
+      // 실제 화면의 급유기 옵션 3개(농협중앙회/중부자재유통/해당없음)를 따릅니다.
+      // 기존 거래내역 필터 안정성을 위해 cat은 "계통"으로 저장하고,
+      // 화면 표시용 part에는 급유기 옵션을 명확히 남깁니다.
+      return {
+        major: "계통",
+        sub: oilOption,
+        oil: true,
+        oilOption,
+        label: `급유기 [${oilOption}]`,
+      };
+    }
+
+    if (!major || major === "급유기") major = "일반";
+    if (!sub) {
+      if (major === "일반") sub = "판매";
+      else if (major === "계통") sub = "중앙회";
+      else if (major === "자체") sub = "자체구매";
+      else sub = "판매";
+    }
+
+    return {
+      major,
+      sub,
+      oil: false,
+      oilOption: "",
+      label: `${major} [${sub}]`,
+    };
+  }
+
   function parseEasyCategory(value) {
     const raw = normalizeEasyBlank(value) || "일반-판매";
     const parts = raw.split(/[:\-\/>]+/).map((x) => x.trim()).filter(Boolean);
-    let oil = false;
-    let major = "일반";
-    let sub = "판매";
     if (parts[0] && /급유기/.test(parts[0])) {
-      oil = true;
-      major = parts[1] || "계통";
-      sub = parts[2] || "중앙회";
-    } else {
-      major = parts[0] || "일반";
-      sub = parts[1] || (major === "일반" ? "판매" : "중앙회");
+      return parseEasyCategoryFromFields("급유기", "", "true", parts[1] || parts[2] || "농협중앙회");
     }
-    if (/일반/.test(major)) major = "일반";
-    else if (/계통/.test(major)) major = "계통";
-    else if (/자체/.test(major)) major = "자체";
-    const label = `${oil ? "급유기 " : ""}${major} [${sub}]`;
-    return { major, sub, oil, label };
+    return parseEasyCategoryFromFields(parts[0] || "일반", parts[1] || "", "", "");
   }
 
-  function parseEasyRecordText(text) {
+  function parseEasyPayMethod(value) {
+    const v = normalizeEasyBlank(value).replace(/\s/g, "");
+    if (/현금/.test(v)) return "현금";
+    if (/카드/.test(v)) return "카드";
+    if (/계좌|이체/.test(v)) return "계좌이체";
+    if (/외상|미수/.test(v)) return "외상";
+    return v || "미기재";
+  }
+
+  function splitEasyTableLine(line) {
+    if (line.includes("\t")) return line.split("\t").map((x) => x.trim());
+    if (line.includes("|")) return line.split("|").map((x) => x.trim());
+    if (line.includes(",")) {
+      const cells = [];
+      let cur = "";
+      let quote = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (quote && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            quote = !quote;
+          }
+        } else if (ch === "," && !quote) {
+          cells.push(cur.trim());
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      cells.push(cur.trim());
+      return cells;
+    }
+    return [line.trim()];
+  }
+
+  function normalizeEasyHeaderName(name) {
+    return String(name || "")
+      .replace(/\s/g, "")
+      .replace(/[()［］\[\]{}]/g, "")
+      .replace(/ㆍ/g, "")
+      .toLowerCase();
+  }
+
+  function easyHeaderKey(name) {
+    const h = normalizeEasyHeaderName(name);
+    if (/^(번호|no|num|명세서번호|순번)$/.test(h)) return "no";
+    if (/공급자/.test(h)) return "supplier";
+    if (/작성일자|작성날짜|거래일자|날짜|일자/.test(h)) return "date";
+    if (/작성자|담당작성자|담당자/.test(h)) return "author";
+    if (/거래대분류|대분류|분류대/.test(h)) return "major";
+    if (/거래소분류|소분류|분류소/.test(h)) return "sub";
+    if (/급유기옵션|급유기분류|급유기구분|급유기선택|급유기소분류/.test(h)) return "oilOption";
+    if (/급유기/.test(h)) return "oil";
+    if (/상호|법인명|거래처|업체명/.test(h)) return "company";
+    if (/고객명|고객성명|성명|이름/.test(h)) return "name";
+    if (/관할지역|지역/.test(h)) return "region";
+    if (/결제수단|결제방법|결제/.test(h)) return "payMethod";
+    if (/품목비고|품목메모/.test(h)) return "note";
+    if (/품목명|품명|품목|item/.test(h)) return "item";
+    if (/규격사항|규격|spec/.test(h)) return "spec";
+    if (/수량|qty/.test(h)) return "qty";
+    if (/단가|price/.test(h)) return "price";
+    if (/공급가액|공급액|금액|amount/.test(h)) return "amount";
+    if (/세액|tax/.test(h)) return "tax";
+    if (/비고|메모|note/.test(h)) return "note";
+    return "";
+  }
+
+  function isEasyTableInput(text) {
+    const lines = String(text || "").split(/\r?\n/).filter((line) => line.trim());
+    if (!lines.length) return false;
+    if (lines.some((line) => line.includes("\t") || line.includes("|"))) return true;
+    const first = splitEasyTableLine(lines[0]);
+    return first.length >= 8 && first.map(easyHeaderKey).filter(Boolean).length >= 4;
+  }
+
+  function tableRowToObject(row, keys) {
+    const obj = {};
+    keys.forEach((key, idx) => {
+      if (!key) return;
+      obj[key] = row[idx] == null ? "" : row[idx];
+    });
+    return obj;
+  }
+
+  function createEasyRecordGroup(no) {
+    return {
+      no: String(no || ""),
+      meta: {
+        supplier: "naepo",
+        date: formatDateForInput(""),
+        author: "",
+        company: "",
+        name: "x",
+        region: "미지정",
+        category: parseEasyCategoryFromFields("일반", "판매", "", ""),
+        payMethod: "미기재",
+      },
+      items: [],
+    };
+  }
+
+  function updateEasyRecordMeta(group, row) {
+    if (!group || !row) return;
+    const supplier = normalizeEasyBlank(row.supplier);
+    const date = normalizeEasyBlank(row.date);
+    const author = normalizeEasyBlank(row.author);
+    const major = normalizeEasyBlank(row.major);
+    const sub = normalizeEasyBlank(row.sub);
+    const oil = normalizeEasyBlank(row.oil);
+    const oilOption = normalizeEasyBlank(row.oilOption);
+    const company = normalizeEasyBlank(row.company);
+    const name = normalizeEasyBlank(row.name);
+    const region = normalizeEasyBlank(row.region);
+    const pay = normalizeEasyBlank(row.payMethod);
+
+    if (supplier) group.meta.supplier = parseEasySupplier(supplier);
+    if (date) group.meta.date = formatDateForInput(date);
+    if ("author" in row) group.meta.author = author;
+    if (major || sub || oil || oilOption) {
+      group.meta.category = parseEasyCategoryFromFields(
+        major || group.meta.category.major,
+        sub || group.meta.category.sub,
+        oil || (group.meta.category.oil ? "true" : ""),
+        oilOption || group.meta.category.oilOption || ""
+      );
+    }
+    if ("company" in row) group.meta.company = company;
+    if ("name" in row) group.meta.name = name || "x";
+    if (region) group.meta.region = region;
+    if (pay) group.meta.payMethod = parseEasyPayMethod(pay);
+  }
+
+  function addEasyRecordItem(group, row) {
+    const itemName = normalizeEasyBlank(row.item);
+    if (!group || !itemName) return false;
+    const qty = toNumberLoose(row.qty || 1) || 1;
+    const amountRaw = normalizeEasyBlank(row.amount);
+    const priceRaw = normalizeEasyBlank(row.price);
+    const amount = amountRaw ? toNumberLoose(amountRaw) : 0;
+    const price = priceRaw ? toNumberLoose(priceRaw) : (qty ? Math.round(amount / qty) : 0);
+    const tax = normalizeEasyBlank(row.tax) ? toNumberLoose(row.tax) : 0;
+
+    group.items.push({
+      item: itemName,
+      spec: normalizeEasyBlank(row.spec) || "-",
+      qty,
+      price,
+      amount: amount || price * qty,
+      tax,
+      note: normalizeEasyBlank(row.note) || "",
+    });
+    return true;
+  }
+
+  function parseEasyRecordTable(text) {
+    const rawLines = String(text || "").replace(/\r/g, "").split("\n").filter((line) => line.trim());
+    const rows = rawLines.map(splitEasyTableLine);
+    if (!rows.length) return [];
+
+    const fixedKeys = ["no", "supplier", "date", "author", "major", "sub", "oil", "oilOption", "company", "name", "region", "payMethod", "item", "spec", "qty", "price", "amount", "tax", "note"];
+    const headerKeys = rows[0].map(easyHeaderKey);
+    const hasHeader = headerKeys.filter(Boolean).length >= 4 && headerKeys.includes("item");
+    const keys = hasHeader ? headerKeys : fixedKeys;
+    const dataRows = hasHeader ? rows.slice(1) : rows;
+
+    const groups = [];
+    const groupMap = new Map();
+    let current = null;
+    let autoNo = 1;
+
+    dataRows.forEach((cells) => {
+      if (!cells.some((cell) => normalizeEasyBlank(cell))) return;
+      const row = tableRowToObject(cells, keys);
+      let no = normalizeEasyBlank(row.no);
+
+      if (!no && current) no = current.no;
+      if (!no) no = String(autoNo++);
+
+      let group = groupMap.get(no);
+      if (!group) {
+        group = createEasyRecordGroup(no);
+        groupMap.set(no, group);
+        groups.push(group);
+        current = group;
+      } else {
+        current = group;
+      }
+
+      updateEasyRecordMeta(group, row);
+      addEasyRecordItem(group, row);
+    });
+
+    return groups.filter((g) => g.items.length);
+  }
+
+  function parseEasyRecordKeyValue(text) {
     const groups = [];
     let current = null;
     String(text || "")
@@ -5312,77 +5564,49 @@
       .forEach((line) => {
         const match = line.match(/^(\d+)\.\s*(.*)$/);
         if (match) {
-          current = {
-            no: match[1],
-            meta: {
-              supplier: "naepo",
-              date: formatDateForInput(""),
-              author: "",
-              company: "-",
-              name: "-",
-              region: "미지정",
-              category: parseEasyCategory("일반-판매"),
-              payMethod: "미기재",
-            },
-            items: [],
-          };
+          current = createEasyRecordGroup(match[1]);
           groups.push(current);
           line = match[2].trim();
         }
         if (!current) {
-          current = {
-            no: String(groups.length + 1),
-            meta: {
-              supplier: "naepo",
-              date: formatDateForInput(""),
-              author: "",
-              company: "-",
-              name: "-",
-              region: "미지정",
-              category: parseEasyCategory("일반-판매"),
-              payMethod: "미기재",
-            },
-            items: [],
-          };
+          current = createEasyRecordGroup(String(groups.length + 1));
           groups.push(current);
         }
 
         const data = parseEasyKeyValueLine(line);
-        if ("공급자" in data) current.meta.supplier = parseEasySupplier(data["공급자"]);
-        if ("작성일자" in data || "날짜" in data) current.meta.date = formatDateForInput(data["작성일자"] || data["날짜"]);
-        if ("작성자" in data || "담당자" in data) current.meta.author = normalizeEasyBlank(data["작성자"] || data["담당자"]);
-        if ("거래대분류" in data || "분류" in data || "거래분류" in data || "카테고리" in data) {
-          current.meta.category = parseEasyCategory(data["거래대분류"] || data["분류"] || data["거래분류"] || data["카테고리"]);
-        }
-        if ("상호" in data || "거래처" in data || "업체명" in data) {
-          current.meta.company = normalizeEasyBlank(data["상호"] || data["거래처"] || data["업체명"]) || "-";
-        }
-        if ("고객명" in data || "성명" in data || "이름" in data) {
-          current.meta.name = normalizeEasyBlank(data["고객명"] || data["성명"] || data["이름"]) || "-";
-        }
-        if ("지역" in data) current.meta.region = normalizeEasyBlank(data["지역"]) || "미지정";
-        if ("결제수단" in data || "결제" in data) current.meta.payMethod = normalizeEasyBlank(data["결제수단"] || data["결제"]) || "미기재";
+        const row = {
+          supplier: data["공급자"],
+          date: data["작성일자"] || data["날짜"],
+          author: data["작성자"] || data["담당자"],
+          major: data["거래대분류"] || data["대분류"],
+          sub: data["거래소분류"] || data["소분류"],
+          oil: data["급유기"],
+          oilOption: data["급유기옵션"] || data["급유기분류"] || data["급유기구분"] || data["급유기선택"],
+          company: data["상호"] || data["거래처"] || data["업체명"] || data["법인명"],
+          name: data["고객명"] || data["고객성명"] || data["성명"] || data["이름"],
+          region: data["지역"] || data["관할지역"],
+          payMethod: data["결제수단"] || data["결제"],
+          item: data["품목"] || data["품목명"] || data["item"],
+          spec: data["규격"] || data["규격사항"] || data["spec"],
+          qty: data["수량"] || data["qty"],
+          price: data["단가"] || data["price"],
+          amount: data["공급가액"] || data["금액"] || data["amount"],
+          tax: data["세액"] || data["tax"],
+          note: data["품목비고"] || data["비고"] || data["note"],
+        };
 
-        const itemName = data["품목"] || data["품목명"] || data["item"] || "";
-        if (!itemName) return;
-        const qty = toNumberLoose(data["수량"] || data["qty"] || 1) || 1;
-        const amount = toNumberLoose(data["공급가액"] || data["금액"] || data["amount"]);
-        const price = toNumberLoose(data["단가"] || data["price"]) || (qty ? Math.round(amount / qty) : 0);
-        const tax = toNumberLoose(data["세액"] || data["tax"]);
-        current.items.push({
-          item: normalizeEasyBlank(itemName),
-          spec: normalizeEasyBlank(data["규격"] || data["규격사항"] || data["spec"]) || "-",
-          qty,
-          price,
-          amount: amount || price * qty,
-          tax,
-          note: normalizeEasyBlank(data["품목비고"] || data["비고"] || data["note"]) || "",
-        });
+        updateEasyRecordMeta(current, row);
+        addEasyRecordItem(current, row);
       });
     return groups.filter((g) => g.items.length);
   }
 
-  function parseEasyInventoryText(text) {
+  function parseEasyRecordText(text) {
+    return isEasyTableInput(text) ? parseEasyRecordTable(text) : parseEasyRecordKeyValue(text);
+  }
+
+  
+function parseEasyInventoryText(text) {
     return String(text || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -5428,8 +5652,8 @@
     if (result) result.innerHTML = "";
     if (apply) apply.disabled = true;
     if (mode === "records") {
-      title.innerHTML = '<i class="fa-solid fa-file-import"></i> 텍스트 명세서 가져오기';
-      desc.innerHTML = "명세서 첫 줄에 공급자/날짜/작성자/분류/고객명/결제수단/품목을 함께 적고, 다음 줄부터 품목을 추가할 수 있습니다. <br><b>공급자 1=내포농기계, 2=동아아세아농기계</b>";
+      title.innerHTML = '<i class="fa-solid fa-table-cells"></i> 명세서 빠른입력';
+      desc.innerHTML = "엑셀에서 표를 작성한 뒤 그대로 복사해서 붙여넣으세요. <br><b>같은 번호는 같은 명세서</b>로 묶이고, 두 번째 품목부터는 기본정보를 비워도 위 명세서 정보를 따라갑니다. <br><b>공급자 1=내포농기계, 2=동아아세아농기계</b><br><b>급유기=Y인 경우 거래소분류가 아니라 급유기옵션(농협중앙회/중부자재유통/해당없음)을 사용합니다.</b>";
       text.style.display = "";
       text.value = payload || "";
       setTimeout(() => text.focus(), 50);
@@ -5468,7 +5692,7 @@
     const totalItems = groups.reduce((sum, g) => sum + g.items.length, 0);
     const supplierLabel = (key) => key === "donga" ? "2 · 동아아세아농기계" : "1 · 내포농기계";
     document.getElementById("easy-import-result").innerHTML = `
-      <div class="import-summary">명세서 ${groups.length}건 · 품목 ${totalItems}줄을 미리보기했습니다. 적용하면 거래내역에 저장됩니다.</div>
+      <div class="import-summary">명세서 ${groups.length}건 · 품목 ${totalItems}줄을 미리보기했습니다. 같은 번호는 같은 명세서로 묶였습니다. 적용하면 거래내역에 저장됩니다.</div>
       <div class="import-preview-list">
         ${groups.map((g, idx) => `
           <div class="import-preview-card">
@@ -5478,7 +5702,7 @@
               <span>작성일자: ${safeText(g.meta.date)}</span>
               <span>작성자: ${safeText(g.meta.author || "공란")}</span>
               <span>고객명: ${safeText(g.meta.name)}</span>
-              <span>분류: ${safeText(g.meta.category.label)}</span>
+              <span>분류: ${safeText(g.meta.category.label)}</span>${g.meta.category.oil ? `<span>급유기옵션: ${safeText(g.meta.category.oilOption)}</span>` : ""}
               <span>결제: ${safeText(g.meta.payMethod)}</span>
             </div>
             <table><thead><tr><th>품목</th><th>규격</th><th>수량</th><th>단가</th><th>공급가액</th><th>세액</th><th>비고</th></tr></thead>
@@ -5639,7 +5863,7 @@
       if (easyImportMode === "inventory") {
         text.value = "품목명:DMC-800F 액제탱크 세트/규격:800F/재고:3/단가:60000/최소재고:1/비고:\n품목명:OT-20L 오성 분무기/규격:20L/재고:5/단가:100000/최소재고:1/비고:\n품목명:패킹/규격:/재고:10/단가:18000/최소재고:2/비고:";
       } else {
-        text.value = "1.공급자:2/작성일자:2026.06월.26일/작성자:현장기사/거래대분류:일반-판매/고객명:안광주/지역:미지정/결제수단:계좌이체/품목:DMC-800F 액제탱크 세트/규격:/수량:1/단가:60000/공급가액:60000/세액:0/품목비고:\n품목:OT-20L 오성 분무기/규격:/수량:1/단가:100000/공급가액:100000/세액:0/품목비고:\n2.공급자:1/작성일자:/작성자:/거래대분류:일반-수리/고객명:이회봉/결제수단:외상/품목:패킹/규격:/수량:1/단가:18000/공급가액:18000/세액:0/품목비고:";
+        text.value = "번호\t공급자\t작성일자\t작성자\t거래대분류\t거래소분류\t급유기\t급유기옵션\t상호\t고객명\t지역\t결제수단\t품목\t규격\t수량\t단가\t공급가액\t세액\t품목비고\n1\t2\t2026-06-26\t현장기사\t일반\t판매\tN\t\t\t안광주\t미지정\t계좌이체\tDMC-800F 액제탱크 세트\t\t1\t60000\t60000\t0\t\n1\t\t\t\t\t\t\t\t\t\t\t\tOT-20L 오성 분무기\t\t1\t100000\t100000\t0\t\n2\t1\t\t\t일반\t수리\tN\t\t\t이회봉\t홍성읍\t외상\t패킹\t\t1\t18000\t18000\t0\t\n3\t1\t2026-06-26\t현장기사\t급유기\t\tY\t농협중앙회\t농협\t김철수\t갈산\t외상\t급유기 부품\t\t1\t50000\t50000\t0\t\n4\t1\t2026-06-26\t현장기사\t급유기\t\tY\t중부자재유통\t\t박영수\t홍성읍\t계좌이체\t급유기 호스\t\t1\t70000\t70000\t0\t";
       }
     });
     byId("easy-import-preview") && byId("easy-import-preview").addEventListener("click", () => {
