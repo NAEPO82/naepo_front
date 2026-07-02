@@ -170,9 +170,14 @@
       naepo_inventory_log: "inventoryLog",
       naepo_print_log: "printLog",
       naepo_orders: "orderLog",
+<<<<<<< HEAD
       naepo_repair_log: "repairLog",
     };
     const parsed = { records: [], customers: [], groups: [], parts: [], inventoryLog: [], printLog: [], orderLog: [], repairLog: [] };
+=======
+    };
+    const parsed = { records: [], customers: [], groups: [], parts: [], inventoryLog: [], printLog: [], orderLog: [] };
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
     const lines = String(sqlText || "").split(/\r?\n/);
     for (const line of lines) {
       const m = line.match(/^\s*INSERT\s+INTO\s+(naepo_[a-z_]+)\s*\(([^)]*)\)\s*VALUES\s*\((.*)\)\s*;\s*$/i);
@@ -189,7 +194,11 @@
         if (row && typeof row === "object") parsed[key].push(row);
       } catch (_) {}
     }
+<<<<<<< HEAD
     if (!parsed.records.length && !parsed.parts.length && !parsed.customers.length && !parsed.orderLog.length && !parsed.repairLog.length) {
+=======
+    if (!parsed.records.length && !parsed.parts.length && !parsed.customers.length && !parsed.orderLog.length) {
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
       throw new Error("복원 가능한 내포농기계 SQL 백업 데이터를 찾지 못했습니다.");
     }
     return parsed;
@@ -1780,7 +1789,10 @@
       inventory: "page-inventory",
       customer: "page-customer",
       order: "page-order",
+<<<<<<< HEAD
       repair: "page-repair",
+=======
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
     };
     (Object.keys(n).forEach((e) => {
       (document.getElementById("tab-" + e).classList.toggle("on", e === t),
@@ -5788,11 +5800,18 @@ function parseEasyInventoryText(text) {
     const customers = Array.isArray(data.customers) ? data.customers : [];
     const groups = Array.isArray(data.groups) ? data.groups : [];
     const orderLog = Array.isArray(data.orderLog) ? data.orderLog : [];
+<<<<<<< HEAD
     const repairLog = Array.isArray(data.repairLog) ? data.repairLog : [];
     const inventoryLog = Array.isArray(data.inventoryLog) ? data.inventoryLog : [];
     const printLog = Array.isArray(data.printLog) ? data.printLog : [];
     document.getElementById("easy-import-result").innerHTML = `
       <div class="import-summary">백업파일 미리보기: 거래내역 ${records.length}건 · 재고 ${parts.length}건 · 거래처 ${customers.length}건 · 부품그룹 ${groups.length}건 · 입출고 ${inventoryLog.length}건 · 발주서 ${orderLog.length}건 · 접수대장 ${repairLog.length}건 · 인쇄기록 ${printLog.length}건</div>
+=======
+    const inventoryLog = Array.isArray(data.inventoryLog) ? data.inventoryLog : [];
+    const printLog = Array.isArray(data.printLog) ? data.printLog : [];
+    document.getElementById("easy-import-result").innerHTML = `
+      <div class="import-summary">백업파일 미리보기: 거래내역 ${records.length}건 · 재고 ${parts.length}건 · 거래처 ${customers.length}건 · 부품그룹 ${groups.length}건 · 입출고 ${inventoryLog.length}건 · 발주서 ${orderLog.length}건 · 인쇄기록 ${printLog.length}건</div>
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
       <div class="import-preview-grid">
         <div class="import-preview-card"><strong>거래내역 샘플</strong><table><tbody>${records.slice(0,5).map((r) => `<tr><td>${safeText(r.date)}</td><td>${safeText(r.company || r.name)}</td><td>${safeText(r.note || r.part)}</td><td class="tr">${importMoney(r.amount || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
         <div class="import-preview-card"><strong>재고 샘플</strong><table><tbody>${parts.slice(0,5).map((p) => `<tr><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td class="tr">${importMoney(p.stock || 0)}</td></tr>`).join("") || '<tr><td>없음</td></tr>'}</tbody></table></div>
@@ -5904,7 +5923,10 @@ function parseEasyInventoryText(text) {
           customers: data.customers,
           groups: data.groups,
           printLog: data.printLog,
+<<<<<<< HEAD
           repairLog: data.repairLog,
+=======
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
           mode: "merge",
         }),
       });
@@ -6000,6 +6022,7 @@ function parseEasyInventoryText(text) {
   });
 
 })();
+<<<<<<< HEAD
 
 
 /* 접수대장 페이지 v27 */
@@ -6264,3 +6287,5 @@ function parseEasyInventoryText(text) {
   }
   document.addEventListener("DOMContentLoaded", init);
 })();
+=======
+>>>>>>> 9f29d55c2210db8a3961b936bcfc28d6a57f5197
