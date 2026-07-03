@@ -11270,3 +11270,162 @@ tr:hover td{background:#F8FAFC !important;}
 
 /* ===== repair-log-page-v27 ===== */
 .repair-card textarea{resize:vertical;min-height:92px}.repair-form-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.repair-status-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.repair-status-box{flex:1 1 280px;border:1px solid var(--color-border-soft,#e5eaf0);border-radius:14px;background:#f8fafc;padding:12px}.repair-status-box>label{display:block;font-size:12px;font-weight:900;color:#334155;margin-bottom:8px}.repair-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.repair-list-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.repair-list-actions{display:flex;gap:8px;flex-wrap:wrap}.repair-filter-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid #dbe3ee;border-radius:16px;background:#f8fafc;padding:10px;margin:12px 0}.repair-filter-bar input,.repair-filter-bar select{height:38px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;background:#fff;font-weight:700;color:#172033}.repair-filter-bar input[type="text"]{min-width:280px;flex:1}.repair-summary{display:inline-flex;align-items:center;min-height:34px;border:1px solid #bfdbfe;background:#eff6ff;color:#1e3a8a;border-radius:999px;padding:0 14px;font-size:13px;font-weight:900;margin-bottom:10px}.repair-grouped-list{display:flex;flex-direction:column;gap:14px}.repair-group-section{border:1px solid #dbe3ee;border-radius:16px;overflow:hidden;background:#fff}.repair-group-title{display:flex;align-items:center;justify-content:space-between;gap:8px;background:#f1f5f9;padding:10px 12px;border-bottom:1px solid #dbe3ee}.repair-group-title strong{font-size:14px;color:#0f172a}.repair-group-title span{font-size:12px;font-weight:900;color:#475569}.repair-table{width:100%;border-collapse:collapse;font-size:12px}.repair-table th,.repair-table td{border-bottom:1px solid #e2e8f0;padding:9px 10px;vertical-align:middle}.repair-table th{background:#f8fafc;color:#334155;font-weight:900}.repair-detail-cell{max-width:320px;white-space:pre-wrap;word-break:keep-all}.repair-badge{display:inline-flex;align-items:center;height:26px;border-radius:999px;padding:0 9px;font-size:12px;font-weight:900}.repair-badge.ok{background:#dcfce7;color:#166534}.repair-badge.warn{background:#fef3c7;color:#92400e}.repair-badge.muted{background:#e2e8f0;color:#475569}.repair-paid-toggle{height:30px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;padding:0 10px;font-size:12px;font-weight:900;cursor:pointer}.repair-paid-toggle.paid{border-color:#86efac;background:#dcfce7;color:#166534}.repair-paid-toggle.unpaid{border-color:#fecaca;background:#fef2f2;color:#b91c1c}.repair-row-actions{display:flex;gap:6px;justify-content:center}.repair-delete{color:#dc2626!important;border-color:#fecaca!important;background:#fef2f2!important}@media(max-width:1024px){.repair-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.repair-filter-bar input[type="text"]{min-width:180px}}@media(max-width:640px){.repair-form-grid{grid-template-columns:1fr}.repair-actions,.repair-list-actions{width:100%;justify-content:stretch}.repair-actions .btn,.repair-list-actions .btn{flex:1}.repair-filter-bar{align-items:stretch}.repair-filter-bar input,.repair-filter-bar select,.repair-filter-bar button{width:100%}.repair-table-wrap{overflow-x:auto}.repair-table{min-width:920px}}
+
+
+/* ===== record-phone-v28-20260628 ===== */
+.record-phone-mini{
+  margin-top:3px;
+  font-size:10.5px;
+  color:#64748b;
+  font-weight:600;
+  line-height:1.2;
+  white-space:nowrap;
+}
+.record-phone-mini i{
+  font-size:9px;
+  margin-right:3px;
+  color:#94a3b8;
+}
+@media (max-width: 768px){
+  .record-phone-mini{
+    white-space:normal;
+  }
+}
+
+
+/* ===== repair-log-mobile-invoice-receipt-v29-20260628 ===== */
+/* 접수대장 입력/필터 날짜: 캘린더 아이콘만이 아니라 입력칸 전체를 눌러도 선택되게 보강 */
+#page-repair input[type="date"]{
+  cursor:pointer !important;
+  min-width:142px;
+  position:relative;
+}
+#page-repair input[type="date"]::-webkit-calendar-picker-indicator{
+  cursor:pointer;
+}
+
+/* 접수대장 버튼/아이콘 줄맞춤 */
+#page-repair .btn,
+#page-repair .repair-paid-toggle,
+#page-repair .repair-row-actions .btn{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  gap:6px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  vertical-align:middle !important;
+}
+#page-repair .repair-actions,
+#page-repair .repair-list-actions{
+  align-items:center !important;
+}
+#page-repair .repair-list-actions .btn{
+  min-height:34px !important;
+  padding:0 12px !important;
+}
+#page-repair .repair-row-actions{
+  display:grid !important;
+  grid-template-columns:repeat(2, minmax(72px, 1fr)) !important;
+  gap:6px !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-width:166px;
+}
+#page-repair .repair-row-actions .btn{
+  min-height:30px !important;
+  padding:0 8px !important;
+  font-size:11.5px !important;
+}
+#page-repair .repair-to-invoice{
+  color:#2563eb !important;
+  border-color:#bfdbfe !important;
+  background:#eff6ff !important;
+}
+#page-repair .repair-receipt-print{
+  color:#047857 !important;
+  border-color:#a7f3d0 !important;
+  background:#f0fdf4 !important;
+}
+
+/* 수리내역 입력/목록 텍스트 위치 보정 */
+#repair-detail{
+  min-height:104px !important;
+  padding:12px 13px !important;
+  line-height:1.55 !important;
+  vertical-align:top !important;
+  text-align:left !important;
+}
+#page-repair textarea{
+  line-height:1.55 !important;
+}
+#page-repair .repair-detail-cell{
+  vertical-align:top !important;
+  text-align:left !important;
+  line-height:1.45 !important;
+  padding-top:10px !important;
+  padding-bottom:10px !important;
+}
+
+/* 접수대장 목록 열 너비 안정화 */
+#page-repair .repair-table th,
+#page-repair .repair-table td{
+  vertical-align:middle;
+}
+#page-repair .repair-table th:nth-child(5),
+#page-repair .repair-table td:nth-child(5){
+  min-width:240px;
+}
+#page-repair .repair-table th:last-child,
+#page-repair .repair-table td:last-child{
+  min-width:180px;
+}
+
+/* 모바일 사이드바가 보이지 않던 문제: 헤더 밖 고정 메뉴 버튼 추가 */
+.mobile-menu-floating{
+  display:none;
+}
+@media (max-width:1024px){
+  .mobile-menu-floating{
+    position:fixed !important;
+    left:14px !important;
+    top:16px !important;
+    z-index:140 !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    gap:7px !important;
+    min-height:42px !important;
+    padding:0 13px !important;
+    border:1px solid rgba(203,213,225,.95) !important;
+    border-radius:14px !important;
+    background:#ffffff !important;
+    color:#0f766e !important;
+    box-shadow:0 10px 28px rgba(15,23,42,.18) !important;
+    font-size:12px !important;
+    font-weight:900 !important;
+  }
+  #main-content.visible.mobile-nav-open .mobile-menu-floating{
+    color:#dc2626 !important;
+    border-color:#fecaca !important;
+    background:#fff7f7 !important;
+  }
+  #main-content.visible > header{
+    z-index:130 !important;
+  }
+  .mobile-menu-backdrop{
+    z-index:120 !important;
+  }
+  #main-content.visible .header-btns .mobile-menu-btn{
+    display:none !important;
+  }
+}
+@media (max-width:640px){
+  #page-repair .repair-row-actions{
+    grid-template-columns:repeat(2, minmax(76px, 1fr)) !important;
+    min-width:190px;
+  }
+  #page-repair .repair-table{
+    min-width:1080px !important;
+  }
+}

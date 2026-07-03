@@ -352,7 +352,7 @@
       : (n.style.display = "none");
   }
   function q() {
-    (["f-author", "f-company", "f-name", "f-region"].forEach((t) => {
+    (["f-author", "f-company", "f-name", "f-phone", "f-region"].forEach((t) => {
       document.getElementById(t).value = "";
     }),
       ["e-date", "e-name", "e-region", "e-isoil"].forEach((t) => {
@@ -466,6 +466,7 @@
       supplier: u,
       company: document.getElementById("f-company").value.trim() || "-",
       name: document.getElementById("f-name").value.trim() || "-",
+      phone: (document.getElementById("f-phone") ? document.getElementById("f-phone").value.trim() : "") || "",
       region: document.getElementById("f-region").value.trim() || "미지정",
       cat: o,
       part: v,
@@ -641,10 +642,11 @@
         if (a) {
           const e = (t.company || "").toLowerCase().includes(a),
             n = (t.name || "").toLowerCase().includes(a),
+            pnum = (t.phone || "").toLowerCase().includes(a),
             o = (t.note || "").toLowerCase().includes(a),
             s = (t.author || "").toLowerCase().includes(a),
             l = (t.part || "").toLowerCase().includes(a);
-          if (!(e || n || o || s || l)) return !1;
+          if (!(e || n || pnum || o || s || l)) return !1;
         }
         return !0;
       }),
@@ -695,7 +697,7 @@
     (ms.slice(E, E + h).forEach((t) => {
       const e = document.createElement("tr");
       e.setAttribute("data-record-id", String(t.id || ""));
-      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#dc2626;border-color:#fecaca;background:#fef2f2;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
+      ((e.innerHTML = `\n          <td><input type="checkbox" class="chk-row" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px;"/></td>\n          <td>${n(t.date)}</td>\n          <td>${n(t.author)}</td>\n          <td>${t.company && "-" !== t.company ? `<strong>${n(t.company)}</strong><span style="font-size:10.5px;color:#64748b"> / ${n(t.name)}</span>` : `<strong>${n(t.name)}</strong>`}${t.phone ? `<div class="record-phone-mini"><i class="fa-solid fa-phone"></i> ${n(t.phone)}</div>` : ""}</td>\n          <td><span class="badge bn">${n(t.region)}</span></td>\n          <td><span class="badge bo">${n(t.part)}</span></td>\n          <td style="font-weight:600; text-align:left;" title="${n(t.note)}">${n(t.note)}</td>\n          <td style="text-align:center;">\n            <button class="ibtn btn-status-toggle" data-id="${n(t.id)}" data-status="${n(t.status || "done")}" style="${"pending" === t.status ? "color:#dc2626;border-color:#fecaca;background:#fef2f2;" : "color:#047857;border-color:#a7f3d0;background:#f0fdf4;"}">\n              ${"pending" === t.status ? '<i class="fa-solid fa-clock"></i> 미완료' : '<i class="fa-solid fa-circle-check"></i> 완료'}\n            </button>\n          </td>\n          <td style="text-align:center;">${"외상" === t.payMethod ? (t.collected ? '<span class="credit-badge credit-paid"><i class="fa-solid fa-circle-check"></i> 외상 지급됨</span>' : '<span class="credit-badge credit-unpaid"><i class="fa-solid fa-triangle-exclamation"></i> 외상 미완료</span>') : '<span style="color:#cbd5e1;font-size:12px;">-</span>'}</td>\n          <td class="tr">${(t.amount || 0).toLocaleString()}</td>\n          <td class="tr">${(t.tax || 0).toLocaleString()}</td>
           <td class="records-output-cell">
             <div class="ibtns ibtns-output">
               <button class="ibtn btn-view-direct" data-id="${n(t.id)}"><i class="fa-solid fa-magnifying-glass"></i> 보기</button>
@@ -859,6 +861,8 @@
                   t.company && "-" !== t.company ? t.company : ""),
                 (document.getElementById("f-name").value =
                   t.name && "-" !== t.name ? t.name : ""),
+                (document.getElementById("f-phone").value =
+                  t.phone || ""),
                 (document.getElementById("f-region").value =
                   t.region && "미지정" !== t.region ? t.region : ""),
                 t.payMethod &&
@@ -1076,6 +1080,7 @@
       l = parseInt(a[2], 10),
       i = t.name && "-" !== t.name ? n(t.name) : "",
       c = t.company && "-" !== t.company ? n(t.company) : "",
+      phone = t.phone ? n(t.phone) : "",
       d = t.region && "미지정" !== t.region ? n(t.region) : "",
       r = n(t.part || ""),
       p = Math.max(5, t.items.length),
@@ -1130,7 +1135,9 @@
         i +
         '</td></tr><tr><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v" colspan="3" style="font-size:9px;">' +
         u.addr +
-        '</td><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v" colspan="3"></td></tr><tr><td class="tfs-k">업&nbsp;태</td><td class="tfs-v">' +
+        '</td><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v" colspan="3" style="font-size:9px;letter-spacing:0;">' +
+        (phone ? "연락처&nbsp; " + phone : "") +
+        '</td></tr><tr><td class="tfs-k">업&nbsp;태</td><td class="tfs-v">' +
         u.bizType +
         '</td><td class="tfs-k">종목</td><td class="tfs-v">' +
         u.bizItem +
@@ -3163,7 +3170,7 @@
         t.innerHTML = st
           .map((t) => {
             const e = [t.company, t.name].filter(Boolean).join(" / ");
-            return `<option value="${n(t.company || t.name)}" data-name="${n(t.name)}" data-company="${n(t.company)}" data-region="${n(t.region)}">${n(e)}</option>`;
+            return `<option value="${n(t.company || t.name)}" data-name="${n(t.name)}" data-company="${n(t.company)}" data-region="${n(t.region)}" data-phone="${n(t.phone || "")}">${n(e)}</option>`;
           })
           .join("");
       })());
@@ -3863,8 +3870,10 @@
             : null;
         if (!e) return;
         const n = document.getElementById("f-name"),
+          p = document.getElementById("f-phone"),
           a = document.getElementById("f-region");
         (n && e.dataset.name && !n.value && (n.value = e.dataset.name),
+          p && e.dataset.phone && !p.value && (p.value = e.dataset.phone),
           a && e.dataset.region && !a.value && (a.value = e.dataset.region));
       }),
     document
@@ -5208,16 +5217,19 @@
   document.addEventListener("DOMContentLoaded", () => {
     const main = document.getElementById("main-content");
     const toggle = document.getElementById("mobile-menu-toggle");
+    const floatingToggle = document.getElementById("mobile-menu-floating");
     const backdrop = document.getElementById("mobile-menu-backdrop");
-    if (!main || !toggle) return;
+    if (!main || (!toggle && !floatingToggle)) return;
 
     const closeMenu = () => main.classList.remove("mobile-nav-open");
     const toggleMenu = () => main.classList.toggle("mobile-nav-open");
 
-    toggle.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      toggleMenu();
+    [toggle, floatingToggle].filter(Boolean).forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        toggleMenu();
+      });
     });
 
     backdrop && backdrop.addEventListener("click", closeMenu);
@@ -5475,6 +5487,7 @@
     if (/급유기/.test(h)) return "oil";
     if (/상호|법인명|거래처|업체명/.test(h)) return "company";
     if (/고객명|고객성명|성명|이름/.test(h)) return "name";
+    if (/전화번호|연락처|휴대폰|전화|연락/.test(h)) return "phone";
     if (/관할지역|지역/.test(h)) return "region";
     if (/결제수단|결제방법|결제/.test(h)) return "payMethod";
     if (/품목비고|품목메모/.test(h)) return "note";
@@ -5514,6 +5527,7 @@
         author: "",
         company: "",
         name: "x",
+        phone: "",
         region: "미지정",
         category: parseEasyCategoryFromFields("일반", "판매", "", ""),
         payMethod: "미기재",
@@ -5533,6 +5547,7 @@
     const oilOption = normalizeEasyBlank(row.oilOption);
     const company = normalizeEasyBlank(row.company);
     const name = normalizeEasyBlank(row.name);
+    const phone = normalizeEasyBlank(row.phone);
     const region = normalizeEasyBlank(row.region);
     const pay = normalizeEasyBlank(row.payMethod);
 
@@ -5549,6 +5564,7 @@
     }
     if ("company" in row) group.meta.company = company;
     if ("name" in row) group.meta.name = name || "x";
+    if ("phone" in row) group.meta.phone = phone;
     if (region) group.meta.region = region;
     if (pay) group.meta.payMethod = parseEasyPayMethod(pay);
   }
@@ -5580,7 +5596,7 @@
     const rows = rawLines.map(splitEasyTableLine);
     if (!rows.length) return [];
 
-    const fixedKeys = ["no", "supplier", "date", "author", "major", "sub", "oil", "oilOption", "company", "name", "region", "payMethod", "item", "spec", "qty", "price", "amount", "tax", "note"];
+    const fixedKeys = ["no", "supplier", "date", "author", "major", "sub", "oil", "oilOption", "company", "name", "region", "payMethod", "phone", "item", "spec", "qty", "price", "amount", "tax", "note"];
     const headerKeys = rows[0].map(easyHeaderKey);
     const hasHeader = headerKeys.filter(Boolean).length >= 4 && headerKeys.includes("item");
     const keys = hasHeader ? headerKeys : fixedKeys;
@@ -5648,6 +5664,7 @@
           name: data["고객명"] || data["고객성명"] || data["성명"] || data["이름"],
           region: data["지역"] || data["관할지역"],
           payMethod: data["결제수단"] || data["결제"],
+          phone: data["전화번호"] || data["연락처"] || data["전화"] || data["휴대폰"],
           item: data["품목"] || data["품목명"] || data["item"],
           spec: data["규격"] || data["규격사항"] || data["spec"],
           qty: data["수량"] || data["qty"],
@@ -5715,7 +5732,7 @@ function parseEasyInventoryText(text) {
     if (apply) apply.disabled = true;
     if (mode === "records") {
       title.innerHTML = '<i class="fa-solid fa-table-cells"></i> 명세서 빠른입력';
-      desc.innerHTML = "엑셀에서 표를 작성한 뒤 그대로 복사해서 붙여넣으세요. <br><b>같은 번호는 같은 명세서</b>로 묶이고, 두 번째 품목부터는 기본정보를 비워도 위 명세서 정보를 따라갑니다. <br><b>공급자 1=내포농기계, 2=동아아세아농기계</b><br><b>급유기=Y인 경우 거래소분류가 아니라 급유기옵션(농협중앙회/중부자재유통/해당없음)을 사용합니다.</b>";
+      desc.innerHTML = "엑셀에서 표를 작성한 뒤 그대로 복사해서 붙여넣으세요. <br><b>같은 번호는 같은 명세서</b>로 묶이고, 두 번째 품목부터는 기본정보를 비워도 위 명세서 정보를 따라갑니다. <br><b>공급자 1=내포농기계, 2=동아아세아농기계 / 전화번호 열 지원</b><br><b>급유기=Y인 경우 거래소분류가 아니라 급유기옵션(농협중앙회/중부자재유통/해당없음)을 사용합니다.</b>";
       text.style.display = "";
       text.value = payload || "";
       setTimeout(() => text.focus(), 50);
@@ -5764,6 +5781,7 @@ function parseEasyInventoryText(text) {
               <span>작성일자: ${safeText(g.meta.date)}</span>
               <span>작성자: ${safeText(g.meta.author || "공란")}</span>
               <span>고객명: ${safeText(g.meta.name)}</span>
+              ${g.meta.phone ? `<span>전화번호: ${safeText(g.meta.phone)}</span>` : ""}
               <span>분류: ${safeText(g.meta.category.label)}</span>${g.meta.category.oil ? `<span>급유기옵션: ${safeText(g.meta.category.oilOption)}</span>` : ""}
               <span>결제: ${safeText(g.meta.payMethod)}</span>
             </div>
@@ -5815,6 +5833,7 @@ function parseEasyInventoryText(text) {
         supplier: meta.supplier || "naepo",
         company: meta.company || "-",
         name: meta.name || "-",
+        phone: meta.phone || "",
         region: meta.region || "미지정",
         cat: catInfo.major || "일반",
         part: catInfo.label || "일반 [판매]",
@@ -5927,7 +5946,7 @@ function parseEasyInventoryText(text) {
       if (easyImportMode === "inventory") {
         text.value = "품목명:DMC-800F 액제탱크 세트/규격:800F/재고:3/단가:60000/최소재고:1/비고:\n품목명:OT-20L 오성 분무기/규격:20L/재고:5/단가:100000/최소재고:1/비고:\n품목명:패킹/규격:/재고:10/단가:18000/최소재고:2/비고:";
       } else {
-        text.value = "번호\t공급자\t작성일자\t작성자\t거래대분류\t거래소분류\t급유기\t급유기옵션\t상호\t고객명\t지역\t결제수단\t품목\t규격\t수량\t단가\t공급가액\t세액\t품목비고\n1\t2\t2026-06-26\t현장기사\t일반\t판매\tN\t\t\t안광주\t미지정\t계좌이체\tDMC-800F 액제탱크 세트\t\t1\t60000\t60000\t0\t\n1\t\t\t\t\t\t\t\t\t\t\t\tOT-20L 오성 분무기\t\t1\t100000\t100000\t0\t\n2\t1\t\t\t일반\t수리\tN\t\t\t이회봉\t홍성읍\t외상\t패킹\t\t1\t18000\t18000\t0\t\n3\t1\t2026-06-26\t현장기사\t급유기\t\tY\t농협중앙회\t농협\t김철수\t갈산\t외상\t급유기 부품\t\t1\t50000\t50000\t0\t\n4\t1\t2026-06-26\t현장기사\t급유기\t\tY\t중부자재유통\t\t박영수\t홍성읍\t계좌이체\t급유기 호스\t\t1\t70000\t70000\t0\t";
+        text.value = "번호\t공급자\t작성일자\t작성자\t거래대분류\t거래소분류\t급유기\t급유기옵션\t상호\t고객명\t전화번호\t지역\t결제수단\t품목\t규격\t수량\t단가\t공급가액\t세액\t품목비고\n1\t2\t2026-06-26\t현장기사\t일반\t판매\tN\t\t\t안광주\t010-1111-2222\t미지정\t계좌이체\tDMC-800F 액제탱크 세트\t\t1\t60000\t60000\t0\t\n1\t\t\t\t\t\t\t\t\t\t\t\t\tOT-20L 오성 분무기\t\t1\t100000\t100000\t0\t\n2\t1\t\t\t일반\t수리\tN\t\t\t이회봉\t010-3333-4444\t홍성읍\t외상\t패킹\t\t1\t18000\t18000\t0\t\n3\t1\t2026-06-26\t현장기사\t급유기\t\tY\t농협중앙회\t농협\t김철수\t010-5555-6666\t갈산\t외상\t급유기 부품\t\t1\t50000\t50000\t0\t\n4\t1\t2026-06-26\t현장기사\t급유기\t\tY\t중부자재유통\t\t박영수\t010-7777-8888\t홍성읍\t계좌이체\t급유기 호스\t\t1\t70000\t70000\t0\t";
       }
     });
     byId("easy-import-preview") && byId("easy-import-preview").addEventListener("click", () => {
@@ -6132,13 +6151,124 @@ function parseEasyInventoryText(text) {
             <td class="repair-detail-cell">${esc(r.repairDetail)}</td><td class="tr">${money(r.repairCost)}원</td>
             <td><span class="repair-badge ${r.contactStatus === "연락완료" ? "ok" : r.contactStatus === "보류" ? "warn" : "muted"}">${esc(r.contactStatus || "미연락")}</span></td>
             <td><button type="button" class="repair-paid-toggle ${r.paid ? "paid" : "unpaid"}" data-id="${esc(r.id)}">${r.paid ? "결제완료" : "미결제"}</button></td>
-            <td><div class="repair-row-actions"><button class="btn btn-o btn-sm repair-edit" data-id="${esc(r.id)}">수정</button><button class="btn btn-o btn-sm repair-delete" data-id="${esc(r.id)}">삭제</button></div></td>
+            <td><div class="repair-row-actions">
+              <button type="button" class="btn btn-o btn-sm repair-to-invoice" data-id="${esc(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
+              <button type="button" class="btn btn-o btn-sm repair-receipt-print" data-id="${esc(r.id)}"><i class="fa-solid fa-print"></i> 접수증</button>
+              <button type="button" class="btn btn-o btn-sm repair-edit" data-id="${esc(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
+              <button type="button" class="btn btn-o btn-sm repair-delete" data-id="${esc(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+            </div></td>
           </tr>`).join("")}</tbody>
         </table></div>
       </section>`;
     }).join("") : '<div class="empty-td">접수 기록이 없습니다.</div>';
     bindRowButtons();
   }
+  function printRepairReceipt(row) {
+    if (!row) return;
+    const cost = money(row.repairCost);
+    const paidText = row.paid ? "결제완료" : "미결제";
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>농기계 수리 접수증</title><style>
+      *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;color:#0f172a;background:#fff}
+      .receipt{width:190mm;margin:0 auto;padding:12mm 10mm}
+      .head{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid #0f172a;padding-bottom:8px;margin-bottom:12px}
+      h1{font-size:22px;margin:0;letter-spacing:-.04em}.sub{font-size:12px;color:#64748b;margin-top:4px}
+      .badge{display:inline-flex;align-items:center;border:1px solid #94a3b8;border-radius:999px;padding:5px 10px;font-size:12px;font-weight:900}
+      table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #cbd5e1;padding:9px 10px;vertical-align:top}
+      th{width:28mm;background:#f8fafc;text-align:left;color:#334155;font-weight:900}.detail{min-height:44mm;white-space:pre-wrap;line-height:1.55}.money{font-size:16px;font-weight:900;text-align:right}
+      .foot{margin-top:14px;font-size:12px;color:#475569;display:flex;justify-content:space-between;gap:12px}.sign{min-width:45mm;border-top:1px solid #94a3b8;text-align:center;padding-top:6px;color:#334155}
+      @media print{@page{size:A4 portrait;margin:8mm}body{margin:0}.receipt{width:auto;margin:0;padding:0}}
+    </style></head><body><div class="receipt">
+      <div class="head"><div><h1>농기계 수리 접수증</h1><div class="sub">내포농기계 접수대장 발행</div></div><div class="badge">${esc(paidText)}</div></div>
+      <table>
+        <tr><th>접수일자</th><td>${esc(row.date || "")}</td><th>모델명</th><td>${esc(row.modelName || "")}</td></tr>
+        <tr><th>성함</th><td>${esc(row.name || "")}</td><th>연락처</th><td>${esc(row.phone || "")}</td></tr>
+        <tr><th>연락상태</th><td>${esc(row.contactStatus || "미연락")}</td><th>수리비</th><td class="money">${cost}원</td></tr>
+        <tr><th>수리내역</th><td colspan="3" class="detail">${esc(row.repairDetail || "")}</td></tr>
+      </table>
+      <div class="foot"><span>※ 접수 내용 확인용입니다.</span><span class="sign">확인</span></div>
+    </div></body></html>`;
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 1000);
+    }, 180);
+  }
+
+  function repairToInvoice(row) {
+    if (!row) return;
+    const tab = document.getElementById("tab-form");
+    tab && tab.click();
+    setTimeout(() => {
+      const setVal = (id, value) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.value = value == null ? "" : String(value);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      const clickSel = (selector) => {
+        const el = document.querySelector(selector);
+        if (el) el.click();
+      };
+
+      clickSel('#supplier-pills .pill[data-supplier="naepo"]');
+      clickSel('#cat-pills .pill[data-cat="일반"]');
+      clickSel('#gen-pills .pill[data-gen="수리"]');
+
+      setVal("f-date", row.date || today());
+      setVal("f-company", "");
+      setVal("f-name", row.name || "");
+      setVal("f-phone", row.phone || "");
+      setVal("f-region", "미지정");
+
+      const paySelector = row.paid ? '#payment-pills .pill[data-pay="현금"]' : '#payment-pills .pill[data-pay="외상"]';
+      clickSel(paySelector);
+
+      let itemRow = document.querySelector("#items-builder-root .item-row-card");
+      if (!itemRow) {
+        const addBtn = document.getElementById("btn-add-item-row");
+        addBtn && addBtn.click();
+        itemRow = document.querySelector("#items-builder-root .item-row-card");
+      }
+      if (itemRow) {
+        const itemName = `${row.modelName ? "[" + row.modelName + "] " : ""}${row.repairDetail || "수리"}`.trim();
+        const amount = Number(row.repairCost) || 0;
+        const fields = {
+          ".p-item": itemName,
+          ".p-spec": row.modelName || "",
+          ".p-qty": "1",
+          ".p-price": String(amount),
+          ".p-amount": String(amount),
+          ".p-tax": "0",
+          ".p-item-note": "접수대장에서 작성",
+        };
+        Object.entries(fields).forEach(([selector, value]) => {
+          const el = itemRow.querySelector(selector);
+          if (!el) return;
+          el.value = value;
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+          el.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+      }
+
+      const preview = document.getElementById("f-preview");
+      preview && preview.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      alert("접수대장 내용을 명세서 작성란에 불러왔습니다. 확인 후 저장해주세요.");
+    }, 120);
+  }
+
   function bindRowButtons() {
     document.querySelectorAll(".repair-paid-toggle").forEach((btn) => {
       btn.onclick = async () => {
@@ -6149,6 +6279,18 @@ function parseEasyInventoryText(text) {
           Object.assign(row, updated);
           render();
         } catch (e) { alert(e.message); }
+      };
+    });
+    document.querySelectorAll(".repair-receipt-print").forEach((btn) => {
+      btn.onclick = () => {
+        const row = rows.find((r) => String(r.id) === String(btn.dataset.id));
+        if (row) printRepairReceipt(row);
+      };
+    });
+    document.querySelectorAll(".repair-to-invoice").forEach((btn) => {
+      btn.onclick = () => {
+        const row = rows.find((r) => String(r.id) === String(btn.dataset.id));
+        if (row) repairToInvoice(row);
       };
     });
     document.querySelectorAll(".repair-edit").forEach((btn) => {
@@ -6257,6 +6399,18 @@ function parseEasyInventoryText(text) {
       ["repair-filter-search", "repair-filter-start", "repair-filter-end", "repair-filter-paid"].forEach((id) => { if ($(id)) $(id).value = ""; });
       if ($("repair-group-by")) $("repair-group-by").value = "date";
       render();
+    });
+    ["repair-date", "repair-filter-start", "repair-filter-end"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("click", () => {
+        try {
+          if (typeof el.showPicker === "function") el.showPicker();
+          else el.focus();
+        } catch (_) {
+          el.focus();
+        }
+      });
     });
     $("repair-contact-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { contactStatus = btn.dataset.value; setPillActive("repair-contact-pills", contactStatus); }));
     $("repair-paid-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { paidStatus = btn.dataset.value === "true"; setPillActive("repair-paid-pills", String(paidStatus)); }));
