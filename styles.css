@@ -11429,3 +11429,289 @@ tr:hover td{background:#F8FAFC !important;}
     min-width:1080px !important;
   }
 }
+
+
+/* ===== repair-table-settlement-inventory-v31-20260702 ===== */
+/* 정산 모달 줄바꿈 표시 */
+#pm-text-slot{
+  white-space:pre-line !important;
+  text-align:left !important;
+}
+
+/* 접수대장 수리내역 글자 위치 재보정: 다른 셀과 높이감 맞춤 */
+#page-repair .repair-detail-cell{
+  vertical-align:middle !important;
+  text-align:left !important;
+  line-height:1.45 !important;
+  padding:12px 12px !important;
+  white-space:pre-wrap !important;
+  word-break:keep-all !important;
+}
+
+/* 접수대장 목록 버튼 깨짐 방지 */
+#page-repair .repair-table-wrap{
+  overflow-x:auto !important;
+  -webkit-overflow-scrolling:touch;
+}
+#page-repair .repair-table{
+  min-width:1180px !important;
+  table-layout:fixed !important;
+}
+#page-repair .repair-table th:nth-child(1),#page-repair .repair-table td:nth-child(1){width:112px}
+#page-repair .repair-table th:nth-child(2),#page-repair .repair-table td:nth-child(2){width:130px}
+#page-repair .repair-table th:nth-child(3),#page-repair .repair-table td:nth-child(3){width:105px}
+#page-repair .repair-table th:nth-child(4),#page-repair .repair-table td:nth-child(4){width:140px}
+#page-repair .repair-table th:nth-child(5),#page-repair .repair-table td:nth-child(5){width:280px}
+#page-repair .repair-table th:nth-child(6),#page-repair .repair-table td:nth-child(6){width:105px}
+#page-repair .repair-table th:nth-child(7),#page-repair .repair-table td:nth-child(7){width:100px}
+#page-repair .repair-table th:nth-child(8),#page-repair .repair-table td:nth-child(8){width:105px}
+#page-repair .repair-table th:nth-child(9),#page-repair .repair-table td:nth-child(9){width:210px}
+#page-repair .repair-row-actions{
+  width:196px !important;
+  min-width:196px !important;
+  display:grid !important;
+  grid-template-columns:repeat(2, 1fr) !important;
+  gap:6px !important;
+  align-items:center !important;
+}
+#page-repair .repair-row-actions .btn{
+  width:100% !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  min-height:31px !important;
+}
+
+/* 연락/결제 상태를 목록에서 바로 수정 가능하도록 버튼 스타일 통일 */
+#page-repair .repair-contact-toggle,
+#page-repair .repair-paid-toggle{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-width:78px !important;
+  height:30px !important;
+  border-radius:999px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+#page-repair .repair-contact-toggle.ok{
+  border:1px solid #86efac !important;
+  background:#dcfce7 !important;
+  color:#166534 !important;
+}
+#page-repair .repair-contact-toggle.warn{
+  border:1px solid #fde68a !important;
+  background:#fef3c7 !important;
+  color:#92400e !important;
+}
+#page-repair .repair-contact-toggle.muted{
+  border:1px solid #cbd5e1 !important;
+  background:#e2e8f0 !important;
+  color:#475569 !important;
+}
+
+/* 거래내역 정산 버튼 */
+#btn-settlement-summary{
+  font-weight:900 !important;
+}
+
+
+/* ===== invoice-auto-compact-print-v32-20260703 =====
+   명세 품목 줄이 많을 때 A4 1장 안에 공급자/공급받는자 2매가 같이 들어가도록
+   품목 수 기준으로 폰트/행간/여백을 단계별로 자동 축소합니다.
+*/
+@media print{
+  /* 7~9개 품목: 살짝 축소 */
+  body.print-record-mode .tfs.tfs-compact{
+    --tfs-td-font:8.9px;
+    --tfs-head-font:8.6px;
+    --tfs-row-h:13.6px;
+    --tfs-cell-py:1.8px;
+    --tfs-cell-px:3px;
+  }
+
+  /* 10~13개 품목: 강하게 축소 */
+  body.print-record-mode .tfs.tfs-dense{
+    --tfs-td-font:8.15px;
+    --tfs-head-font:7.9px;
+    --tfs-row-h:11.8px;
+    --tfs-cell-py:1.2px;
+    --tfs-cell-px:2px;
+  }
+
+  /* 14개 이상 품목: 최대 축소 */
+  body.print-record-mode .tfs.tfs-ultra{
+    --tfs-td-font:7.35px;
+    --tfs-head-font:7.1px;
+    --tfs-row-h:10px;
+    --tfs-cell-py:0.7px;
+    --tfs-cell-px:1.6px;
+  }
+
+  body.print-record-mode .tfs.tfs-compact,
+  body.print-record-mode .tfs.tfs-dense,
+  body.print-record-mode .tfs.tfs-ultra{
+    padding:2.2mm 3.2mm !important;
+    margin-bottom:3mm !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode .tfs.tfs-dense,
+  body.print-record-mode .tfs.tfs-ultra{
+    padding-top:1.8mm !important;
+    padding-bottom:1.8mm !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-title,
+  body.print-record-mode .tfs.tfs-dense .tfs-title,
+  body.print-record-mode .tfs.tfs-ultra .tfs-title{
+    padding:2px 5px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-name{
+    font-size:12.4px !important;
+    letter-spacing:3.2px !important;
+  }
+  body.print-record-mode .tfs.tfs-dense .tfs-name{
+    font-size:11.2px !important;
+    letter-spacing:2.4px !important;
+  }
+  body.print-record-mode .tfs.tfs-ultra .tfs-name{
+    font-size:10px !important;
+    letter-spacing:1.8px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-sub,
+  body.print-record-mode .tfs.tfs-dense .tfs-sub,
+  body.print-record-mode .tfs.tfs-ultra .tfs-sub{
+    font-size:7.4px !important;
+    margin-left:6px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact td,
+  body.print-record-mode .tfs.tfs-dense td,
+  body.print-record-mode .tfs.tfs-ultra td{
+    padding:var(--tfs-cell-py) var(--tfs-cell-px) !important;
+    font-size:var(--tfs-td-font) !important;
+    line-height:1.02 !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-k,
+  body.print-record-mode .tfs.tfs-dense .tfs-k,
+  body.print-record-mode .tfs.tfs-ultra .tfs-k,
+  body.print-record-mode .tfs.tfs-compact .tfs-mid-k,
+  body.print-record-mode .tfs.tfs-dense .tfs-mid-k,
+  body.print-record-mode .tfs.tfs-ultra .tfs-mid-k,
+  body.print-record-mode .tfs.tfs-compact .tfs-ih,
+  body.print-record-mode .tfs.tfs-dense .tfs-ih,
+  body.print-record-mode .tfs.tfs-ultra .tfs-ih,
+  body.print-record-mode .tfs.tfs-compact .tfs-fl,
+  body.print-record-mode .tfs.tfs-dense .tfs-fl,
+  body.print-record-mode .tfs.tfs-ultra .tfs-fl{
+    font-size:var(--tfs-head-font) !important;
+    letter-spacing:0.8px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-k small,
+  body.print-record-mode .tfs.tfs-dense .tfs-k small,
+  body.print-record-mode .tfs.tfs-ultra .tfs-k small{
+    font-size:6px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-vb,
+  body.print-record-mode .tfs.tfs-dense .tfs-vb,
+  body.print-record-mode .tfs.tfs-ultra .tfs-vb,
+  body.print-record-mode .tfs.tfs-compact .tfs-mid-v,
+  body.print-record-mode .tfs.tfs-dense .tfs-mid-v,
+  body.print-record-mode .tfs.tfs-ultra .tfs-mid-v{
+    font-size:var(--tfs-td-font) !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-ic,
+  body.print-record-mode .tfs.tfs-compact .tfs-il,
+  body.print-record-mode .tfs.tfs-compact .tfs-ir,
+  body.print-record-mode .tfs.tfs-dense .tfs-ic,
+  body.print-record-mode .tfs.tfs-dense .tfs-il,
+  body.print-record-mode .tfs.tfs-dense .tfs-ir,
+  body.print-record-mode .tfs.tfs-ultra .tfs-ic,
+  body.print-record-mode .tfs.tfs-ultra .tfs-il,
+  body.print-record-mode .tfs.tfs-ultra .tfs-ir{
+    height:var(--tfs-row-h) !important;
+    max-height:var(--tfs-row-h) !important;
+    font-size:var(--tfs-td-font) !important;
+    line-height:1.02 !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-il,
+  body.print-record-mode .tfs.tfs-dense .tfs-il,
+  body.print-record-mode .tfs.tfs-ultra .tfs-il{
+    padding-left:4px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-ir,
+  body.print-record-mode .tfs.tfs-dense .tfs-ir,
+  body.print-record-mode .tfs.tfs-ultra .tfs-ir{
+    padding-right:4px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-fv,
+  body.print-record-mode .tfs.tfs-dense .tfs-fv,
+  body.print-record-mode .tfs.tfs-ultra .tfs-fv,
+  body.print-record-mode .tfs.tfs-compact .tfs-amt,
+  body.print-record-mode .tfs.tfs-dense .tfs-amt,
+  body.print-record-mode .tfs.tfs-ultra .tfs-amt{
+    font-size:9.6px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-rc,
+  body.print-record-mode .tfs.tfs-dense .tfs-rc,
+  body.print-record-mode .tfs.tfs-ultra .tfs-rc{
+    font-size:8px !important;
+    padding:2px 3px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-rc b,
+  body.print-record-mode .tfs.tfs-dense .tfs-rc b,
+  body.print-record-mode .tfs.tfs-ultra .tfs-rc b{
+    font-size:11px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-bottom,
+  body.print-record-mode .tfs.tfs-dense .tfs-bottom,
+  body.print-record-mode .tfs.tfs-ultra .tfs-bottom{
+    padding:2px 11px 4px !important;
+    min-height:18px !important;
+    font-size:7.6px !important;
+  }
+
+  body.print-record-mode .tfs.tfs-compact .tfs-paper,
+  body.print-record-mode .tfs.tfs-dense .tfs-paper,
+  body.print-record-mode .tfs.tfs-ultra .tfs-paper{
+    font-size:6.8px !important;
+  }
+
+  /* 긴 품목명/비고가 행 높이를 밀어내지 않도록 인쇄 때만 한 줄에 안정화 */
+  body.print-record-mode .tfs.tfs-compact .tfs-il,
+  body.print-record-mode .tfs.tfs-dense .tfs-il,
+  body.print-record-mode .tfs.tfs-ultra .tfs-il,
+  body.print-record-mode .tfs.tfs-compact td[style*="font-size:9px"],
+  body.print-record-mode .tfs.tfs-dense td[style*="font-size:9px"],
+  body.print-record-mode .tfs.tfs-ultra td[style*="font-size:9px"]{
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+
+  /* 선택일괄인쇄 안에서도 긴 명세서가 잘리지 않게 동일 축소 유지 */
+  body.print-record-mode .lp-slot .tfs.tfs-compact,
+  body.print-record-mode .lp-slot .tfs.tfs-dense,
+  body.print-record-mode .lp-slot .tfs.tfs-ultra{
+    height:135mm !important;
+    max-height:135mm !important;
+    overflow:hidden !important;
+  }
+}

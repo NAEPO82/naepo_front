@@ -999,6 +999,55 @@
         });
       }));
   }
+  function getSettlementTargetRecords() {
+    const checked = Array.from(document.querySelectorAll(".chk-row:checked"));
+    if (checked.length > 0) {
+      const ids = new Set(checked.map((el) => String(el.getAttribute("data-id") || "")));
+      return { mode: "selected", rows: t.filter((row) => ids.has(String(row.id))) };
+    }
+    return { mode: "filtered", rows: Array.isArray(f) ? f : [] };
+  }
+
+  function showSettlementSummary() {
+    const target = getSettlementTargetRecords();
+    const rows = target.rows || [];
+    if (!rows.length) {
+      return I("정산할 내역 없음", "현재 선택되었거나 조회된 명세서가 없습니다.");
+    }
+    const sum = rows.reduce((acc, row) => {
+      const supply = Number(row.amount) || 0;
+      const tax = Number(row.tax) || 0;
+      const total = supply + tax;
+      const pay = row.payMethod || "미기재";
+      acc.supply += supply;
+      acc.tax += tax;
+      acc.total += total;
+      acc.byPay[pay] = (acc.byPay[pay] || 0) + total;
+      if (pay === "외상") {
+        acc.creditTotal += total;
+        if (row.collected) acc.creditPaid += total;
+        else acc.creditUnpaid += total;
+      }
+      return acc;
+    }, { supply: 0, tax: 0, total: 0, byPay: {}, creditTotal: 0, creditPaid: 0, creditUnpaid: 0 });
+    const payLines = ["현금", "카드", "계좌이체", "외상", "미기재"]
+      .filter((key) => sum.byPay[key])
+      .map((key) => `${key}: ${sum.byPay[key].toLocaleString()}원`)
+      .join("\n");
+    const title = target.mode === "selected" ? "선택 명세서 정산" : "조회 결과 정산";
+    const message =
+      `대상: ${rows.length}건\n` +
+      `공급가액: ${sum.supply.toLocaleString()}원\n` +
+      `세액: ${sum.tax.toLocaleString()}원\n` +
+      `합계: ${sum.total.toLocaleString()}원\n\n` +
+      `[결제수단별]\n${payLines || "결제수단 없음"}\n\n` +
+      `[외상]\n` +
+      `외상 총액: ${sum.creditTotal.toLocaleString()}원\n` +
+      `수금완료: ${sum.creditPaid.toLocaleString()}원\n` +
+      `미수금: ${sum.creditUnpaid.toLocaleString()}원`;
+    I(title, message);
+  }
+
   function O() {
     const e = document.querySelectorAll(".chk-row:checked"),
       n = document.getElementById("sum-text");
@@ -1084,6 +1133,8 @@
       d = t.region && "미지정" !== t.region ? n(t.region) : "",
       r = n(t.part || ""),
       p = Math.max(5, t.items.length),
+      itemCount = Array.isArray(t.items) ? t.items.length : 0,
+      denseClass = itemCount >= 14 ? " tfs-ultra" : itemCount >= 10 ? " tfs-dense" : itemCount >= 7 ? " tfs-compact" : "",
       m = "금 " + H(e) + "원정",
       u = g[t.supplier] || g.naepo;
     function y(a, g) {
@@ -1119,6 +1170,7 @@
       return (
         '<div class="tfs ' +
         a +
+        denseClass +
         '"><div class="tfs-title"><span class="tfs-name">' +
         u.name +
         ' 거 래 명 세 서</span><span class="tfs-sub">(' +
@@ -1135,8 +1187,8 @@
         i +
         '</td></tr><tr><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v" colspan="3" style="font-size:9px;">' +
         u.addr +
-        '</td><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v" colspan="3" style="font-size:9px;letter-spacing:0;">' +
-        (phone ? "연락처&nbsp; " + phone : "") +
+        '</td><td class="tfs-k">사업장<br/>주&nbsp;소</td><td class="tfs-v"></td><td class="tfs-k">전화<br/>번호</td><td class="tfs-vb" style="font-size:9px;letter-spacing:0;white-space:nowrap;">' +
+        phone +
         '</td></tr><tr><td class="tfs-k">업&nbsp;태</td><td class="tfs-v">' +
         u.bizType +
         '</td><td class="tfs-k">종목</td><td class="tfs-v">' +
@@ -2464,6 +2516,8 @@
     document.getElementById("list-body").addEventListener("change", (t) => {
       t.target && t.target.classList.contains("chk-row") && O();
     }),
+    document.getElementById("btn-settlement-summary") &&
+      document.getElementById("btn-settlement-summary").addEventListener("click", showSettlementSummary),
     document.getElementById("btn-sel-excel").addEventListener("click", async () => {
       const e = document.querySelectorAll(".chk-row:checked");
       if (0 === e.length)
@@ -6149,7 +6203,7 @@ function parseEasyInventoryText(text) {
           <tbody>${items.map((r) => `<tr data-id="${esc(r.id)}">
             <td>${esc(r.date)}</td><td><strong>${esc(r.modelName)}</strong></td><td>${esc(r.name)}</td><td>${esc(r.phone)}</td>
             <td class="repair-detail-cell">${esc(r.repairDetail)}</td><td class="tr">${money(r.repairCost)}원</td>
-            <td><span class="repair-badge ${r.contactStatus === "연락완료" ? "ok" : r.contactStatus === "보류" ? "warn" : "muted"}">${esc(r.contactStatus || "미연락")}</span></td>
+            <td><button type="button" class="repair-contact-toggle ${r.contactStatus === "연락완료" ? "ok" : r.contactStatus === "보류" ? "warn" : "muted"}" data-id="${esc(r.id)}">${esc(r.contactStatus || "미연락")}</button></td>
             <td><button type="button" class="repair-paid-toggle ${r.paid ? "paid" : "unpaid"}" data-id="${esc(r.id)}">${r.paid ? "결제완료" : "미결제"}</button></td>
             <td><div class="repair-row-actions">
               <button type="button" class="btn btn-o btn-sm repair-to-invoice" data-id="${esc(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
@@ -6243,7 +6297,7 @@ function parseEasyInventoryText(text) {
         itemRow = document.querySelector("#items-builder-root .item-row-card");
       }
       if (itemRow) {
-        const itemName = `${row.modelName ? "[" + row.modelName + "] " : ""}${row.repairDetail || "수리"}`.trim();
+        const itemName = `${row.repairDetail || row.modelName || "수리"}`.trim();
         const amount = Number(row.repairCost) || 0;
         const fields = {
           ".p-item": itemName,
@@ -6270,6 +6324,20 @@ function parseEasyInventoryText(text) {
   }
 
   function bindRowButtons() {
+    document.querySelectorAll(".repair-contact-toggle").forEach((btn) => {
+      btn.onclick = async () => {
+        const row = rows.find((r) => String(r.id) === String(btn.dataset.id));
+        if (!row) return;
+        const order = ["미연락", "연락완료", "보류"];
+        const current = row.contactStatus || "미연락";
+        const next = order[(order.indexOf(current) + 1) % order.length] || "미연락";
+        try {
+          const updated = await api(`/api/repair-log/${encodeURIComponent(row.id)}/contact`, { method: "PATCH", body: JSON.stringify({ contactStatus: next }) });
+          Object.assign(row, updated);
+          render();
+        } catch (e) { alert(e.message); }
+      };
+    });
     document.querySelectorAll(".repair-paid-toggle").forEach((btn) => {
       btn.onclick = async () => {
         const row = rows.find((r) => String(r.id) === String(btn.dataset.id));
