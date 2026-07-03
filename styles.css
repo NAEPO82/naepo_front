@@ -11715,3 +11715,181 @@ tr:hover td{background:#F8FAFC !important;}
     overflow:hidden !important;
   }
 }
+
+
+/* ===== v33-print-force-compact-group-modal-20260703 =====
+   v32보다 더 강하게 축소. 품목 많은 명세서는 2매가 A4 1장 안에 들어오도록
+   #print-target-area 기준의 높은 우선순위로 다시 보정합니다.
+*/
+@media print{
+  body.print-record-mode #print-target-area .tfs.tfs-compact,
+  body.print-record-mode #print-target-area .tfs.tfs-dense,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra{
+    padding:1.2mm 2.2mm !important;
+    margin-bottom:1.5mm !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact{
+    --v33-font:7.6px;
+    --v33-head:7.2px;
+    --v33-row:9.6px;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-dense{
+    --v33-font:6.7px;
+    --v33-head:6.35px;
+    --v33-row:8.1px;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-ultra{
+    --v33-font:6.05px;
+    --v33-head:5.8px;
+    --v33-row:7.2px;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-title,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-title,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-title{
+    padding:1px 4px !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-name{
+    font-size:10.3px !important;
+    letter-spacing:2px !important;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-name{
+    font-size:9.2px !important;
+    letter-spacing:1.5px !important;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-name{
+    font-size:8.2px !important;
+    letter-spacing:1px !important;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-sub,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-sub,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-sub{
+    font-size:6px !important;
+    margin-left:4px !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact td,
+  body.print-record-mode #print-target-area .tfs.tfs-dense td,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra td{
+    padding:0.5px 1.4px !important;
+    font-size:var(--v33-font) !important;
+    line-height:0.98 !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-k,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-k,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-k,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-mid-k,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-mid-k,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-mid-k,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-ih,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-ih,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-ih,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-fl,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-fl,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-fl{
+    font-size:var(--v33-head) !important;
+    letter-spacing:0.2px !important;
+    line-height:0.98 !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-k small,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-k small,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-k small{
+    font-size:5px !important;
+    line-height:0.9 !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-ic,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-ir,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-ic,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-ir,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-ic,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-ir{
+    height:var(--v33-row) !important;
+    min-height:var(--v33-row) !important;
+    max-height:var(--v33-row) !important;
+    font-size:var(--v33-font) !important;
+    line-height:0.98 !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-bottom,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-bottom,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-bottom{
+    padding:1px 8px 2px !important;
+    min-height:13px !important;
+    font-size:6px !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-amt,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-amt,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-amt,
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-fv,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-fv,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-fv{
+    font-size:8px !important;
+    line-height:1 !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-rc,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-rc,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-rc{
+    font-size:6.5px !important;
+    padding:1px 2px !important;
+  }
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-rc b,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-rc b,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-rc b{
+    font-size:9px !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-paper,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-paper,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-paper{
+    font-size:5.5px !important;
+  }
+
+  body.print-record-mode #print-target-area .tfs.tfs-compact .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-dense .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-ultra .tfs-il,
+  body.print-record-mode #print-target-area .tfs.tfs-compact td[style*="font-size:9px"],
+  body.print-record-mode #print-target-area .tfs.tfs-dense td[style*="font-size:9px"],
+  body.print-record-mode #print-target-area .tfs.tfs-ultra td[style*="font-size:9px"]{
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+  }
+
+  body.print-record-mode .excel-divider{
+    height:4mm !important;
+    min-height:4mm !important;
+    max-height:4mm !important;
+    margin:1.4mm auto !important;
+  }
+}
+
+/* 그룹 일괄추가 모달 확대 */
+.group-apply-modal-box{
+  max-height:86vh !important;
+}
+.group-apply-modal-list label{
+  min-height:44px !important;
+}
+@media(max-width:720px){
+  .group-apply-modal-list{
+    grid-template-columns:1fr !important;
+  }
+}
+.parts-pick-modal{
+  width:min(92vw,900px) !important;
+  max-width:min(92vw,900px) !important;
+}
+.parts-pick-modal .ppm-list{
+  max-height:66vh !important;
+}
