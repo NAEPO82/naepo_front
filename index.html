@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v33-print-group-repair-stock-20260703" />
+    <link rel="stylesheet" href="styles.css?v=v35-daily-settlement-report-20260703" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -142,6 +142,9 @@
             </button>
             <button class="tab" id="tab-repair">
               <i class="fa-solid fa-screwdriver-wrench"></i> 접수대장
+            </button>
+            <button class="tab" id="tab-daily">
+              <i class="fa-solid fa-clipboard-check"></i> 일일정산서
             </button>
           </nav>
         </div>
@@ -1554,7 +1557,123 @@
               <button class="btn btn-o btn-sm" id="repair-filter-reset">필터 초기화</button>
             </div>
             <div class="repair-summary" id="repair-summary">접수 0건 · 미결제 0건 · 수리비 0원</div>
+            <div class="repair-import-inline">
+              <button class="btn btn-p btn-sm" id="repair-import-records-inline"><i class="fa-solid fa-file-import"></i> 거래내역 수리명세 불러오기</button>
+              <span>거래내역 조회에 저장된 <b>분류파트 수리</b> 명세서를 접수대장으로 가져옵니다.</span>
+            </div>
             <div id="repair-grouped-list" class="repair-grouped-list"></div>
+          </div>
+        </div>
+
+
+        <div id="page-daily-report" style="display: none">
+          <div class="daily-report-shell">
+            <div class="daily-report-hero">
+              <div>
+                <div class="daily-eyebrow"><i class="fa-solid fa-clipboard-check"></i> Daily Settlement Report</div>
+                <h2>일일정산서</h2>
+                <p>선택한 날짜의 거래명세서 내역과 수리접수내역을 함께 정리해서 보고용으로 출력합니다.</p>
+              </div>
+              <div class="daily-report-actions">
+                <input type="date" id="daily-report-date" />
+                <button type="button" class="btn btn-o btn-sm" id="daily-report-today"><i class="fa-solid fa-calendar-day"></i> 오늘</button>
+                <button type="button" class="btn btn-o btn-sm" id="daily-report-refresh"><i class="fa-solid fa-rotate"></i> 새로고침</button>
+                <button type="button" class="btn btn-o btn-sm" id="daily-report-csv"><i class="fa-solid fa-file-csv"></i> CSV</button>
+                <button type="button" class="btn btn-p btn-sm" id="daily-report-print"><i class="fa-solid fa-print"></i> 보고서 출력</button>
+              </div>
+            </div>
+
+            <div class="daily-summary-grid">
+              <div class="daily-summary-card">
+                <span>명세서</span>
+                <strong id="daily-record-count">0건</strong>
+                <small id="daily-record-total">0원</small>
+              </div>
+              <div class="daily-summary-card">
+                <span>현금/카드/계좌</span>
+                <strong id="daily-paid-total">0원</strong>
+                <small id="daily-paid-breakdown">현금 0 · 카드 0 · 계좌 0</small>
+              </div>
+              <div class="daily-summary-card warn">
+                <span>외상/미수</span>
+                <strong id="daily-credit-total">0원</strong>
+                <small id="daily-credit-breakdown">미수 0원</small>
+              </div>
+              <div class="daily-summary-card blue">
+                <span>수리접수</span>
+                <strong id="daily-repair-count">0건</strong>
+                <small id="daily-repair-total">0원</small>
+              </div>
+            </div>
+
+            <div class="daily-report-layout">
+              <section class="card daily-card">
+                <div class="daily-section-head">
+                  <div>
+                    <h3><i class="fa-solid fa-file-invoice-dollar"></i> 명세서 내역</h3>
+                    <p id="daily-record-subtitle">선택 날짜의 거래명세서 목록입니다.</p>
+                  </div>
+                </div>
+                <div class="tbl-wrap daily-table-wrap">
+                  <table class="daily-table">
+                    <thead>
+                      <tr>
+                        <th>거래처</th>
+                        <th>분류</th>
+                        <th>대표 품목</th>
+                        <th>결제</th>
+                        <th class="tr">공급가액</th>
+                        <th class="tr">세액</th>
+                        <th class="tr">합계</th>
+                        <th>외상상태</th>
+                      </tr>
+                    </thead>
+                    <tbody id="daily-record-body">
+                      <tr><td colspan="8" class="empty-td">내역이 없습니다.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="card daily-card">
+                <div class="daily-section-head">
+                  <div>
+                    <h3><i class="fa-solid fa-screwdriver-wrench"></i> 수리접수내역</h3>
+                    <p id="daily-repair-subtitle">선택 날짜의 접수대장 목록입니다.</p>
+                  </div>
+                </div>
+                <div class="tbl-wrap daily-table-wrap">
+                  <table class="daily-table">
+                    <thead>
+                      <tr>
+                        <th>모델명</th>
+                        <th>성함</th>
+                        <th>연락처</th>
+                        <th>수리내역</th>
+                        <th class="tr">수리비</th>
+                        <th>연락</th>
+                        <th>결제</th>
+                      </tr>
+                    </thead>
+                    <tbody id="daily-repair-body">
+                      <tr><td colspan="7" class="empty-td">접수 내역이 없습니다.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="card daily-card daily-note-card">
+                <div class="daily-section-head">
+                  <div>
+                    <h3><i class="fa-solid fa-pen"></i> 보고 메모</h3>
+                    <p>출력할 보고서에 같이 들어갈 메모를 작성할 수 있습니다.</p>
+                  </div>
+                </div>
+                <textarea id="daily-report-memo" placeholder="예: 특이사항, 입금 예정, 미수금 확인사항 등을 적어주세요."></textarea>
+              </section>
+            </div>
+
+            <div id="daily-report-print-source" style="display:none"></div>
           </div>
         </div>
 
@@ -1903,6 +2022,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v33-print-group-repair-stock-20260703"></script>
+    <script src="app.js?v=v35-daily-settlement-report-20260703"></script>
   </body>
 </html>

@@ -1860,6 +1860,7 @@
       customer: "page-customer",
       order: "page-order",
       repair: "page-repair",
+      daily: "page-daily-report",
     };
     (Object.keys(n).forEach((e) => {
       (document.getElementById("tab-" + e).classList.toggle("on", e === t),
@@ -2040,6 +2041,11 @@
     document
       .getElementById("tab-customer")
       .addEventListener("click", () => J("customer")),
+    document.getElementById("tab-daily") &&
+      document.getElementById("tab-daily").addEventListener("click", () => {
+        J("daily");
+        if (window.NaepoDailyReport && window.NaepoDailyReport.render) window.NaepoDailyReport.render();
+      }),
     document
       .getElementById("dash-period-week")
       .addEventListener("click", () => {
@@ -3987,7 +3993,7 @@
         s = document.createElement("div");
       ((s.style.cssText =
         "position:fixed;inset:0;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;"),
-        (s.innerHTML = `\n        <div class="group-apply-modal-box" style="background:#fff;border-radius:18px;padding:24px;min-width:min(92vw,720px);max-width:min(92vw,860px);width:min(92vw,820px);box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);">\n          <h3 style="font-size:15px;font-weight:700;margin-bottom:4px;color:#065f46;"><i class="fa-solid fa-layer-group"></i> ${n(a.name)}</h3>\n          <p style="font-size:12px;color:#64748b;margin-bottom:14px;">추가할 품목을 선택하세요.</p>\n          <div id="group-modal-parts" class="group-apply-modal-list" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-height:62vh;overflow-y:auto;margin-bottom:16px;">\n            ${o.map((t) => `\n              <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px;cursor:pointer;border:1px solid #e2e8f0;">\n                <input type="checkbox" class="group-modal-chk" data-pid="${n(t.id)}" style="accent-color:#047857;width:15px;height:15px;"/>\n                <span><strong>${n(t.name)}</strong> <span style="color:#64748b;font-size:11px;">${n(t.spec || "")}</span></span>\n                <span style="margin-left:auto;font-size:11.5px;color:#047857;">${(t.unitPrice || 0).toLocaleString()}원</span>\n              </label>`).join("")}\n          </div>\n          <div style="display:flex;gap:8px;justify-content:flex-end;">\n            <button id="group-modal-cancel" class="btn btn-o btn-sm">취소</button>\n            <button id="group-modal-ok" class="btn btn-p btn-sm"><i class="fa-solid fa-plus"></i> 선택 품목 추가</button>\n          </div>\n        </div>`),
+        (s.innerHTML = `\n        <div class="group-apply-modal-box" style="background:#fff;border-radius:20px;padding:26px;min-width:720px;max-width:96vw;width:min(96vw,1040px);max-height:88vh;box-shadow:0 25px 50px -12px rgba(0,0,0,0.3);overflow:hidden;">\n          <h3 style="font-size:15px;font-weight:700;margin-bottom:4px;color:#065f46;"><i class="fa-solid fa-layer-group"></i> ${n(a.name)}</h3>\n          <p style="font-size:12px;color:#64748b;margin-bottom:14px;">추가할 품목을 선택하세요.</p>\n          <div id="group-modal-parts" class="group-apply-modal-list" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-height:68vh;overflow-y:auto;margin-bottom:18px;padding-right:4px;">\n            ${o.map((t) => `\n              <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px;cursor:pointer;border:1px solid #e2e8f0;">\n                <input type="checkbox" class="group-modal-chk" data-pid="${n(t.id)}" style="accent-color:#047857;width:15px;height:15px;"/>\n                <span><strong>${n(t.name)}</strong> <span style="color:#64748b;font-size:11px;">${n(t.spec || "")}</span></span>\n                <span style="margin-left:auto;font-size:11.5px;color:#047857;">${(t.unitPrice || 0).toLocaleString()}원</span>\n              </label>`).join("")}\n          </div>\n          <div style="display:flex;gap:8px;justify-content:flex-end;">\n            <button id="group-modal-cancel" class="btn btn-o btn-sm">취소</button>\n            <button id="group-modal-ok" class="btn btn-p btn-sm"><i class="fa-solid fa-plus"></i> 선택 품목 추가</button>\n          </div>\n        </div>`),
         document.body.appendChild(s),
         s.querySelector("#group-modal-cancel").addEventListener("click", () => {
           (document.body.removeChild(s), (t.value = ""));
@@ -4029,16 +4035,34 @@
             : I("선택 없음", "최소 1개 이상의 품목을 선택해주세요.");
         }));
     }),
-    document.getElementById("group-apply-select").addEventListener("change", () => {
-      const sel = document.getElementById("group-apply-select");
-      if (sel && sel.value) document.getElementById("btn-apply-group").click();
-    }),
-    document.getElementById("group-apply-select").addEventListener("click", (ev) => {
-      try {
-        const sel = ev.currentTarget;
-        if (sel && typeof sel.showPicker === "function") sel.showPicker();
-      } catch (_) {}
-    }),
+    (function () {
+      const groupSelect = document.getElementById("group-apply-select");
+      const groupBtn = document.getElementById("btn-apply-group");
+      if (!groupSelect || !groupBtn || groupSelect.dataset.autoOpenBound === "1") return;
+      groupSelect.dataset.autoOpenBound = "1";
+      const openSelectedGroup = () => {
+        if (!groupSelect.value || window.__groupApplyOpening) return;
+        window.__groupApplyOpening = true;
+        setTimeout(() => {
+          try { groupBtn.click(); }
+          finally { setTimeout(() => { window.__groupApplyOpening = false; }, 250); }
+        }, 0);
+      };
+      groupSelect.addEventListener("change", openSelectedGroup);
+      groupSelect.addEventListener("input", openSelectedGroup);
+      groupSelect.addEventListener("click", () => {
+        if (groupSelect.value) openSelectedGroup();
+        else {
+          try { if (typeof groupSelect.showPicker === "function") groupSelect.showPicker(); } catch (_) {}
+        }
+      });
+      groupSelect.addEventListener("keydown", (ev) => {
+        if ((ev.key === "Enter" || ev.key === " ") && groupSelect.value) {
+          ev.preventDefault();
+          openSelectedGroup();
+        }
+      });
+    })(),
     document.getElementById("parts-chk-all").addEventListener("change", (t) => {
       document
         .querySelectorAll(".chk-part")
@@ -6487,14 +6511,16 @@ function parseEasyInventoryText(text) {
     $("repair-save").addEventListener("click", save);
     $("repair-reset").addEventListener("click", resetForm);
     $("repair-refresh").addEventListener("click", () => load().catch((e) => alert(e.message)));
-    $("repair-import-records") && $("repair-import-records").addEventListener("click", async () => {
+    const importRepairRecords = async () => {
       if (!confirm("거래내역 중 분류파트가 수리인 명세서를 접수대장으로 불러올까요?\n이미 불러온 명세서는 중복 등록하지 않습니다.")) return;
       try {
         const result = await api("/api/repair-log/import-record-repairs", { method: "POST", body: JSON.stringify({}) });
         await load();
         alert(`수리 명세서 불러오기 완료\n추가 ${result.created || 0}건 · 갱신 ${result.updated || 0}건`);
       } catch (e) { alert(e.message); }
-    });
+    };
+    $("repair-import-records") && $("repair-import-records").addEventListener("click", importRepairRecords);
+    $("repair-import-records-inline") && $("repair-import-records-inline").addEventListener("click", importRepairRecords);
     $("repair-export-csv").addEventListener("click", exportCsv);
     $("repair-print").addEventListener("click", printGrouped);
     ["repair-filter-search", "repair-filter-start", "repair-filter-end", "repair-filter-paid", "repair-group-by"].forEach((id) => {
@@ -6522,5 +6548,277 @@ function parseEasyInventoryText(text) {
     $("repair-paid-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { paidStatus = btn.dataset.value === "true"; setPillActive("repair-paid-pills", String(paidStatus)); }));
     if (location.hash === "#repair") setTimeout(showRepairPage, 0);
   }
+  document.addEventListener("DOMContentLoaded", init);
+})();
+
+
+/* ===== daily-settlement-report-v35-20260703 ===== */
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+
+  const $ = (id) => document.getElementById(id);
+  const safe = (value) =>
+    value == null
+      ? ""
+      : String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+  const money = (value) => (Number(value) || 0).toLocaleString();
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const getToken = () => {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; }
+  };
+  async function api(path, options) {
+    options = options || {};
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const token = getToken();
+    if (token) headers.Authorization = "Bearer " + token;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  const asArray = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.items)) return payload.items;
+    return [];
+  };
+  function getCustomer(row) {
+    const company = row.company && row.company !== "-" ? row.company : "";
+    const name = row.name && row.name !== "-" ? row.name : "";
+    return [company, name].filter(Boolean).join(" / ") || "-";
+  }
+  function getRecordTotal(row) {
+    return (Number(row.amount) || 0) + (Number(row.tax) || 0);
+  }
+  function summarize(records, repairs) {
+    const pay = { 현금: 0, 카드: 0, 계좌이체: 0, 외상: 0, 미기재: 0 };
+    let supply = 0, tax = 0, total = 0, creditUnpaid = 0, creditPaid = 0;
+    records.forEach((row) => {
+      const rowSupply = Number(row.amount) || 0;
+      const rowTax = Number(row.tax) || 0;
+      const rowTotal = rowSupply + rowTax;
+      supply += rowSupply;
+      tax += rowTax;
+      total += rowTotal;
+      const key = pay.hasOwnProperty(row.payMethod) ? row.payMethod : "미기재";
+      pay[key] += rowTotal;
+      if (row.payMethod === "외상") {
+        if (row.collected) creditPaid += rowTotal;
+        else creditUnpaid += rowTotal;
+      }
+    });
+    let repairTotal = 0, repairUnpaid = 0;
+    repairs.forEach((row) => {
+      const cost = Number(row.repairCost) || 0;
+      repairTotal += cost;
+      if (!row.paid) repairUnpaid += cost;
+    });
+    return { supply, tax, total, pay, creditUnpaid, creditPaid, repairTotal, repairUnpaid };
+  }
+  let dailyState = { date: today(), records: [], repairs: [], summary: null };
+
+  function render() {
+    const dateEl = $("daily-report-date");
+    if (!dateEl) return;
+    const date = dateEl.value || dailyState.date || today();
+    dailyState.date = date;
+    const records = dailyState.records.filter((row) => String(row.date || "") === date);
+    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const sum = summarize(records, repairs);
+    dailyState.summary = sum;
+
+    $("daily-record-count").textContent = `${records.length}건`;
+    $("daily-record-total").textContent = `${money(sum.total)}원`;
+    $("daily-paid-total").textContent = `${money(sum.pay.현금 + sum.pay.카드 + sum.pay.계좌이체)}원`;
+    $("daily-paid-breakdown").textContent = `현금 ${money(sum.pay.현금)} · 카드 ${money(sum.pay.카드)} · 계좌 ${money(sum.pay.계좌이체)}`;
+    $("daily-credit-total").textContent = `${money(sum.pay.외상)}원`;
+    $("daily-credit-breakdown").textContent = `수금완료 ${money(sum.creditPaid)} · 미수 ${money(sum.creditUnpaid)}`;
+    $("daily-repair-count").textContent = `${repairs.length}건`;
+    $("daily-repair-total").textContent = `수리비 ${money(sum.repairTotal)}원 · 미결제 ${money(sum.repairUnpaid)}원`;
+    $("daily-record-subtitle").textContent = `${date} 거래명세서 ${records.length}건`;
+    $("daily-repair-subtitle").textContent = `${date} 수리접수 ${repairs.length}건`;
+
+    const recordBody = $("daily-record-body");
+    recordBody.innerHTML = records.length
+      ? records
+          .map((row) => {
+            const rowTotal = getRecordTotal(row);
+            const creditStatus = row.payMethod === "외상" ? (row.collected ? "수금완료" : "미수") : "-";
+            return `<tr>
+              <td><strong>${safe(getCustomer(row))}</strong>${row.phone ? `<small>${safe(row.phone)}</small>` : ""}</td>
+              <td>${safe(row.part || row.cat || "-")}</td>
+              <td>${safe(row.note || (Array.isArray(row.items) && row.items[0] ? row.items[0].item : "-"))}</td>
+              <td>${safe(row.payMethod || "미기재")}</td>
+              <td class="tr">${money(row.amount)}원</td>
+              <td class="tr">${money(row.tax)}원</td>
+              <td class="tr"><strong>${money(rowTotal)}원</strong></td>
+              <td>${safe(creditStatus)}</td>
+            </tr>`;
+          })
+          .join("")
+      : '<tr><td colspan="8" class="empty-td">해당 날짜의 명세서 내역이 없습니다.</td></tr>';
+
+    const repairBody = $("daily-repair-body");
+    repairBody.innerHTML = repairs.length
+      ? repairs
+          .map((row) => `<tr>
+            <td><strong>${safe(row.modelName || "-")}</strong></td>
+            <td>${safe(row.name || "-")}</td>
+            <td>${safe(row.phone || "-")}</td>
+            <td class="daily-detail-cell">${safe(row.repairDetail || "-")}</td>
+            <td class="tr"><strong>${money(row.repairCost)}원</strong></td>
+            <td>${safe(row.contactStatus || "미연락")}</td>
+            <td>${row.paid ? "결제완료" : "미결제"}</td>
+          </tr>`)
+          .join("")
+      : '<tr><td colspan="7" class="empty-td">해당 날짜의 접수 내역이 없습니다.</td></tr>';
+  }
+
+  async function load() {
+    const dateEl = $("daily-report-date");
+    if (!dateEl) return;
+    if (!dateEl.value) dateEl.value = dailyState.date || today();
+    const [recordsPayload, repairsPayload] = await Promise.all([
+      api("/api/records"),
+      api("/api/repair-log"),
+    ]);
+    dailyState.records = asArray(recordsPayload);
+    dailyState.repairs = asArray(repairsPayload);
+    render();
+  }
+
+  function buildPrintHtml() {
+    const date = $("daily-report-date").value || dailyState.date || today();
+    const records = dailyState.records.filter((row) => String(row.date || "") === date);
+    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const sum = summarize(records, repairs);
+    const memo = $("daily-report-memo") ? $("daily-report-memo").value.trim() : "";
+    const rowsRecords = records.length
+      ? records.map((row, idx) => `<tr><td>${idx + 1}</td><td>${safe(getCustomer(row))}</td><td>${safe(row.part || "-")}</td><td>${safe(row.note || "-")}</td><td>${safe(row.payMethod || "미기재")}</td><td class="num">${money(row.amount)}</td><td class="num">${money(row.tax)}</td><td class="num">${money(getRecordTotal(row))}</td></tr>`).join("")
+      : '<tr><td colspan="8" class="empty">명세서 내역 없음</td></tr>';
+    const rowsRepairs = repairs.length
+      ? repairs.map((row, idx) => `<tr><td>${idx + 1}</td><td>${safe(row.modelName || "-")}</td><td>${safe(row.name || "-")}</td><td>${safe(row.phone || "-")}</td><td>${safe(row.repairDetail || "-")}</td><td class="num">${money(row.repairCost)}</td><td>${safe(row.contactStatus || "미연락")}</td><td>${row.paid ? "결제완료" : "미결제"}</td></tr>`).join("")
+      : '<tr><td colspan="8" class="empty">수리접수 내역 없음</td></tr>';
+
+    return `<!doctype html><html><head><meta charset="utf-8"><title>일일정산서 ${safe(date)}</title><style>
+      *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;background:#fff;color:#111827}
+      .sheet{width:190mm;margin:0 auto;padding:10mm 8mm}
+      .head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:10px}
+      h1{font-size:24px;margin:0;letter-spacing:-.04em}.date{font-size:15px;font-weight:900;color:#0f766e}
+      .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:9px 0 10px}
+      .box{border:1px solid #cbd5e1;border-radius:8px;padding:7px 8px}.box span{display:block;font-size:10px;color:#64748b;font-weight:800}.box b{font-size:13px}
+      h2{font-size:14px;margin:12px 0 6px;color:#0f172a}
+      table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}
+      th,td{border:1px solid #cbd5e1;padding:5px 5px;vertical-align:middle;word-break:keep-all}
+      th{background:#f1f5f9;font-weight:900;color:#334155;text-align:center}.num{text-align:right;font-family:Consolas,'Courier New',monospace}.empty{text-align:center;color:#94a3b8;padding:12px}
+      .memo{margin-top:12px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;min-height:24mm;white-space:pre-wrap;font-size:11px}
+      .foot{margin-top:10px;text-align:right;font-size:10px;color:#64748b}
+      @media print{@page{size:A4 portrait;margin:7mm}.sheet{width:auto;margin:0;padding:0}table{font-size:9.5px}th,td{padding:4px}}
+    </style></head><body><div class="sheet">
+      <div class="head"><div><h1>일일정산서</h1><div style="font-size:11px;color:#64748b;margin-top:2px">내포농기계 보고용 정산 자료</div></div><div class="date">${safe(date)}</div></div>
+      <div class="summary">
+        <div class="box"><span>명세서</span><b>${records.length}건 / ${money(sum.total)}원</b></div>
+        <div class="box"><span>현금·카드·계좌</span><b>${money(sum.pay.현금 + sum.pay.카드 + sum.pay.계좌이체)}원</b></div>
+        <div class="box"><span>외상/미수</span><b>${money(sum.pay.외상)}원 / 미수 ${money(sum.creditUnpaid)}원</b></div>
+        <div class="box"><span>수리접수</span><b>${repairs.length}건 / ${money(sum.repairTotal)}원</b></div>
+      </div>
+      <h2>1. 명세서 내역</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th>분류</th><th>대표품목</th><th style="width:18mm">결제</th><th style="width:20mm">공급가액</th><th style="width:16mm">세액</th><th style="width:20mm">합계</th></tr></thead><tbody>${rowsRecords}</tbody></table>
+      <h2>2. 수리접수내역</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th style="width:19mm">수리비</th><th style="width:18mm">연락</th><th style="width:18mm">결제</th></tr></thead><tbody>${rowsRepairs}</tbody></table>
+      <h2>3. 보고 메모</h2>
+      <div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div>
+      <div class="foot">출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div>
+    </div></body></html>`;
+  }
+
+  function printReport() {
+    const html = buildPrintHtml();
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.right = "0";
+    frame.style.bottom = "0";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.border = "0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 1000);
+    }, 180);
+  }
+
+  function downloadCsv() {
+    const date = $("daily-report-date").value || dailyState.date || today();
+    const records = dailyState.records.filter((row) => String(row.date || "") === date);
+    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const lines = [];
+    const escCsv = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
+    lines.push("구분,날짜,거래처/성함,연락처,분류/모델명,내용,결제/연락,공급가액/수리비,세액,합계/결제여부");
+    records.forEach((row) => lines.push([
+      "명세서", row.date, getCustomer(row), row.phone || "", row.part || "", row.note || "", row.payMethod || "미기재", row.amount || 0, row.tax || 0, getRecordTotal(row)
+    ].map(escCsv).join(",")));
+    repairs.forEach((row) => lines.push([
+      "수리접수", row.date, row.name || "", row.phone || "", row.modelName || "", row.repairDetail || "", row.contactStatus || "미연락", row.repairCost || 0, "", row.paid ? "결제완료" : "미결제"
+    ].map(escCsv).join(",")));
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `일일정산서-${date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function showDailyPage() {
+    document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("on", tab.id === "tab-daily"));
+    document.querySelectorAll("main > div[id^='page-']").forEach((page) => {
+      page.style.display = page.id === "page-daily-report" ? "block" : "none";
+    });
+    history.pushState({ tab: "daily" }, "", "#daily");
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    load().catch((e) => alert(e.message));
+  }
+
+  function init() {
+    if (!$("page-daily-report") || !$("tab-daily")) return;
+    $("daily-report-date").value = today();
+    $("tab-daily").addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      showDailyPage();
+    });
+    $("daily-report-date").addEventListener("change", render);
+    $("daily-report-date").addEventListener("click", () => {
+      const el = $("daily-report-date");
+      try { if (el.showPicker) el.showPicker(); else el.focus(); } catch (_) { el.focus(); }
+    });
+    $("daily-report-today").addEventListener("click", () => {
+      $("daily-report-date").value = today();
+      render();
+    });
+    $("daily-report-refresh").addEventListener("click", () => load().catch((e) => alert(e.message)));
+    $("daily-report-print").addEventListener("click", printReport);
+    $("daily-report-csv").addEventListener("click", downloadCsv);
+    if (location.hash === "#daily") setTimeout(showDailyPage, 0);
+  }
+
+  window.NaepoDailyReport = { render, load, show: showDailyPage };
   document.addEventListener("DOMContentLoaded", init);
 })();
