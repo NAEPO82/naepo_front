@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v35-daily-settlement-report-20260703" />
+    <link rel="stylesheet" href="styles.css?v=v36-report-group-repair-fixes-20260703" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -672,7 +672,7 @@
                   color: #334155;
                   background: #fff;
                 "
-              >
+               onchange="setTimeout(function(){var b=document.getElementById('btn-apply-group'); if(b) b.click();},0)" oninput="setTimeout(function(){var b=document.getElementById('btn-apply-group'); if(b) b.click();},0)">
                 <option value="">그룹 선택하여 품목 일괄추가...</option>
               </select>
               <button
@@ -850,6 +850,17 @@
                 "
               >
                 <i class="fa-solid fa-calculator"></i> 정산
+              </button>
+              <button
+                class="btn btn-o btn-sm"
+                id="btn-open-daily-report"
+                style="
+                  color: #7c3aed;
+                  border-color: #ddd6fe;
+                  background: #f5f3ff;
+                "
+              >
+                <i class="fa-solid fa-clipboard-check"></i> 일일정산서
               </button>
               <button
                 class="btn btn-o btn-sm"
@@ -1473,6 +1484,12 @@
             <p class="hint" style="margin-bottom: 14px">
               날짜, 모델명, 고객 연락처, 수리내역과 수리비를 기록하고 결제여부를 버튼으로 관리합니다.
             </p>
+            <div class="repair-import-hero">
+              <button type="button" class="btn btn-p" id="repair-import-records-hero">
+                <i class="fa-solid fa-file-import"></i> 거래내역 일반[수리] 전부 불러오기
+              </button>
+              <span>거래내역에 저장된 <b>일반 [수리]</b> 명세서를 접수대장으로 가져옵니다. 이미 가져온 건은 중복 등록하지 않습니다.</span>
+            </div>
             <div class="g4 repair-form-grid">
               <div class="field">
                 <label>날짜 *</label>
@@ -2022,6 +2039,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v35-daily-settlement-report-20260703"></script>
+    <script src="app.js?v=v36-report-group-repair-fixes-20260703"></script>
   </body>
 </html>

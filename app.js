@@ -6822,3 +6822,364 @@ function parseEasyInventoryText(text) {
   window.NaepoDailyReport = { render, load, show: showDailyPage };
   document.addEventListener("DOMContentLoaded", init);
 })();
+
+
+/* ===== v36-report-group-repair-fixes-20260703 =====
+   - 그룹 드롭다운 선택 즉시 대형 모달 열기
+   - 접수대장 일반[수리] 불러오기 버튼 다중 위치 연결
+   - 거래내역 조회에서 일일정산서 이동 버튼
+   - 보고용 일일정산서 상세 인쇄 강화
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const safe = (value) => value == null ? "" : String(value)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const money = (value) => (Number(value) || 0).toLocaleString();
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const token = () => {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; }
+  };
+  async function api(path, options) {
+    options = options || {};
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    let data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+  function stripGroupPrefix(name) {
+    return String(name || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+  }
+  function formatGroupPartName(groupName, partName) {
+    const g = String(groupName || "").trim();
+    const p = String(partName || "").trim();
+    if (!g || !p) return p;
+    if (p.startsWith(`[${g}]`)) return p;
+    return `[${g}]${p}`;
+  }
+
+  function removeBlankFirstItemRow() {
+    const root = $("items-builder-root");
+    if (!root) return;
+    const rows = root.querySelectorAll(".item-row-card");
+    if (rows.length === 1) {
+      const row = rows[0];
+      const item = row.querySelector(".p-item");
+      if (item && !item.value.trim()) row.remove();
+    }
+  }
+  function addPartToInvoiceRow(groupName, part) {
+    const addBtn = $("btn-add-item-row");
+    if (!addBtn) return;
+    addBtn.click();
+    const rows = document.querySelectorAll("#items-builder-root .item-row-card");
+    const row = rows[rows.length - 1];
+    if (!row) return;
+    row.dataset.partId = part.id || "";
+    const set = (selector, value) => {
+      const el = row.querySelector(selector);
+      if (!el) return;
+      el.value = value == null ? "" : String(value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    set(".p-item", formatGroupPartName(groupName, part.name || ""));
+    set(".p-spec", part.spec || "");
+    set(".p-qty", "1");
+    set(".p-price", Number(part.unitPrice || 0));
+    set(".p-amount", Number(part.unitPrice || 0));
+    set(".p-tax", "0");
+  }
+
+  async function openLargeGroupApplyModal(groupId) {
+    if (!groupId) return;
+    const [groupsPayload, partsPayload] = await Promise.all([api("/api/groups"), api("/api/parts")]);
+    const groups = asArray(groupsPayload);
+    const parts = asArray(partsPayload);
+    const group = groups.find((g) => String(g.id) === String(groupId));
+    if (!group) return alert("그룹을 찾을 수 없습니다.");
+    const selectedParts = (group.partIds || [])
+      .map((pid) => parts.find((p) => String(p.id) === String(pid)))
+      .filter(Boolean);
+    if (!selectedParts.length) return alert("이 그룹에 등록된 품목이 없습니다.");
+
+    document.querySelectorAll(".v36-group-modal-overlay").forEach((el) => el.remove());
+    const overlay = document.createElement("div");
+    overlay.className = "v36-group-modal-overlay";
+    overlay.innerHTML = `
+      <div class="v36-group-modal">
+        <div class="v36-group-head">
+          <div>
+            <h3><i class="fa-solid fa-layer-group"></i> ${safe(group.name)} 그룹 품목 선택</h3>
+            <p>선택한 품목은 명세서에 <b>[${safe(group.name)}]품목명</b>으로 들어가고, 재고는 원래 품목 기준으로 차감됩니다.</p>
+          </div>
+          <button type="button" class="v36-group-x" aria-label="닫기"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="v36-group-tools">
+          <input type="text" class="v36-group-search" placeholder="품목명 / 규격 / 재고 검색" />
+          <button type="button" class="btn btn-o btn-sm v36-group-all">전체선택</button>
+          <button type="button" class="btn btn-o btn-sm v36-group-none">전체해제</button>
+          <span class="v36-group-count"></span>
+        </div>
+        <div class="v36-group-list">
+          ${selectedParts.map((p) => `
+            <label class="v36-group-item" data-key="${safe(`${p.name || ""} ${p.spec || ""} ${p.stock || ""}`.toLowerCase())}">
+              <input type="checkbox" class="v36-group-check" data-pid="${safe(p.id)}" />
+              <span class="v36-group-main">
+                <strong>${safe(p.name || "")}</strong>
+                <small>${safe(p.spec || "규격 없음")}</small>
+              </span>
+              <em>재고 ${money(p.stock)} · ${money(p.unitPrice)}원</em>
+            </label>`).join("")}
+        </div>
+        <div class="v36-group-foot">
+          <button type="button" class="btn btn-o v36-group-cancel">취소</button>
+          <button type="button" class="btn btn-p v36-group-ok"><i class="fa-solid fa-plus"></i> 선택 품목 추가</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    const updateCount = () => {
+      const checked = overlay.querySelectorAll(".v36-group-check:checked").length;
+      overlay.querySelector(".v36-group-count").textContent = `선택 ${checked}개 / 전체 ${selectedParts.length}개`;
+    };
+    const filter = () => {
+      const q = overlay.querySelector(".v36-group-search").value.trim().toLowerCase();
+      overlay.querySelectorAll(".v36-group-item").forEach((item) => {
+        item.style.display = !q || item.dataset.key.includes(q) ? "" : "none";
+      });
+    };
+    overlay.querySelector(".v36-group-x").addEventListener("click", close);
+    overlay.querySelector(".v36-group-cancel").addEventListener("click", close);
+    overlay.addEventListener("click", (ev) => { if (ev.target === overlay) close(); });
+    overlay.querySelector(".v36-group-search").addEventListener("input", filter);
+    overlay.querySelector(".v36-group-all").addEventListener("click", () => {
+      overlay.querySelectorAll(".v36-group-item").forEach((item) => {
+        if (item.style.display !== "none") item.querySelector(".v36-group-check").checked = true;
+      });
+      updateCount();
+    });
+    overlay.querySelector(".v36-group-none").addEventListener("click", () => {
+      overlay.querySelectorAll(".v36-group-check").forEach((chk) => chk.checked = false);
+      updateCount();
+    });
+    overlay.querySelectorAll(".v36-group-check").forEach((chk) => chk.addEventListener("change", updateCount));
+    overlay.querySelector(".v36-group-ok").addEventListener("click", () => {
+      const ids = Array.from(overlay.querySelectorAll(".v36-group-check:checked")).map((chk) => chk.dataset.pid);
+      if (!ids.length) return alert("추가할 품목을 선택해주세요.");
+      removeBlankFirstItemRow();
+      ids.forEach((pid) => {
+        const part = selectedParts.find((p) => String(p.id) === String(pid));
+        if (part) addPartToInvoiceRow(group.name, part);
+      });
+      const sel = $("group-apply-select");
+      if (sel) sel.value = "";
+      close();
+    });
+    updateCount();
+    setTimeout(() => overlay.querySelector(".v36-group-search").focus(), 50);
+  }
+
+  function bindGroupSelectOverride() {
+    const sel = $("group-apply-select");
+    const btn = $("btn-apply-group");
+    if (!sel || sel.dataset.v36Bound === "1") return;
+    sel.dataset.v36Bound = "1";
+
+    const open = async () => {
+      const gid = sel.value;
+      if (!gid || window.__v36GroupOpening) return;
+      window.__v36GroupOpening = true;
+      try { await openLargeGroupApplyModal(gid); }
+      catch (e) { alert(e.message || "그룹 품목을 불러오지 못했습니다."); }
+      finally { setTimeout(() => { window.__v36GroupOpening = false; }, 250); }
+    };
+
+    sel.addEventListener("change", open, true);
+    sel.addEventListener("input", open, true);
+    sel.addEventListener("keydown", (ev) => {
+      if ((ev.key === "Enter" || ev.key === " ") && sel.value) {
+        ev.preventDefault();
+        open();
+      }
+    }, true);
+
+    if (btn && btn.dataset.v36Bound !== "1") {
+      btn.dataset.v36Bound = "1";
+      btn.addEventListener("click", (ev) => {
+        if (!sel.value) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        open();
+      }, true);
+    }
+  }
+
+  async function importRepairRecords() {
+    if (!confirm("거래내역에 일반[수리]로 저장된 명세서를 접수대장으로 불러올까요?\n이미 불러온 명세서는 중복 등록하지 않습니다.")) return;
+    try {
+      const result = await api("/api/repair-log/import-record-repairs", { method: "POST", body: JSON.stringify({}) });
+      alert(`수리 명세서 불러오기 완료\n추가 ${result.created || 0}건 · 갱신 ${result.updated || 0}건`);
+      if (location.hash === "#repair") location.reload();
+    } catch (e) {
+      alert(e.message || "수리 명세서를 불러오지 못했습니다.");
+    }
+  }
+
+  function bindRepairImportButtons() {
+    ["repair-import-records", "repair-import-records-inline", "repair-import-records-hero"].forEach((id) => {
+      const btn = $(id);
+      if (!btn || btn.dataset.v36Bound === "1") return;
+      btn.dataset.v36Bound = "1";
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        importRepairRecords();
+      }, true);
+    });
+  }
+
+  function openDailyReportPage() {
+    const tab = $("tab-daily");
+    if (tab) tab.click();
+    else location.hash = "#daily";
+  }
+  function bindDailyOpenButtons() {
+    const btn = $("btn-open-daily-report");
+    if (!btn || btn.dataset.v36Bound === "1") return;
+    btn.dataset.v36Bound = "1";
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      openDailyReportPage();
+    });
+  }
+
+  function getCustomer(row) {
+    const company = row.company && row.company !== "-" ? row.company : "";
+    const name = row.name && row.name !== "-" ? row.name : "";
+    return [company, name].filter(Boolean).join(" / ") || "-";
+  }
+  function getRecordTotal(row) {
+    return (Number(row.amount) || 0) + (Number(row.tax) || 0);
+  }
+  function groupSum(records) {
+    const pay = { 현금: 0, 카드: 0, 계좌이체: 0, 외상: 0, 미기재: 0 };
+    let supply = 0, tax = 0, total = 0, creditPaid = 0, creditUnpaid = 0;
+    records.forEach((r) => {
+      const s = Number(r.amount) || 0;
+      const tx = Number(r.tax) || 0;
+      const ttl = s + tx;
+      supply += s; tax += tx; total += ttl;
+      const key = Object.prototype.hasOwnProperty.call(pay, r.payMethod) ? r.payMethod : "미기재";
+      pay[key] += ttl;
+      if (r.payMethod === "외상") {
+        if (r.collected) creditPaid += ttl;
+        else creditUnpaid += ttl;
+      }
+    });
+    return { pay, supply, tax, total, creditPaid, creditUnpaid };
+  }
+  function buildEnhancedDailyPrint(date, records, repairs, memo) {
+    const sum = groupSum(records);
+    const repairTotal = repairs.reduce((a, r) => a + (Number(r.repairCost) || 0), 0);
+    const repairUnpaid = repairs.reduce((a, r) => a + (!r.paid ? Number(r.repairCost) || 0 : 0), 0);
+    const itemRows = [];
+    records.forEach((record) => {
+      const items = Array.isArray(record.items) && record.items.length ? record.items : [{ item: record.note || "-", qty: "", price: "", amount: record.amount, tax: record.tax, note: "" }];
+      items.forEach((item, idx) => {
+        itemRows.push({ record, item, idx });
+      });
+    });
+    const creditRows = records.filter((r) => r.payMethod === "외상");
+    return `<!doctype html><html><head><meta charset="utf-8"><title>일일정산서 ${safe(date)}</title><style>
+      *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;color:#0f172a;background:#fff}
+      .sheet{width:190mm;margin:0 auto;padding:8mm 7mm}
+      .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0f766e;padding-bottom:7px;margin-bottom:9px}
+      h1{font-size:23px;margin:0;letter-spacing:-.04em}.sub{font-size:10.5px;color:#64748b;margin-top:2px}.date{font-weight:900;color:#0f766e;font-size:15px}
+      .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:7px 0 9px}.box{border:1px solid #cbd5e1;border-radius:7px;padding:6px;background:#f8fafc}.box span{display:block;font-size:9.5px;color:#64748b;font-weight:900}.box b{font-size:12px}
+      .paygrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:9px}.pay{border:1px solid #e2e8f0;border-radius:6px;padding:5px;font-size:10px}.pay b{display:block;text-align:right;font-size:11px}
+      h2{font-size:13px;margin:10px 0 5px;color:#0f172a}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.2px}th,td{border:1px solid #cbd5e1;padding:3.5px 4px;vertical-align:middle;word-break:keep-all}th{background:#f1f5f9;text-align:center;font-weight:900;color:#334155}.num{text-align:right;font-family:Consolas,'Courier New',monospace}.center{text-align:center}.muted{color:#64748b}.detail{white-space:pre-wrap;line-height:1.35}.empty{text-align:center;color:#94a3b8;padding:9px}
+      .memo{border:1px solid #cbd5e1;border-radius:7px;min-height:18mm;padding:7px;font-size:10px;white-space:pre-wrap}.signs{display:grid;grid-template-columns:1fr 35mm 35mm;gap:8px;margin-top:10px;align-items:end}.sign{height:14mm;border-bottom:1px solid #64748b;text-align:center;font-size:10px;color:#475569;padding-top:8mm}
+      @media print{@page{size:A4 portrait;margin:6mm}.sheet{width:auto;padding:0;margin:0}table{font-size:8.8px}th,td{padding:3px}.page-break{break-before:page}}
+    </style></head><body><div class="sheet">
+      <div class="head"><div><h1>일일정산서</h1><div class="sub">명세서 내역 + 수리접수내역 보고용</div></div><div class="date">${safe(date)}</div></div>
+      <div class="summary">
+        <div class="box"><span>명세서</span><b>${records.length}건 / ${money(sum.total)}원</b></div>
+        <div class="box"><span>공급가액 / 세액</span><b>${money(sum.supply)} / ${money(sum.tax)}</b></div>
+        <div class="box"><span>외상 미수</span><b>${money(sum.creditUnpaid)}원</b></div>
+        <div class="box"><span>수리접수</span><b>${repairs.length}건 / ${money(repairTotal)}원</b></div>
+      </div>
+      <div class="paygrid">
+        <div class="pay">현금<b>${money(sum.pay.현금)}원</b></div><div class="pay">카드<b>${money(sum.pay.카드)}원</b></div><div class="pay">계좌이체<b>${money(sum.pay.계좌이체)}원</b></div><div class="pay">외상<b>${money(sum.pay.외상)}원</b></div><div class="pay">수리 미결제<b>${money(repairUnpaid)}원</b></div>
+      </div>
+      <h2>1. 명세서 요약</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th style="width:24mm">분류</th><th>대표품목</th><th style="width:17mm">결제</th><th style="width:18mm">공급가액</th><th style="width:15mm">세액</th><th style="width:18mm">합계</th><th style="width:18mm">외상</th></tr></thead><tbody>
+        ${records.length ? records.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${safe(getCustomer(r))}</td><td>${safe(r.part || r.cat || "-")}</td><td>${safe(r.note || "-")}</td><td class="center">${safe(r.payMethod || "미기재")}</td><td class="num">${money(r.amount)}</td><td class="num">${money(r.tax)}</td><td class="num">${money(getRecordTotal(r))}</td><td class="center">${r.payMethod === "외상" ? (r.collected ? "수금완료" : "미수") : "-"}</td></tr>`).join("") : '<tr><td colspan="9" class="empty">명세서 내역 없음</td></tr>'}
+      </tbody></table>
+      <h2>2. 품목 상세</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th>품목</th><th style="width:20mm">규격</th><th style="width:12mm">수량</th><th style="width:18mm">단가</th><th style="width:20mm">공급가액</th><th style="width:20mm">비고</th></tr></thead><tbody>
+        ${itemRows.length ? itemRows.map((row, i) => `<tr><td class="center">${i + 1}</td><td>${safe(row.idx === 0 ? getCustomer(row.record) : "")}</td><td>${safe(row.item.item || row.item.name || "-")}</td><td>${safe(row.item.spec || "")}</td><td class="num">${safe(row.item.qty || "")}</td><td class="num">${row.item.price === "" ? "" : money(row.item.price)}</td><td class="num">${money(row.item.amount)}</td><td>${safe(row.item.note || "")}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">품목 상세 없음</td></tr>'}
+      </tbody></table>
+      <h2>3. 외상/미수 확인</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th>대표품목</th><th style="width:24mm">금액</th><th style="width:22mm">상태</th><th>연락처</th></tr></thead><tbody>
+        ${creditRows.length ? creditRows.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${safe(getCustomer(r))}</td><td>${safe(r.note || "-")}</td><td class="num">${money(getRecordTotal(r))}</td><td class="center">${r.collected ? "수금완료" : "미수"}</td><td>${safe(r.phone || "")}</td></tr>`).join("") : '<tr><td colspan="6" class="empty">외상 내역 없음</td></tr>'}
+      </tbody></table>
+      <h2>4. 수리접수내역</h2>
+      <table><thead><tr><th style="width:7mm">No</th><th style="width:22mm">모델명</th><th style="width:18mm">성함</th><th style="width:24mm">연락처</th><th>수리내역</th><th style="width:20mm">수리비</th><th style="width:18mm">연락</th><th style="width:18mm">결제</th></tr></thead><tbody>
+        ${repairs.length ? repairs.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${safe(r.modelName || "-")}</td><td>${safe(r.name || "-")}</td><td>${safe(r.phone || "-")}</td><td class="detail">${safe(r.repairDetail || "-")}</td><td class="num">${money(r.repairCost)}</td><td class="center">${safe(r.contactStatus || "미연락")}</td><td class="center">${r.paid ? "결제완료" : "미결제"}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">수리접수 없음</td></tr>'}
+      </tbody></table>
+      <h2>5. 보고 메모</h2><div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div>
+      <div class="signs"><div class="muted">출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div><div class="sign">작성자</div><div class="sign">확인자</div></div>
+    </div></body></html>`;
+  }
+  async function printEnhancedDailyReport() {
+    const date = $("daily-report-date") && $("daily-report-date").value ? $("daily-report-date").value : today();
+    const memo = $("daily-report-memo") ? $("daily-report-memo").value.trim() : "";
+    const [recordsPayload, repairsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log")]);
+    const records = asArray(recordsPayload).filter((row) => String(row.date || "") === date);
+    const repairs = asArray(repairsPayload).filter((row) => String(row.date || "") === date);
+    const html = buildEnhancedDailyPrint(date, records, repairs, memo);
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed"; frame.style.right = "0"; frame.style.bottom = "0"; frame.style.width = "0"; frame.style.height = "0"; frame.style.border = "0";
+    document.body.appendChild(frame);
+    const doc = frame.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 1000);
+    }, 180);
+  }
+  function bindEnhancedDailyPrint() {
+    const btn = $("daily-report-print");
+    if (!btn || btn.dataset.v36Bound === "1") return;
+    btn.dataset.v36Bound = "1";
+    btn.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      printEnhancedDailyReport().catch((e) => alert(e.message || "일일정산서를 출력하지 못했습니다."));
+    }, true);
+  }
+
+  function bindAll() {
+    bindGroupSelectOverride();
+    bindRepairImportButtons();
+    bindDailyOpenButtons();
+    bindEnhancedDailyPrint();
+  }
+  document.addEventListener("DOMContentLoaded", bindAll);
+  document.addEventListener("click", () => setTimeout(bindAll, 0), true);
+  window.NaepoV36Fixes = { bindAll, openLargeGroupApplyModal, importRepairRecords, printEnhancedDailyReport };
+})();
