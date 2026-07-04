@@ -7183,3 +7183,72 @@ function parseEasyInventoryText(text) {
   document.addEventListener("click", () => setTimeout(bindAll, 0), true);
   window.NaepoV36Fixes = { bindAll, openLargeGroupApplyModal, importRepairRecords, printEnhancedDailyReport };
 })();
+
+
+/* ===== v37-group-select-reset-fix-20260703 =====
+   그룹 선택 후 select 값이 남아 있어 다음 클릭 때 이전 그룹 모달이 다시 뜨는 문제 수정.
+   - 그룹 선택은 change 이벤트에서만 모달을 엽니다.
+   - 모달을 연 직후 select 값을 공란으로 돌립니다.
+   - 기존 click 이벤트가 이전 그룹을 다시 여는 것을 capture 단계에서 차단합니다.
+*/
+(() => {
+  function bindFinalGroupSelectFix() {
+    const sel = document.getElementById("group-apply-select");
+    const btn = document.getElementById("btn-apply-group");
+    if (!sel || sel.dataset.v37Bound === "1") return;
+    sel.dataset.v37Bound = "1";
+
+    const openGroup = async (gid) => {
+      if (!gid || window.__v37GroupOpening) return;
+      window.__v37GroupOpening = true;
+      try {
+        if (window.NaepoV36Fixes && typeof window.NaepoV36Fixes.openLargeGroupApplyModal === "function") {
+          await window.NaepoV36Fixes.openLargeGroupApplyModal(gid);
+        } else if (btn) {
+          btn.click();
+        }
+      } finally {
+        setTimeout(() => {
+          sel.value = "";
+          window.__v37GroupOpening = false;
+        }, 120);
+      }
+    };
+
+    // 이전 버전의 click 리스너가 현재 선택된 값을 다시 열지 못하게 막음.
+    ["click", "mouseup"].forEach((type) => {
+      sel.addEventListener(type, (ev) => {
+        ev.stopImmediatePropagation();
+      }, true);
+    });
+
+    sel.addEventListener("change", (ev) => {
+      ev.stopImmediatePropagation();
+      const gid = sel.value;
+      openGroup(gid);
+    }, true);
+
+    sel.addEventListener("input", (ev) => {
+      ev.stopImmediatePropagation();
+      const gid = sel.value;
+      openGroup(gid);
+    }, true);
+
+    if (btn && btn.dataset.v37Bound !== "1") {
+      btn.dataset.v37Bound = "1";
+      btn.addEventListener("click", (ev) => {
+        const gid = sel.value;
+        if (!gid) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        openGroup(gid);
+      }, true);
+    }
+
+    // 혹시 이전 선택값이 남아 있는 상태로 페이지가 열리면 초기화
+    setTimeout(() => { sel.value = ""; }, 0);
+  }
+
+  document.addEventListener("DOMContentLoaded", bindFinalGroupSelectFix);
+  document.addEventListener("click", () => setTimeout(bindFinalGroupSelectFix, 0), true);
+})();
