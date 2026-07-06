@@ -12496,3 +12496,154 @@ tr:hover td{background:#F8FAFC !important;}
     margin:2.2mm auto !important;
   }
 }
+
+
+/* ===== v39-invoice-item-area-readable-20260703 =====
+   품목이 많은 공급자/받는자 일반 출력에서 전체 양식을 작게 축소하지 않고,
+   실제 품목 표 영역의 행 높이와 글자 크기를 키워 읽을 수 있게 조정합니다.
+   선택일괄인쇄(.lp-page)는 기존 규칙 유지.
+*/
+@media print{
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)){
+    --pscale:1 !important;
+    width:197mm !important;
+    max-width:197mm !important;
+    margin:0 auto !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .excel-frame{
+    width:197mm !important;
+    max-width:197mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:visible !important;
+    background:#fff !important;
+  }
+
+  /* 바깥 테두리만 길어지는 현상 방지: 높이는 내용이 결정 */
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra{
+    width:197mm !important;
+    max-width:197mm !important;
+    min-height:0 !important;
+    height:auto !important;
+    max-height:none !important;
+    padding:2.2mm 3.1mm !important;
+    margin:0 0 4mm !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-title,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-title,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-title{
+    padding:3px 6px !important;
+  }
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-name,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-name,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-name{
+    font-size:12.6px !important;
+    letter-spacing:2.7px !important;
+    line-height:1.12 !important;
+  }
+
+  /* 상단 정보/작성일 영역은 과도하게 크지 않게 유지 */
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:not(:nth-of-type(3)) td,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:not(:nth-of-type(3)) td,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:not(:nth-of-type(3)) td{
+    padding:1.5px 2.4px !important;
+    font-size:8.4px !important;
+    line-height:1.05 !important;
+  }
+
+  /* 핵심: 품목 표 자체를 키움 */
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3),
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3),
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3){
+    width:100% !important;
+    table-layout:fixed !important;
+    margin-top:1px !important;
+    margin-bottom:2px !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3) .tfs-ih,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3) .tfs-ih,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-ih{
+    height:17px !important;
+    min-height:17px !important;
+    padding:2.5px 3px !important;
+    font-size:8.5px !important;
+    line-height:1.08 !important;
+    letter-spacing:0.8px !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3) .tfs-ic,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3) .tfs-ir,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3) .tfs-ic,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3) .tfs-ir,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-ic,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-ir{
+    height:18px !important;
+    min-height:18px !important;
+    max-height:none !important;
+    padding:2.4px 3px !important;
+    font-size:8.9px !important;
+    line-height:1.12 !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+  }
+
+  /* 14줄 이상도 읽을 수는 있게 하되, A4 2매 배치가 깨지지 않도록 살짝만 낮춤 */
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-ic,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-ir{
+    height:16.8px !important;
+    min-height:16.8px !important;
+    font-size:8.4px !important;
+    padding:2.1px 2.5px !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra > table:nth-of-type(3) .tfs-il{
+    white-space:normal !important;
+    word-break:keep-all !important;
+  }
+
+  /* 금액/결제 영역은 테두리만 남지 않도록 품목표 바로 아래에 붙임 */
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-pay-table td,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-pay-table td,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-pay-table td{
+    padding:2px 3px !important;
+    font-size:8.3px !important;
+    line-height:1.06 !important;
+  }
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-fv,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-fv,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-fv,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-amt,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-amt,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-amt{
+    font-size:9.8px !important;
+    line-height:1.08 !important;
+  }
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-compact .tfs-bottom,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-dense .tfs-bottom,
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .tfs.tfs-ultra .tfs-bottom{
+    padding:3px 14px 5px !important;
+    min-height:19px !important;
+  }
+
+  body.print-record-mode #print-target-area.pf-active:not(:has(.lp-page)) .excel-divider{
+    height:4.5mm !important;
+    min-height:4.5mm !important;
+    max-height:4.5mm !important;
+    margin:2mm auto !important;
+  }
+}

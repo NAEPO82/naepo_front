@@ -1259,9 +1259,20 @@
   function _(t) {
     const e = document.getElementById("print-target-area");
     if (!e || !e.querySelector(".excel-frame")) return;
-    (e.classList.add("pf-active"),
-      e.style.setProperty("--pscale", "1"),
-      e.offsetHeight);
+    e.classList.add("pf-active");
+
+    // 일반 거래명세서(공급자/받는자/단일)는 전체를 축소하지 않습니다.
+    // 품목이 많을 때 전체가 작아져 읽기 어려워지는 문제가 있어,
+    // 줄 높이와 품목 영역 CSS로 맞추고 scale은 항상 1로 고정합니다.
+    if (!e.querySelector(".lp-page")) {
+      e.style.setProperty("--pscale", "1");
+      e.offsetHeight;
+      return;
+    }
+
+    // 선택일괄인쇄는 1페이지 2장 구조를 유지해야 하므로 기존 자동 축소 유지
+    e.style.setProperty("--pscale", "1");
+    e.offsetHeight;
     let n = 1;
     for (let a = 0; a < 3; a++) {
       const a = e.scrollHeight;
