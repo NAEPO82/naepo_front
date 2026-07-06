@@ -7284,3 +7284,29 @@ function parseEasyInventoryText(text) {
   document.addEventListener("DOMContentLoaded", bindFinalGroupSelectFix);
   document.addEventListener("click", () => setTimeout(bindFinalGroupSelectFix, 0), true);
 })();
+
+
+/* ===== v43-invoice-normal-print-marker-20260706 =====
+   :has() 선택자 의존을 제거하기 위해 인쇄 대상에 명시적인 class를 붙입니다.
+   일반 공급자/받는자 출력: invoice-normal-print
+   선택일괄인쇄: invoice-batch-print
+*/
+(() => {
+  function markInvoicePrintModeV43() {
+    const target = document.getElementById("print-target-area");
+    if (!target) return;
+    const hasInvoice = !!target.querySelector(".tfs");
+    const isBatch = !!target.querySelector(".lp-page");
+    target.classList.toggle("invoice-batch-print", hasInvoice && isBatch);
+    target.classList.toggle("invoice-normal-print", hasInvoice && !isBatch);
+  }
+
+  window.addEventListener("beforeprint", markInvoicePrintModeV43, true);
+  document.addEventListener("click", () => setTimeout(markInvoicePrintModeV43, 0), true);
+  document.addEventListener("input", () => setTimeout(markInvoicePrintModeV43, 0), true);
+
+  const target = document.getElementById("print-target-area");
+  if (target && window.MutationObserver) {
+    new MutationObserver(markInvoicePrintModeV43).observe(target, { childList: true, subtree: true });
+  }
+})();

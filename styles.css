@@ -13007,3 +13007,174 @@ tr:hover td{background:#F8FAFC !important;}
 #page-repair .repair-table td:nth-child(10){
   width:210px;
 }
+
+
+/* ===== v43-invoice-normal-readable-real-expand-20260706 =====
+   기존 :has() 기반 규칙이 환경에 따라 안 먹는 문제를 피하려고
+   JS가 붙인 .invoice-normal-print 클래스로 직접 적용합니다.
+   선택일괄인쇄는 제외하고, 일반 공급자/받는자 출력의 실제 품목표 행을 키웁니다.
+*/
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:2mm 2mm !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print,
+  body.print-record-mode #print-target-area.pf-active.invoice-normal-print{
+    width:204mm !important;
+    max-width:204mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+    --pscale:1 !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .excel-frame{
+    width:204mm !important;
+    max-width:204mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:visible !important;
+    background:#fff !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs{
+    width:204mm !important;
+    max-width:204mm !important;
+    height:auto !important;
+    min-height:0 !important;
+    max-height:none !important;
+    padding:2.2mm 3mm !important;
+    margin:0 0 4mm !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 품목 많은 명세서만: 상단 기본정보를 조금 아끼고 품목표를 크게 사용 */
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-title,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-title,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-title{
+    padding:1.5px 5px !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-name,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-name,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-name{
+    font-size:11.5px !important;
+    line-height:1.04 !important;
+    letter-spacing:2px !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-sub,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-sub,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-sub{
+    font-size:7px !important;
+    line-height:1 !important;
+    margin-left:5px !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact > table:nth-of-type(2) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense > table:nth-of-type(2) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra > table:nth-of-type(2) td{
+    padding:1.1px 2.3px !important;
+    font-size:8px !important;
+    line-height:1.04 !important;
+  }
+
+  /* 실제 품목표 */
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs .tfs-item-table,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs > table:nth-of-type(3){
+    width:100% !important;
+    table-layout:fixed !important;
+    border-collapse:collapse !important;
+    margin:0 !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs .tfs-item-table tr:first-child td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs > table:nth-of-type(3) tr:first-child td{
+    height:19px !important;
+    min-height:19px !important;
+    padding:3px 3.2px !important;
+    font-size:9.2px !important;
+    line-height:1.12 !important;
+    letter-spacing:1px !important;
+    vertical-align:middle !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs > table:nth-of-type(3) tr:not(:first-child) td{
+    max-height:none !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    vertical-align:middle !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 7~9줄 */
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact > table:nth-of-type(3) tr:not(:first-child) td{
+    height:27px !important;
+    min-height:27px !important;
+    padding:4px 4px !important;
+    font-size:9.8px !important;
+    line-height:1.2 !important;
+  }
+
+  /* 10~13줄: 현재 문제 구간 */
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense > table:nth-of-type(3) tr:not(:first-child) td{
+    height:25px !important;
+    min-height:25px !important;
+    padding:3.8px 4px !important;
+    font-size:9.6px !important;
+    line-height:1.18 !important;
+  }
+
+  /* 14줄 이상 */
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra > table:nth-of-type(3) tr:not(:first-child) td{
+    height:21px !important;
+    min-height:21px !important;
+    padding:3px 3.6px !important;
+    font-size:9px !important;
+    line-height:1.15 !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs .tfs-item-table .tfs-il,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs .tfs-item-table td[style*="font-size:9px"],
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs > table:nth-of-type(3) td[style*="font-size:9px"]{
+    white-space:normal !important;
+    word-break:keep-all !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-pay-table td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-pay-table td,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-pay-table td{
+    padding:2px 3px !important;
+    font-size:8.5px !important;
+    line-height:1.08 !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-compact .tfs-bottom,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-dense .tfs-bottom,
+  body.print-record-mode #print-target-area.invoice-normal-print .tfs.tfs-ultra .tfs-bottom{
+    padding:2px 12px 4px !important;
+    min-height:18px !important;
+  }
+
+  body.print-record-mode #print-target-area.invoice-normal-print .excel-divider{
+    height:5mm !important;
+    min-height:5mm !important;
+    max-height:5mm !important;
+    margin:2mm auto !important;
+  }
+}
