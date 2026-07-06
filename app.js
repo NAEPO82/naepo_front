@@ -6156,6 +6156,7 @@ function parseEasyInventoryText(text) {
   let editingId = null;
   let contactStatus = "미연락";
   let paidStatus = false;
+  let repairDoneStatus = false;
 
   function token() {
     try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; }
@@ -6184,8 +6185,10 @@ function parseEasyInventoryText(text) {
     ["repair-model", "repair-name", "repair-phone", "repair-detail", "repair-cost"].forEach((id) => { if ($(id)) $(id).value = ""; });
     contactStatus = "미연락";
     paidStatus = false;
+    repairDoneStatus = false;
     setPillActive("repair-contact-pills", contactStatus);
     setPillActive("repair-paid-pills", "false");
+    setPillActive("repair-done-pills", "false");
     const save = $("repair-save");
     if (save) save.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> 접수 저장';
   }
@@ -6198,6 +6201,7 @@ function parseEasyInventoryText(text) {
       repairDetail: $("repair-detail").value.trim(),
       repairCost: Number(String($("repair-cost").value || "0").replace(/[,원\s]/g, "")) || 0,
       contactStatus,
+      repairDone: Boolean(repairDoneStatus),
       paid: Boolean(paidStatus),
     };
   }
@@ -6217,7 +6221,7 @@ function parseEasyInventoryText(text) {
       if (paid === "paid" && !r.paid) return false;
       if (paid === "unpaid" && r.paid) return false;
       if (q) {
-        const hay = [r.date, r.modelName, r.name, r.phone, r.repairDetail, r.contactStatus, r.paid ? "결제완료" : "미결제"].join(" ").toLowerCase();
+        const hay = [r.date, r.modelName, r.name, r.phone, r.repairDetail, r.contactStatus, r.repairDone ? "수리완료" : "수리미완료", r.paid ? "결제완료" : "미결제"].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -6254,21 +6258,24 @@ function parseEasyInventoryText(text) {
     const list = getFilteredRows();
     const total = list.reduce((s, r) => s + (Number(r.repairCost) || 0), 0);
     const unpaid = list.filter((r) => !r.paid).length;
-    if ($("repair-summary")) $("repair-summary").textContent = `접수 ${list.length}건 · 미결제 ${unpaid}건 · 수리비 ${money(total)}원`;
+    const undone = list.filter((r) => !r.repairDone).length;
+    if ($("repair-summary")) $("repair-summary").textContent = `접수 ${list.length}건 · 수리미완료 ${undone}건 · 미결제 ${unpaid}건 · 수리비 ${money(total)}원`;
     const root = $("repair-grouped-list");
     if (!root) return;
     const groups = groupedRows(list);
     root.innerHTML = groups.length ? groups.map(([key, items]) => {
       const sum = items.reduce((s, r) => s + (Number(r.repairCost) || 0), 0);
       const unpaidCount = items.filter((r) => !r.paid).length;
+      const undoneCount = items.filter((r) => !r.repairDone).length;
       return `<section class="repair-group-section">
-        <div class="repair-group-title"><strong>${esc(key)}</strong><span>${items.length}건 · 미결제 ${unpaidCount}건 · ${money(sum)}원</span></div>
+        <div class="repair-group-title"><strong>${esc(key)}</strong><span>${items.length}건 · 수리미완료 ${undoneCount}건 · 미결제 ${unpaidCount}건 · ${money(sum)}원</span></div>
         <div class="tbl-wrap repair-table-wrap"><table class="repair-table">
-          <thead><tr><th>날짜</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th class="tr">수리비</th><th>연락</th><th>결제</th><th>관리</th></tr></thead>
+          <thead><tr><th>날짜</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th class="tr">수리비</th><th>연락</th><th>수리</th><th>결제</th><th>관리</th></tr></thead>
           <tbody>${items.map((r) => `<tr data-id="${esc(r.id)}">
             <td>${esc(r.date)}</td><td><strong>${esc(r.modelName)}</strong></td><td>${esc(r.name)}</td><td>${esc(r.phone)}</td>
             <td class="repair-detail-cell">${esc(r.repairDetail)}</td><td class="tr">${money(r.repairCost)}원</td>
             <td><button type="button" class="repair-contact-toggle ${r.contactStatus === "연락완료" ? "ok" : r.contactStatus === "보류" ? "warn" : "muted"}" data-id="${esc(r.id)}">${esc(r.contactStatus || "미연락")}</button></td>
+            <td><button type="button" class="repair-done-toggle ${r.repairDone ? "done" : "undone"}" data-id="${esc(r.id)}">${r.repairDone ? "수리완료" : "수리미완료"}</button></td>
             <td><button type="button" class="repair-paid-toggle ${r.paid ? "paid" : "unpaid"}" data-id="${esc(r.id)}">${r.paid ? "결제완료" : "미결제"}</button></td>
             <td><div class="repair-row-actions">
               <button type="button" class="btn btn-o btn-sm repair-to-invoice" data-id="${esc(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
@@ -6286,6 +6293,7 @@ function parseEasyInventoryText(text) {
     if (!row) return;
     const cost = money(row.repairCost);
     const paidText = row.paid ? "결제완료" : "미결제";
+    const doneText = row.repairDone ? "수리완료" : "수리미완료";
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>농기계 수리 접수증</title><style>
       *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;color:#0f172a;background:#fff}
       .receipt{width:190mm;margin:0 auto;padding:12mm 10mm}
@@ -6297,11 +6305,12 @@ function parseEasyInventoryText(text) {
       .foot{margin-top:14px;font-size:12px;color:#475569;display:flex;justify-content:space-between;gap:12px}.sign{min-width:45mm;border-top:1px solid #94a3b8;text-align:center;padding-top:6px;color:#334155}
       @media print{@page{size:A4 portrait;margin:8mm}body{margin:0}.receipt{width:auto;margin:0;padding:0}}
     </style></head><body><div class="receipt">
-      <div class="head"><div><h1>농기계 수리 접수증</h1><div class="sub">내포농기계 접수대장 발행</div></div><div class="badge">${esc(paidText)}</div></div>
+      <div class="head"><div><h1>농기계 수리 접수증</h1><div class="sub">내포농기계 접수대장 발행</div></div><div style="display:flex;gap:6px"><div class="badge">${esc(doneText)}</div><div class="badge">${esc(paidText)}</div></div></div>
       <table>
         <tr><th>접수일자</th><td>${esc(row.date || "")}</td><th>모델명</th><td>${esc(row.modelName || "")}</td></tr>
         <tr><th>성함</th><td>${esc(row.name || "")}</td><th>연락처</th><td>${esc(row.phone || "")}</td></tr>
-        <tr><th>연락상태</th><td>${esc(row.contactStatus || "미연락")}</td><th>수리비</th><td class="money">${cost}원</td></tr>
+        <tr><th>연락상태</th><td>${esc(row.contactStatus || "미연락")}</td><th>수리상태</th><td>${esc(doneText)}</td></tr>
+        <tr><th>결제상태</th><td>${esc(paidText)}</td><th>수리비</th><td class="money">${cost}원</td></tr>
         <tr><th>수리내역</th><td colspan="3" class="detail">${esc(row.repairDetail || "")}</td></tr>
       </table>
       <div class="foot"><span>※ 접수 내용 확인용입니다.</span><span class="sign">확인</span></div>
@@ -6398,6 +6407,17 @@ function parseEasyInventoryText(text) {
         const next = order[(order.indexOf(current) + 1) % order.length] || "미연락";
         try {
           const updated = await api(`/api/repair-log/${encodeURIComponent(row.id)}/contact`, { method: "PATCH", body: JSON.stringify({ contactStatus: next }) });
+          Object.assign(row, updated);
+          render();
+        } catch (e) { alert(e.message); }
+      };
+    });
+    document.querySelectorAll(".repair-done-toggle").forEach((btn) => {
+      btn.onclick = async () => {
+        const row = rows.find((r) => String(r.id) === String(btn.dataset.id));
+        if (!row) return;
+        try {
+          const updated = await api(`/api/repair-log/${encodeURIComponent(row.id)}/done`, { method: "PATCH", body: JSON.stringify({ repairDone: !row.repairDone }) });
           Object.assign(row, updated);
           render();
         } catch (e) { alert(e.message); }
@@ -6557,6 +6577,7 @@ function parseEasyInventoryText(text) {
     });
     $("repair-contact-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { contactStatus = btn.dataset.value; setPillActive("repair-contact-pills", contactStatus); }));
     $("repair-paid-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { paidStatus = btn.dataset.value === "true"; setPillActive("repair-paid-pills", String(paidStatus)); }));
+    $("repair-done-pills") && $("repair-done-pills").querySelectorAll(".pill").forEach((btn) => btn.addEventListener("click", () => { repairDoneStatus = btn.dataset.value === "true"; setPillActive("repair-done-pills", String(repairDoneStatus)); }));
     if (location.hash === "#repair") setTimeout(showRepairPage, 0);
   }
   document.addEventListener("DOMContentLoaded", init);
@@ -6687,7 +6708,7 @@ function parseEasyInventoryText(text) {
             <td>${safe(row.phone || "-")}</td>
             <td class="daily-detail-cell">${safe(row.repairDetail || "-")}</td>
             <td class="tr"><strong>${money(row.repairCost)}원</strong></td>
-            <td>${safe(row.contactStatus || "미연락")}</td>
+            <td>${safe(row.contactStatus || "미연락")} / ${row.repairDone ? "수리완료" : "수리미완료"}</td>
             <td>${row.paid ? "결제완료" : "미결제"}</td>
           </tr>`)
           .join("")

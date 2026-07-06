@@ -12955,3 +12955,55 @@ tr:hover td{background:#F8FAFC !important;}
     margin:2mm auto !important;
   }
 }
+
+
+/* ===== v42-repair-done-status-20260706 ===== */
+#page-repair .repair-done-toggle{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-width:82px !important;
+  height:30px !important;
+  border-radius:999px !important;
+  padding:0 10px !important;
+  font-size:12px !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  border:1px solid #cbd5e1;
+  background:#f1f5f9;
+  color:#475569;
+}
+#page-repair .repair-done-toggle.done{
+  border-color:#93c5fd !important;
+  background:#dbeafe !important;
+  color:#1d4ed8 !important;
+}
+#page-repair .repair-done-toggle.undone{
+  border-color:#fed7aa !important;
+  background:#fff7ed !important;
+  color:#c2410c !important;
+}
+#page-repair .repair-status-row{
+  flex-wrap:wrap !important;
+}
+#page-repair .repair-table{
+  min-width:1280px !important;
+}
+#page-repair .repair-table th:nth-child(7),
+#page-repair .repair-table td:nth-child(7){
+  width:100px;
+}
+#page-repair .repair-table th:nth-child(8),
+#page-repair .repair-table td:nth-child(8){
+  width:110px;
+}
+#page-repair .repair-table th:nth-child(9),
+#page-repair .repair-table td:nth-child(9){
+  width:105px;
+}
+#page-repair .repair-table th:nth-child(10),
+#page-repair .repair-table td:nth-child(10){
+  width:210px;
+}
