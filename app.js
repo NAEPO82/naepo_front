@@ -7310,3 +7310,472 @@ function parseEasyInventoryText(text) {
     new MutationObserver(markInvoicePrintModeV43).observe(target, { childList: true, subtree: true });
   }
 })();
+
+
+/* ===== v46-dashboard-work-alerts-20260710 =====
+   로그인 후 메인화면에서 미수금/거래미완료/수리미완료 알림을 보여줍니다.
+   localStorage 기반으로 1/3/6/12/24시간 안 보기 지원.
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const SNOOZE_KEY = "naepo_dashboard_work_alert_snoozed_until_v46";
+  let loading = false;
+
+  const $ = (id) => document.getElementById(id);
+  const money = (value) => (Number(value) || 0).toLocaleString("ko-KR");
+  const safe = (value) => String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  function getToken() {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; }
+  }
+
+  async function api(path) {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) headers.Authorization = "Bearer " + token;
+    const res = await fetch(API_BASE + path, { headers });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : [];
+  }
+
+  function snoozedUntil() {
+    const value = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function isSnoozed() {
+    return Date.now() < snoozedUntil();
+  }
+
+  function formatSnoozeLeft() {
+    const leftMs = Math.max(0, snoozedUntil() - Date.now());
+    if (!leftMs) return "";
+    const mins = Math.ceil(leftMs / 60000);
+    if (mins < 60) return `${mins}분`;
+    const hours = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return rem ? `${hours}시간 ${rem}분` : `${hours}시간`;
+  }
+
+  function setSnooze(hours) {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now() + Number(hours) * 60 * 60 * 1000));
+    renderAlert(lastSummary);
+  }
+
+  function clearSnooze() {
+    localStorage.removeItem(SNOOZE_KEY);
+    renderAlert(lastSummary);
+  }
+
+  function recordTotal(row) {
+    return (Number(row.amount) || 0) + (Number(row.tax) || 0);
+  }
+
+  function buildSummary(records, repairs) {
+    const unpaidCredits = records.filter((r) => r && r.payMethod === "외상" && !r.collected);
+    const pendingRecords = records.filter((r) => r && String(r.status || "done") === "pending");
+    const undoneRepairs = repairs.filter((r) => r && !r.repairDone);
+
+    const creditTotal = unpaidCredits.reduce((sum, r) => sum + recordTotal(r), 0);
+    const pendingTotal = pendingRecords.reduce((sum, r) => sum + recordTotal(r), 0);
+    const repairTotal = undoneRepairs.reduce((sum, r) => sum + (Number(r.repairCost) || 0), 0);
+
+    return {
+      unpaidCredits,
+      pendingRecords,
+      undoneRepairs,
+      creditTotal,
+      pendingTotal,
+      repairTotal,
+      totalCount: unpaidCredits.length + pendingRecords.length + undoneRepairs.length,
+    };
+  }
+
+  function ensureAlertNode() {
+    let node = $("dash-work-alert-v46");
+    if (node) return node;
+
+    node = document.createElement("section");
+    node.id = "dash-work-alert-v46";
+    node.className = "dash-work-alert-v46";
+
+    const page = $("page-dashboard");
+    const toolbar = page && page.querySelector(".dash-toolbar");
+    if (toolbar && toolbar.parentNode) toolbar.insertAdjacentElement("afterend", node);
+    else if (page) page.prepend(node);
+    return node;
+  }
+
+  function goTab(tabId) {
+    const tab = $(tabId);
+    if (tab) tab.click();
+  }
+
+  let lastSummary = null;
+
+  function renderAlert(summary) {
+    lastSummary = summary;
+    const node = ensureAlertNode();
+    if (!node || !summary) return;
+
+    const hidden = isSnoozed();
+    const left = formatSnoozeLeft();
+
+    if (hidden) {
+      node.className = "dash-work-alert-v46 snoozed";
+      node.innerHTML = `
+        <div class="dash-alert-snoozed">
+          <div>
+            <strong><i class="fa-solid fa-bell-slash"></i> 업무 알림 숨김 중</strong>
+            <span>${safe(left)} 후 다시 표시됩니다. 미수금 ${summary.unpaidCredits.length}건 · 거래미완료 ${summary.pendingRecords.length}건 · 수리미완료 ${summary.undoneRepairs.length}건</span>
+          </div>
+          <button type="button" class="dash-alert-btn primary" data-alert-action="show-now">지금 보기</button>
+        </div>`;
+      return;
+    }
+
+    const hasIssue = summary.totalCount > 0;
+    node.className = "dash-work-alert-v46" + (hasIssue ? " has-issue" : " all-clear");
+    node.innerHTML = `
+      <div class="dash-alert-head">
+        <div>
+          <strong><i class="fa-solid ${hasIssue ? "fa-triangle-exclamation" : "fa-circle-check"}"></i> 오늘 확인할 업무 알림</strong>
+          <span>${hasIssue ? "처리가 필요한 항목이 있습니다." : "현재 크게 확인할 미처리 항목이 없습니다."}</span>
+        </div>
+        <div class="dash-alert-snooze">
+          <button type="button" data-alert-snooze="1">1시간 안보기</button>
+          <button type="button" data-alert-snooze="3">3시간</button>
+          <button type="button" data-alert-snooze="6">6시간</button>
+          <button type="button" data-alert-snooze="12">12시간</button>
+          <button type="button" data-alert-snooze="24">24시간</button>
+        </div>
+      </div>
+      <div class="dash-alert-grid">
+        <button type="button" class="dash-alert-card credit" data-alert-tab="tab-customer">
+          <span>미수금 현황</span>
+          <strong>${summary.unpaidCredits.length}건</strong>
+          <em>${money(summary.creditTotal)}원</em>
+        </button>
+        <button type="button" class="dash-alert-card pending" data-alert-tab="tab-list">
+          <span>거래 미완료건</span>
+          <strong>${summary.pendingRecords.length}건</strong>
+          <em>${money(summary.pendingTotal)}원</em>
+        </button>
+        <button type="button" class="dash-alert-card repair" data-alert-tab="tab-repair">
+          <span>접수대장 수리미완료</span>
+          <strong>${summary.undoneRepairs.length}건</strong>
+          <em>수리비 ${money(summary.repairTotal)}원</em>
+        </button>
+      </div>
+      ${hasIssue ? `
+        <div class="dash-alert-preview">
+          ${summary.unpaidCredits.slice(0, 3).map((r) => `<span class="credit">미수 ${safe(r.company && r.company !== "-" ? r.company : r.name || "고객")} · ${money(recordTotal(r))}원</span>`).join("")}
+          ${summary.pendingRecords.slice(0, 3).map((r) => `<span class="pending">거래미완료 ${safe(r.note || r.part || "명세서")}</span>`).join("")}
+          ${summary.undoneRepairs.slice(0, 3).map((r) => `<span class="repair">수리미완료 ${safe(r.modelName || r.name || "접수건")}</span>`).join("")}
+        </div>` : ""}
+    `;
+  }
+
+  async function loadAndRenderAlert() {
+    if (loading || !getToken() || !$("page-dashboard")) return;
+    loading = true;
+    try {
+      const [records, repairs] = await Promise.all([
+        api("/api/records"),
+        api("/api/repair-log"),
+      ]);
+      renderAlert(buildSummary(records, repairs));
+    } catch (err) {
+      const node = ensureAlertNode();
+      if (node) {
+        node.className = "dash-work-alert-v46 error";
+        node.innerHTML = `
+          <div class="dash-alert-snoozed">
+            <div>
+              <strong><i class="fa-solid fa-circle-exclamation"></i> 업무 알림을 불러오지 못했습니다</strong>
+              <span>${safe(err.message || "서버 연결을 확인해주세요.")}</span>
+            </div>
+            <button type="button" class="dash-alert-btn primary" data-alert-action="reload">다시 불러오기</button>
+          </div>`;
+      }
+    } finally {
+      loading = false;
+    }
+  }
+
+  function bindAlertEvents() {
+    document.addEventListener("click", (ev) => {
+      const snoozeBtn = ev.target.closest("[data-alert-snooze]");
+      if (snoozeBtn) {
+        ev.preventDefault();
+        setSnooze(Number(snoozeBtn.getAttribute("data-alert-snooze") || 6));
+        return;
+      }
+      const actionBtn = ev.target.closest("[data-alert-action]");
+      if (actionBtn) {
+        ev.preventDefault();
+        const action = actionBtn.getAttribute("data-alert-action");
+        if (action === "show-now") clearSnooze();
+        if (action === "reload") loadAndRenderAlert();
+        return;
+      }
+      const tabBtn = ev.target.closest("[data-alert-tab]");
+      if (tabBtn) {
+        ev.preventDefault();
+        goTab(tabBtn.getAttribute("data-alert-tab"));
+      }
+    });
+  }
+
+  function initDashboardAlerts() {
+    bindAlertEvents();
+    const tryLoad = () => {
+      if (getToken() && $("page-dashboard")) loadAndRenderAlert();
+    };
+    setTimeout(tryLoad, 600);
+    setTimeout(tryLoad, 1600);
+    window.addEventListener("focus", () => {
+      if (document.visibilityState !== "hidden") loadAndRenderAlert();
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") loadAndRenderAlert();
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", initDashboardAlerts);
+  window.NaepoDashboardAlertsV46 = { reload: loadAndRenderAlert, clearSnooze };
+})();
+
+
+/* ===== v47-dashboard-work-alert-popup-20260710 =====
+   업무 알림을 대시보드 카드형 + 로그인 후 팝업형으로 표시합니다.
+   snooze key는 v46 카드 알림과 공유합니다.
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const SNOOZE_KEY = "naepo_dashboard_work_alert_snoozed_until_v46";
+  const SESSION_CLOSE_KEY = "naepo_dashboard_work_alert_popup_closed_v47";
+  let popupLoading = false;
+  let popupShownOnce = false;
+
+  const $ = (id) => document.getElementById(id);
+  const money = (value) => (Number(value) || 0).toLocaleString("ko-KR");
+  const safe = (value) => String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  function getToken() {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; }
+  }
+
+  function isSnoozed() {
+    const until = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+    return Number.isFinite(until) && Date.now() < until;
+  }
+
+  function setSnooze(hours) {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now() + Number(hours) * 60 * 60 * 1000));
+    hidePopup();
+    if (window.NaepoDashboardAlertsV46 && window.NaepoDashboardAlertsV46.reload) {
+      window.NaepoDashboardAlertsV46.reload();
+    }
+  }
+
+  async function api(path) {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) headers.Authorization = "Bearer " + token;
+    const res = await fetch(API_BASE + path, { headers });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : [];
+  }
+
+  function recordTotal(row) {
+    return (Number(row.amount) || 0) + (Number(row.tax) || 0);
+  }
+
+  function buildSummary(records, repairs) {
+    const unpaidCredits = records.filter((r) => r && r.payMethod === "외상" && !r.collected);
+    const pendingRecords = records.filter((r) => r && String(r.status || "done") === "pending");
+    const undoneRepairs = repairs.filter((r) => r && !r.repairDone);
+    return {
+      unpaidCredits,
+      pendingRecords,
+      undoneRepairs,
+      creditTotal: unpaidCredits.reduce((sum, r) => sum + recordTotal(r), 0),
+      pendingTotal: pendingRecords.reduce((sum, r) => sum + recordTotal(r), 0),
+      repairTotal: undoneRepairs.reduce((sum, r) => sum + (Number(r.repairCost) || 0), 0),
+      totalCount: unpaidCredits.length + pendingRecords.length + undoneRepairs.length,
+    };
+  }
+
+  function ensurePopup() {
+    let overlay = $("dashboard-work-alert-popup-v47");
+    if (overlay) return overlay;
+
+    overlay = document.createElement("div");
+    overlay.id = "dashboard-work-alert-popup-v47";
+    overlay.className = "dash-alert-popup-v47";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.innerHTML = `
+      <div class="dash-alert-popup-backdrop" data-popup-close="1"></div>
+      <div class="dash-alert-popup-box" role="dialog" aria-modal="true" aria-labelledby="dash-alert-popup-title">
+        <div class="dash-alert-popup-inner" id="dash-alert-popup-content"></div>
+      </div>`;
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function hidePopup() {
+    const overlay = $("dashboard-work-alert-popup-v47");
+    if (!overlay) return;
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  function customerName(row) {
+    return row.company && row.company !== "-" ? row.company : row.name || "고객";
+  }
+
+  function renderPopup(summary) {
+    const overlay = ensurePopup();
+    const content = $("dash-alert-popup-content");
+    if (!content) return;
+
+    content.innerHTML = `
+      <div class="dash-popup-head">
+        <div class="dash-popup-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div>
+          <h2 id="dash-alert-popup-title">확인해야 할 업무가 있어</h2>
+          <p>미수금, 거래 미완료, 수리 미완료 건을 확인해줘.</p>
+        </div>
+        <button type="button" class="dash-popup-x" data-popup-close="1" aria-label="닫기">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="dash-popup-summary">
+        <button type="button" class="dash-popup-card credit" data-popup-tab="tab-customer">
+          <span>미수금 현황</span>
+          <strong>${summary.unpaidCredits.length}건</strong>
+          <em>${money(summary.creditTotal)}원</em>
+        </button>
+        <button type="button" class="dash-popup-card pending" data-popup-tab="tab-list">
+          <span>거래 미완료건</span>
+          <strong>${summary.pendingRecords.length}건</strong>
+          <em>${money(summary.pendingTotal)}원</em>
+        </button>
+        <button type="button" class="dash-popup-card repair" data-popup-tab="tab-repair">
+          <span>접수대장 수리미완료</span>
+          <strong>${summary.undoneRepairs.length}건</strong>
+          <em>수리비 ${money(summary.repairTotal)}원</em>
+        </button>
+      </div>
+
+      <div class="dash-popup-list">
+        ${summary.unpaidCredits.slice(0, 5).map((r) => `<div class="credit"><b>미수금</b><span>${safe(customerName(r))} · ${safe(r.note || r.part || "명세서")} · ${money(recordTotal(r))}원</span></div>`).join("")}
+        ${summary.pendingRecords.slice(0, 5).map((r) => `<div class="pending"><b>거래미완료</b><span>${safe(customerName(r))} · ${safe(r.note || r.part || "명세서")} · ${money(recordTotal(r))}원</span></div>`).join("")}
+        ${summary.undoneRepairs.slice(0, 5).map((r) => `<div class="repair"><b>수리미완료</b><span>${safe(r.name || "고객")} · ${safe(r.modelName || "모델명 없음")} · ${safe(r.repairDetail || "수리내역")}</span></div>`).join("")}
+      </div>
+
+      <div class="dash-popup-actions">
+        <button type="button" class="dash-popup-main" data-popup-close="1">
+          확인했어
+        </button>
+        <div class="dash-popup-snooze">
+          <span>다시 알림 숨기기</span>
+          <button type="button" data-popup-snooze="1">1시간</button>
+          <button type="button" data-popup-snooze="3">3시간</button>
+          <button type="button" data-popup-snooze="6">6시간</button>
+          <button type="button" data-popup-snooze="12">12시간</button>
+          <button type="button" data-popup-snooze="24">24시간</button>
+        </div>
+      </div>`;
+
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden", "false");
+    setTimeout(() => {
+      const first = content.querySelector(".dash-popup-main");
+      if (first) first.focus();
+    }, 80);
+  }
+
+  async function loadPopupAlert(force) {
+    if (popupLoading || !getToken()) return;
+    if (!force && (isSnoozed() || popupShownOnce || sessionStorage.getItem(SESSION_CLOSE_KEY) === "1")) return;
+
+    popupLoading = true;
+    try {
+      const [records, repairs] = await Promise.all([
+        api("/api/records"),
+        api("/api/repair-log"),
+      ]);
+      const summary = buildSummary(records, repairs);
+      if (summary.totalCount > 0 && (!isSnoozed() || force)) {
+        popupShownOnce = true;
+        renderPopup(summary);
+      }
+    } catch (_) {
+      // 팝업은 필수 알림 용도지만, 조회 실패 시 기존 대시보드 카드 알림이 에러를 보여주므로 여기서는 조용히 처리
+    } finally {
+      popupLoading = false;
+    }
+  }
+
+  function bindPopupEvents() {
+    document.addEventListener("click", (ev) => {
+      const snooze = ev.target.closest("[data-popup-snooze]");
+      if (snooze) {
+        ev.preventDefault();
+        setSnooze(Number(snooze.getAttribute("data-popup-snooze") || 6));
+        return;
+      }
+
+      const tabBtn = ev.target.closest("[data-popup-tab]");
+      if (tabBtn) {
+        ev.preventDefault();
+        const tab = $(tabBtn.getAttribute("data-popup-tab"));
+        hidePopup();
+        if (tab) tab.click();
+        return;
+      }
+
+      if (ev.target.closest("[data-popup-close]")) {
+        ev.preventDefault();
+        sessionStorage.setItem(SESSION_CLOSE_KEY, "1");
+        hidePopup();
+      }
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      const overlay = $("dashboard-work-alert-popup-v47");
+      if (!overlay || !overlay.classList.contains("show")) return;
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        sessionStorage.setItem(SESSION_CLOSE_KEY, "1");
+        hidePopup();
+      }
+    });
+  }
+
+  function initPopupAlerts() {
+    bindPopupEvents();
+    setTimeout(() => loadPopupAlert(false), 900);
+    setTimeout(() => loadPopupAlert(false), 1800);
+  }
+
+  document.addEventListener("DOMContentLoaded", initPopupAlerts);
+  window.NaepoDashboardPopupAlertsV47 = { showNow: () => loadPopupAlert(true), hide: hidePopup };
+})();
