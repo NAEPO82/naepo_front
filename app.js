@@ -6769,7 +6769,7 @@ function parseEasyInventoryText(text) {
       <table><thead><tr><th style="width:7mm">No</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th style="width:19mm">수리비</th><th style="width:18mm">연락</th><th style="width:18mm">결제</th></tr></thead><tbody>${rowsRepairs}</tbody></table>
       <h2>3. 보고 메모</h2>
       <div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div>
-      <div class="foot">출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div>
+      <div class="foot">보고완료 · 정산서 저장 · 출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div>
     </div></body></html>`;
   }
 
@@ -7173,7 +7173,7 @@ function parseEasyInventoryText(text) {
         ${repairs.length ? repairs.map((r, i) => `<tr><td class="center">${i + 1}</td><td>${safe(r.modelName || "-")}</td><td>${safe(r.name || "-")}</td><td>${safe(r.phone || "-")}</td><td class="detail">${safe(r.repairDetail || "-")}</td><td class="num">${money(r.repairCost)}</td><td class="center">${safe(r.contactStatus || "미연락")}</td><td class="center">${r.paid ? "결제완료" : "미결제"}</td></tr>`).join("") : '<tr><td colspan="8" class="empty">수리접수 없음</td></tr>'}
       </tbody></table>
       <h2>5. 보고 메모</h2><div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div>
-      <div class="signs"><div class="muted">출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div><div class="sign">작성자</div><div class="sign">확인자</div></div>
+      <div class="signs"><div class="muted">보고완료 · 정산서 저장 · 출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div><div class="sign">작성자</div><div class="sign">확인자</div></div>
     </div></body></html>`;
   }
   async function printEnhancedDailyReport() {
@@ -7776,6 +7776,414 @@ function parseEasyInventoryText(text) {
     setTimeout(() => loadPopupAlert(false), 1800);
   }
 
-  document.addEventListener("DOMContentLoaded", initPopupAlerts);
+  // v48에서 확장 팝업으로 교체함
   window.NaepoDashboardPopupAlertsV47 = { showNow: () => loadPopupAlert(true), hide: hidePopup };
+})();
+
+
+/* ===== v48-priority-ops-admin-alerts-inventory-daily-20260710 =====
+   1) 재고 차감 이력 확인
+   2) 삭제/수정 복구 관리자 페이지
+   3) 백업 성공/실패 상태 관리자 페이지
+   4) 팝업 알림 확장: 재고부족, 미연락, 외상입금예정, 오래된미수금
+   5) 오래된 미수금 7/30/60일 강조
+   7) 일일정산서 인쇄 시 보고완료 저장
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const SNOOZE_KEY = "naepo_dashboard_work_alert_snoozed_until_v46";
+  const SESSION_CLOSE_KEY = "naepo_dashboard_work_alert_popup_closed_v48";
+  let alertLoading = false;
+  let popupShownOnce = false;
+
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const todayStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+  const dateAge = (dateText) => {
+    const d = new Date(`${String(dateText || todayStr()).slice(0,10)}T00:00:00`);
+    const t = new Date(`${todayStr()}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return 0;
+    return Math.max(0, Math.floor((t - d) / 86400000));
+  };
+  const recordTotal = (r) => (Number(r && r.amount) || 0) + (Number(r && r.tax) || 0);
+  const customerName = (r) => r && r.company && r.company !== "-" ? r.company : (r && r.name) || "고객";
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  function isSnoozed() {
+    const until = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+    return Number.isFinite(until) && Date.now() < until;
+  }
+  function snoozeLeftText() {
+    const left = Math.max(0, Number(localStorage.getItem(SNOOZE_KEY) || 0) - Date.now());
+    const min = Math.ceil(left / 60000);
+    if (!min) return "";
+    if (min < 60) return `${min}분`;
+    const h = Math.floor(min / 60), m = min % 60;
+    return m ? `${h}시간 ${m}분` : `${h}시간`;
+  }
+  function setSnooze(hours) {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now() + Number(hours) * 3600000));
+    hidePopup();
+    renderDashboardEnhanced(lastSummary);
+  }
+
+  function buildSummary(records, repairs, parts) {
+    const unpaidCredits = records.filter((r) => r && r.payMethod === "외상" && !r.collected);
+    const pendingRecords = records.filter((r) => r && String(r.status || "done") === "pending");
+    const undoneRepairs = repairs.filter((r) => r && !r.repairDone);
+    const noContactRepairs = repairs.filter((r) => r && String(r.contactStatus || "미연락") === "미연락");
+    const lowStockParts = parts.filter((p) => p && Number(p.minStock) > 0 && Number(p.stock) <= Number(p.minStock));
+    const paymentExpected = unpaidCredits.filter((r) => dateAge(r.date) < 7);
+    const old7 = unpaidCredits.filter((r) => dateAge(r.date) >= 7);
+    const old30 = unpaidCredits.filter((r) => dateAge(r.date) >= 30);
+    const old60 = unpaidCredits.filter((r) => dateAge(r.date) >= 60);
+    return {
+      unpaidCredits, pendingRecords, undoneRepairs, noContactRepairs, lowStockParts, paymentExpected, old7, old30, old60,
+      creditTotal: unpaidCredits.reduce((s,r)=>s+recordTotal(r),0),
+      pendingTotal: pendingRecords.reduce((s,r)=>s+recordTotal(r),0),
+      repairTotal: undoneRepairs.reduce((s,r)=>s+(Number(r.repairCost)||0),0),
+      noContactTotal: noContactRepairs.reduce((s,r)=>s+(Number(r.repairCost)||0),0),
+      paymentExpectedTotal: paymentExpected.reduce((s,r)=>s+recordTotal(r),0),
+      oldTotal: old7.reduce((s,r)=>s+recordTotal(r),0),
+      old30Total: old30.reduce((s,r)=>s+recordTotal(r),0),
+      old60Total: old60.reduce((s,r)=>s+recordTotal(r),0),
+    };
+  }
+  function totalIssueCount(s) {
+    if (!s) return 0;
+    return s.unpaidCredits.length + s.pendingRecords.length + s.undoneRepairs.length + s.noContactRepairs.length + s.lowStockParts.length + s.old7.length;
+  }
+
+  let lastSummary = null;
+
+  function ensurePopup() {
+    let el = $("dashboard-work-alert-popup-v48");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "dashboard-work-alert-popup-v48";
+    el.className = "dash-alert-popup-v47 dash-alert-popup-v48";
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = `<div class="dash-alert-popup-backdrop" data-v48-popup-close="1"></div><div class="dash-alert-popup-box" role="dialog" aria-modal="true"><div class="dash-alert-popup-inner" id="dash-alert-popup-v48-content"></div></div>`;
+    document.body.appendChild(el);
+    return el;
+  }
+  function hidePopup() {
+    const el = $("dashboard-work-alert-popup-v48");
+    if (el) { el.classList.remove("show"); el.setAttribute("aria-hidden", "true"); }
+  }
+  function popupCard(kind, title, count, sub, tab) {
+    return `<button type="button" class="dash-popup-card ${kind}" data-v48-tab="${safe(tab)}"><span>${safe(title)}</span><strong>${count}건</strong><em>${safe(sub)}</em></button>`;
+  }
+  function renderPopup(summary, force = false) {
+    if (!summary || totalIssueCount(summary) <= 0) return;
+    if (!force && (isSnoozed() || sessionStorage.getItem(SESSION_CLOSE_KEY) === "1")) return;
+    const overlay = ensurePopup();
+    const content = $("dash-alert-popup-v48-content");
+    content.innerHTML = `
+      <div class="dash-popup-head">
+        <div class="dash-popup-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div><h2>꼭 확인해야 할 업무가 있어</h2><p>미수금, 미완료, 재고부족, 미연락 건을 확인해줘.</p></div>
+        <button type="button" class="dash-popup-x" data-v48-popup-close="1"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="dash-popup-summary v48-popup-grid">
+        ${popupCard("credit", "미수금 현황", summary.unpaidCredits.length, `${money(summary.creditTotal)}원`, "tab-customer")}
+        ${popupCard("pending", "거래 미완료건", summary.pendingRecords.length, `${money(summary.pendingTotal)}원`, "tab-list")}
+        ${popupCard("repair", "수리미완료", summary.undoneRepairs.length, `수리비 ${money(summary.repairTotal)}원`, "tab-repair")}
+        ${popupCard("stock", "재고부족품목", summary.lowStockParts.length, `최소재고 이하`, "tab-inventory")}
+        ${popupCard("contact", "수리접수 미연락", summary.noContactRepairs.length, `${money(summary.noContactTotal)}원`, "tab-repair")}
+        ${popupCard("expected", "외상입금예정", summary.paymentExpected.length, `${money(summary.paymentExpectedTotal)}원`, "tab-customer")}
+        ${popupCard("old", "오래된 미수금", summary.old7.length, `30일 ${summary.old30.length}건 · 60일 ${summary.old60.length}건`, "tab-customer")}
+      </div>
+      <div class="v48-aging-line">
+        <b>오래된 미수금</b>
+        <span>7일 이상 ${summary.old7.length}건 / ${money(summary.oldTotal)}원</span>
+        <span>30일 이상 ${summary.old30.length}건 / ${money(summary.old30Total)}원</span>
+        <span>60일 이상 ${summary.old60.length}건 / ${money(summary.old60Total)}원</span>
+      </div>
+      <div class="dash-popup-list">
+        ${summary.lowStockParts.slice(0,4).map((p)=>`<div class="stock"><b>재고부족</b><span>${safe(p.name)} ${p.spec ? "· " + safe(p.spec) : ""} · 현재 ${money(p.stock)} / 최소 ${money(p.minStock)}</span></div>`).join("")}
+        ${summary.old7.slice(0,4).map((r)=>`<div class="old"><b>오래된미수</b><span>${safe(customerName(r))} · ${dateAge(r.date)}일 경과 · ${money(recordTotal(r))}원</span></div>`).join("")}
+        ${summary.noContactRepairs.slice(0,4).map((r)=>`<div class="contact"><b>미연락</b><span>${safe(r.name || "고객")} · ${safe(r.modelName || "-")} · ${safe(r.phone || "")}</span></div>`).join("")}
+        ${summary.pendingRecords.slice(0,4).map((r)=>`<div class="pending"><b>거래미완료</b><span>${safe(customerName(r))} · ${safe(r.note || r.part || "-")} · ${money(recordTotal(r))}원</span></div>`).join("")}
+      </div>
+      <div class="dash-popup-actions">
+        <button type="button" class="dash-popup-main" data-v48-popup-close="1">확인했어</button>
+        <div class="dash-popup-snooze"><span>다시 알림 숨기기</span><button type="button" data-v48-snooze="1">1시간</button><button type="button" data-v48-snooze="3">3시간</button><button type="button" data-v48-snooze="6">6시간</button><button type="button" data-v48-snooze="12">12시간</button><button type="button" data-v48-snooze="24">24시간</button></div>
+      </div>`;
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden", "false");
+  }
+
+  function renderDashboardEnhanced(summary) {
+    lastSummary = summary;
+    const old = $("dash-work-alert-v46");
+    if (old) old.style.display = "none";
+    let node = $("dash-work-alert-v48");
+    const page = $("page-dashboard");
+    if (!page) return;
+    if (!node) {
+      node = document.createElement("section");
+      node.id = "dash-work-alert-v48";
+      node.className = "dash-work-alert-v46 dash-work-alert-v48";
+      const toolbar = page.querySelector(".dash-toolbar");
+      if (toolbar) toolbar.insertAdjacentElement("afterend", node);
+      else page.prepend(node);
+    }
+    if (isSnoozed()) {
+      node.className = "dash-work-alert-v46 dash-work-alert-v48 snoozed";
+      node.innerHTML = `<div class="dash-alert-snoozed"><div><strong><i class="fa-solid fa-bell-slash"></i> 업무 알림 숨김 중</strong><span>${safe(snoozeLeftText())} 후 다시 표시됩니다.</span></div><button class="dash-alert-btn primary" data-v48-show-now="1">지금 보기</button></div>`;
+      return;
+    }
+    if (!summary) return;
+    node.className = "dash-work-alert-v46 dash-work-alert-v48 has-issue";
+    node.innerHTML = `
+      <div class="dash-alert-head"><div><strong><i class="fa-solid fa-triangle-exclamation"></i> 오늘 확인할 업무 알림</strong><span>미수금/미완료/재고부족/미연락을 한 번에 확인해.</span></div>
+      <div class="dash-alert-snooze"><button data-v48-snooze="1">1시간 안보기</button><button data-v48-snooze="3">3시간</button><button data-v48-snooze="6">6시간</button><button data-v48-snooze="12">12시간</button><button data-v48-snooze="24">24시간</button></div></div>
+      <div class="dash-alert-grid v48-alert-grid">
+        <button class="dash-alert-card credit" data-v48-tab="tab-customer"><span>미수금</span><strong>${summary.unpaidCredits.length}건</strong><em>${money(summary.creditTotal)}원</em></button>
+        <button class="dash-alert-card pending" data-v48-tab="tab-list"><span>거래 미완료</span><strong>${summary.pendingRecords.length}건</strong><em>${money(summary.pendingTotal)}원</em></button>
+        <button class="dash-alert-card repair" data-v48-tab="tab-repair"><span>수리미완료</span><strong>${summary.undoneRepairs.length}건</strong><em>${money(summary.repairTotal)}원</em></button>
+        <button class="dash-alert-card stock" data-v48-tab="tab-inventory"><span>재고부족</span><strong>${summary.lowStockParts.length}건</strong><em>최소재고 이하</em></button>
+        <button class="dash-alert-card contact" data-v48-tab="tab-repair"><span>미연락 접수</span><strong>${summary.noContactRepairs.length}건</strong><em>${money(summary.noContactTotal)}원</em></button>
+        <button class="dash-alert-card old" data-v48-tab="tab-customer"><span>오래된 미수</span><strong>${summary.old7.length}건</strong><em>30일 ${summary.old30.length} · 60일 ${summary.old60.length}</em></button>
+      </div>`;
+  }
+
+  async function loadAlertSummary(force = false) {
+    if (alertLoading || !token()) return;
+    alertLoading = true;
+    try {
+      const [records, repairs, parts] = await Promise.all([api("/api/records"), api("/api/repair-log"), api("/api/parts")]);
+      const summary = buildSummary(asArray(records), asArray(repairs), asArray(parts));
+      renderDashboardEnhanced(summary);
+      if (totalIssueCount(summary) > 0 && (force || (!popupShownOnce && !isSnoozed() && sessionStorage.getItem(SESSION_CLOSE_KEY) !== "1"))) {
+        popupShownOnce = true;
+        renderPopup(summary, force);
+      }
+    } catch (e) {
+      console.warn("[업무알림 실패]", e.message);
+    } finally {
+      alertLoading = false;
+    }
+  }
+
+  function bindGlobalAlertEvents() {
+    document.addEventListener("click", (ev) => {
+      const sn = ev.target.closest("[data-v48-snooze]");
+      if (sn) { ev.preventDefault(); setSnooze(Number(sn.getAttribute("data-v48-snooze") || 6)); return; }
+      const show = ev.target.closest("[data-v48-show-now]");
+      if (show) { ev.preventDefault(); localStorage.removeItem(SNOOZE_KEY); sessionStorage.removeItem(SESSION_CLOSE_KEY); renderDashboardEnhanced(lastSummary); renderPopup(lastSummary, true); return; }
+      const tab = ev.target.closest("[data-v48-tab]");
+      if (tab) { ev.preventDefault(); hidePopup(); const el = $(tab.getAttribute("data-v48-tab")); if (el) el.click(); return; }
+      if (ev.target.closest("[data-v48-popup-close]")) { ev.preventDefault(); sessionStorage.setItem(SESSION_CLOSE_KEY, "1"); hidePopup(); }
+    });
+    document.addEventListener("keydown", (ev) => {
+      const pop = $("dashboard-work-alert-popup-v48");
+      if (ev.key === "Escape" && pop && pop.classList.contains("show")) {
+        sessionStorage.setItem(SESSION_CLOSE_KEY, "1");
+        hidePopup();
+      }
+    });
+  }
+
+  // 재고 차감 이력 버튼
+  function ensureInventoryHistoryModal() {
+    let el = $("inventory-history-modal-v48");
+    if (el) return el;
+    el = document.createElement("div");
+    el.id = "inventory-history-modal-v48";
+    el.className = "v48-mini-modal";
+    el.innerHTML = `<div class="v48-mini-backdrop" data-v48-inv-close="1"></div><div class="v48-mini-box"><div class="v48-mini-head"><strong><i class="fa-solid fa-boxes-stacked"></i> 재고 차감 이력</strong><button data-v48-inv-close="1"><i class="fa-solid fa-xmark"></i></button></div><div id="inventory-history-body-v48"></div></div>`;
+    document.body.appendChild(el);
+    return el;
+  }
+  async function showInventoryHistory(recordId) {
+    const modal = ensureInventoryHistoryModal();
+    const body = $("inventory-history-body-v48");
+    modal.classList.add("show");
+    body.innerHTML = `<div class="v48-loading">불러오는 중...</div>`;
+    try {
+      const data = await api(`/api/records/${encodeURIComponent(recordId)}/inventory-history`);
+      body.innerHTML = `
+        <div class="v48-inv-summary"><b>${safe(data.customer || "")}</b><span>${safe(data.recordDate || "")}</span></div>
+        <table class="v48-inv-table"><thead><tr><th>품목</th><th>수량</th><th>매칭재고</th><th>상태</th><th>차감후재고</th></tr></thead><tbody>
+        ${(data.items || []).map((it)=>`<tr><td>${safe(it.itemName)}${it.spec ? `<small>${safe(it.spec)}</small>` : ""}</td><td class="num">${money(it.qty)}</td><td>${safe(it.partName || "-")}</td><td><span class="v48-inv-badge ${it.status === "차감완료" ? "ok" : it.status === "재고매칭없음" ? "bad" : "warn"}">${safe(it.status)}</span></td><td class="num">${it.stockAfter == null ? "-" : money(it.stockAfter)}</td></tr>`).join("") || `<tr><td colspan="5">품목 없음</td></tr>`}
+        </tbody></table>
+        <div class="v48-inv-log-title">원본 입출고 로그</div>
+        <div class="v48-inv-log">${(data.logs || []).map((l)=>`<div><b>${safe(l.type === "out" ? "출고" : "입고/복원")}</b> ${safe(l.partName || "")} / ${money(l.qty)}개 / ${safe(l.note || "")} / ${safe(l.createdAt || "")}</div>`).join("") || "로그 없음"}</div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="v48-error">${safe(e.message)}</div>`;
+    }
+  }
+  function addInventoryHistoryButtons() {
+    document.querySelectorAll(".records-output-cell .ibtns-output").forEach((box) => {
+      if (box.querySelector(".btn-inventory-history-v48")) return;
+      const ref = box.querySelector("[data-id]");
+      const id = ref && ref.getAttribute("data-id");
+      if (!id) return;
+      const btn = document.createElement("button");
+      btn.className = "ibtn btn-inventory-history-v48";
+      btn.setAttribute("data-id", id);
+      btn.style.color = "#0f766e";
+      btn.innerHTML = `<i class="fa-solid fa-boxes-stacked"></i> 재고이력`;
+      box.appendChild(btn);
+    });
+  }
+
+  // 관리자: 백업 상태 + 삭제/수정 복구
+  function adminPassword() {
+    const pw = $("admin-pw");
+    return pw ? pw.value.trim() : "";
+  }
+  async function adminApi(path, options = {}) {
+    options.headers = Object.assign({}, options.headers || {}, { "X-Admin-Password": adminPassword() });
+    return api(path, options);
+  }
+  function ensureAdminV48() {
+    const panel = $("admin-panel");
+    if (!panel || $("admin-v48-section")) return;
+    const wrap = document.createElement("div");
+    wrap.id = "admin-v48-section";
+    wrap.innerHTML = `
+      <div class="admin-section admin-v48-backup">
+        <div class="admin-log-head"><div><h3><i class="fa-solid fa-shield-heart"></i> 백업 정상 여부</h3><p>자동백업/이메일백업/DB 상태를 한눈에 확인합니다.</p></div><button class="btn btn-o btn-sm" id="admin-v48-backup-refresh"><i class="fa-solid fa-rotate"></i> 새로고침</button></div>
+        <div id="admin-v48-backup-body" class="admin-v48-status-grid"></div>
+      </div>
+      <div class="admin-section admin-v48-restore">
+        <div class="admin-log-head"><div><h3><i class="fa-solid fa-trash-can-arrow-up"></i> 삭제/수정 복구</h3><p>삭제하거나 수정하기 전 상태를 보관하고, 필요하면 복구합니다.</p></div><button class="btn btn-o btn-sm" id="admin-v48-trash-refresh"><i class="fa-solid fa-rotate"></i> 새로고침</button></div>
+        <div class="admin-log-table-wrap"><table class="admin-log-table admin-v48-trash-table"><thead><tr><th>시간</th><th>구분</th><th>업무</th><th>내용</th><th>상태</th><th>복구</th></tr></thead><tbody id="admin-v48-trash-body"></tbody></table></div>
+      </div>`;
+    panel.appendChild(wrap);
+  }
+  function statusCard(title, ok, main, sub) {
+    return `<div class="admin-v48-status-card ${ok ? "ok" : "bad"}"><span>${safe(title)}</span><strong>${safe(main || "-")}</strong><small>${safe(sub || "")}</small></div>`;
+  }
+  async function loadAdminBackupStatus() {
+    ensureAdminV48();
+    const body = $("admin-v48-backup-body");
+    if (!body) return;
+    body.innerHTML = `<div class="v48-loading">불러오는 중...</div>`;
+    try {
+      const data = await adminApi("/api/admin/status");
+      const b = data.backupStatus || {};
+      body.innerHTML = [
+        statusCard("로컬 자동백업", !b.local?.lastError, b.local?.lastAt ? new Date(b.local.lastAt).toLocaleString("ko-KR") : "대기중", b.local?.lastError || `${b.local?.intervalMinutes || "-"}분 간격`),
+        statusCard("이메일 백업", b.email?.enabled && !b.email?.lastError, b.email?.enabled ? (b.email?.lastAt ? new Date(b.email.lastAt).toLocaleString("ko-KR") : "대기중") : "비활성", b.email?.lastError || `${b.email?.intervalMinutes || "-"}분 간격`),
+        statusCard("PostgreSQL", !!b.postgresReady, b.postgresReady ? "정상 연결" : "JSON 보조 저장", b.postgresLastError || b.storage || ""),
+        statusCard("월별백업", !b.monthly?.lastError, b.monthly?.enabled ? (b.monthly?.lastAt ? new Date(b.monthly.lastAt).toLocaleString("ko-KR") : "대기중") : "비활성", b.monthly?.lastError || ""),
+      ].join("");
+    } catch (e) {
+      body.innerHTML = `<div class="v48-error">${safe(e.message)}</div>`;
+    }
+  }
+  async function loadAdminTrash() {
+    ensureAdminV48();
+    const body = $("admin-v48-trash-body");
+    if (!body) return;
+    body.innerHTML = `<tr><td colspan="6">불러오는 중...</td></tr>`;
+    try {
+      const rows = asArray(await adminApi("/api/admin/trash?limit=300"));
+      body.innerHTML = rows.map((r)=>`<tr><td>${safe(r.at ? new Date(r.at).toLocaleString("ko-KR") : "")}</td><td>${r.type === "delete" ? "삭제" : "수정전"}</td><td>${safe(r.collectionLabel || r.collection || "")}</td><td>${safe(r.title || r.itemId || "")}</td><td>${r.restored ? "복구완료" : "보관중"}</td><td><button class="btn btn-o btn-sm" data-v48-restore="${safe(r.id)}" ${r.restored ? "disabled" : ""}>복구</button></td></tr>`).join("") || `<tr><td colspan="6">복구 이력이 없습니다.</td></tr>`;
+    } catch (e) {
+      body.innerHTML = `<tr><td colspan="6">${safe(e.message)}</td></tr>`;
+    }
+  }
+
+  // 일일정산서 인쇄 시 보고완료 저장
+  async function saveDailySettlementBeforePrint() {
+    const date = $("daily-report-date")?.value || todayStr();
+    const memo = $("daily-report-memo")?.value || "";
+    const [recordsPayload, repairsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log")]);
+    const records = asArray(recordsPayload).filter((r)=>String(r.date || "") === date);
+    const repairs = asArray(repairsPayload).filter((r)=>String(r.date || "") === date);
+    const total = records.reduce((s,r)=>s+recordTotal(r),0);
+    const repairTotal = repairs.reduce((s,r)=>s+(Number(r.repairCost)||0),0);
+    await api("/api/daily-settlements", {
+      method: "POST",
+      body: JSON.stringify({
+        date, memo, records, repairs,
+        summary: { recordCount: records.length, repairCount: repairs.length, total, repairTotal, savedBy: "print" },
+        printedAt: new Date().toISOString(),
+      }),
+    });
+  }
+  function bindDailyPrintSave() {
+    const btn = $("daily-report-print");
+    if (!btn || btn.dataset.v48PrintSaveBound === "1") return;
+    btn.dataset.v48PrintSaveBound = "1";
+    btn.addEventListener("click", async (ev) => {
+      if (btn.dataset.v48AllowPrint === "1") return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      btn.disabled = true;
+      const old = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 저장 후 출력`;
+      try {
+        await saveDailySettlementBeforePrint();
+      } catch (e) {
+        alert("정산서 저장 실패: " + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = old;
+        btn.dataset.v48AllowPrint = "1";
+        btn.click();
+        setTimeout(() => { delete btn.dataset.v48AllowPrint; }, 500);
+      }
+    }, true);
+  }
+
+  function init() {
+    bindGlobalAlertEvents();
+    setTimeout(() => loadAlertSummary(false), 1200);
+    setTimeout(() => loadAlertSummary(false), 2400);
+    setInterval(() => { if (document.visibilityState === "visible") loadAlertSummary(false); }, 10 * 60 * 1000);
+
+    document.addEventListener("click", (ev) => {
+      const inv = ev.target.closest(".btn-inventory-history-v48");
+      if (inv) { ev.preventDefault(); showInventoryHistory(inv.getAttribute("data-id")); return; }
+      if (ev.target.closest("[data-v48-inv-close]")) { ev.preventDefault(); $("inventory-history-modal-v48")?.classList.remove("show"); return; }
+      const restore = ev.target.closest("[data-v48-restore]");
+      if (restore) {
+        ev.preventDefault();
+        if (!confirm("이 항목을 복구할까? 현재 데이터가 이전 상태로 돌아갈 수 있어.")) return;
+        adminApi(`/api/admin/trash/${encodeURIComponent(restore.getAttribute("data-v48-restore"))}/restore`, { method: "POST", body: JSON.stringify({}) })
+          .then(()=>{ alert("복구 완료"); loadAdminTrash(); loadAdminBackupStatus(); })
+          .catch((e)=>alert(e.message));
+        return;
+      }
+    });
+
+    const observer = new MutationObserver(addInventoryHistoryButtons);
+    observer.observe(document.body, { childList:true, subtree:true });
+    setInterval(addInventoryHistoryButtons, 1000);
+
+    document.addEventListener("click", (ev) => {
+      if (ev.target.closest("#btn-admin-login")) setTimeout(()=>{ ensureAdminV48(); loadAdminBackupStatus(); loadAdminTrash(); }, 600);
+      if (ev.target.closest("#hdr-admin")) setTimeout(ensureAdminV48, 120);
+      if (ev.target.closest("#admin-v48-backup-refresh")) loadAdminBackupStatus();
+      if (ev.target.closest("#admin-v48-trash-refresh")) loadAdminTrash();
+    });
+
+    bindDailyPrintSave();
+    setInterval(bindDailyPrintSave, 1000);
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+  window.NaepoV48Ops = { reloadAlerts: () => loadAlertSummary(true), loadAdminBackupStatus, loadAdminTrash };
 })();
