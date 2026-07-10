@@ -13178,3 +13178,263 @@ tr:hover td{background:#F8FAFC !important;}
     margin:2mm auto !important;
   }
 }
+
+
+/* ===== v44-force-readable-invoice-item-rows-20260706 =====
+   품목이 많은 공급자/받는자 일반 출력에서 실제 품목 행이 계속 작게 보이는 문제를
+   :has(), invoice-normal-print class 의존 없이 최종 강제 보정합니다.
+   선택일괄인쇄는 .lp-slot 전용 규칙으로 다시 압축 유지합니다.
+*/
+@media print{
+  /* 일반 거래명세서 출력 폭 확보 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print),
+  body.print-record-mode #print-target-area.pf-active:not(.invoice-batch-print){
+    width:204mm !important;
+    max-width:204mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    --pscale:1 !important;
+    transform:none !important;
+    overflow:visible !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .excel-frame{
+    width:204mm !important;
+    max-width:204mm !important;
+    margin:0 auto !important;
+    padding:0 !important;
+    overflow:visible !important;
+    background:#fff !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs{
+    width:204mm !important;
+    max-width:204mm !important;
+    height:auto !important;
+    max-height:none !important;
+    min-height:0 !important;
+    padding:2.2mm 3mm !important;
+    margin:0 0 4mm !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 품목 많은 경우 상단은 조금만 압축 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-title,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-title,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-title{
+    padding:2px 5px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-name,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-name,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-name{
+    font-size:12.2px !important;
+    line-height:1.08 !important;
+    letter-spacing:2.2px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-sub,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-sub,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-sub{
+    font-size:7.4px !important;
+    line-height:1 !important;
+    margin-left:5px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra > table:nth-of-type(1) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact > table:nth-of-type(2) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense > table:nth-of-type(2) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra > table:nth-of-type(2) td{
+    padding:1.4px 2.5px !important;
+    font-size:8.2px !important;
+    line-height:1.06 !important;
+  }
+
+  /* 실제 품목표를 직접 크게 사용 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs .tfs-item-table,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs > table:nth-of-type(3){
+    width:100% !important;
+    table-layout:fixed !important;
+    border-collapse:collapse !important;
+    margin:0 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs .tfs-item-table tr:first-child td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs > table:nth-of-type(3) tr:first-child td{
+    height:20px !important;
+    min-height:20px !important;
+    padding:3px 3px !important;
+    font-size:9.4px !important;
+    line-height:1.12 !important;
+    vertical-align:middle !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs > table:nth-of-type(3) tr:not(:first-child) td{
+    max-height:none !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    vertical-align:middle !important;
+    box-sizing:border-box !important;
+  }
+
+  /* 7~9줄 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact > table:nth-of-type(3) tr:not(:first-child) td{
+    height:30px !important;
+    min-height:30px !important;
+    padding:4.6px 4.2px !important;
+    font-size:10px !important;
+    line-height:1.22 !important;
+  }
+
+  /* 10~13줄: 현재 사진 문제 구간 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense > table:nth-of-type(3) tr:not(:first-child) td{
+    height:28px !important;
+    min-height:28px !important;
+    padding:4.2px 4px !important;
+    font-size:9.8px !important;
+    line-height:1.2 !important;
+  }
+
+  /* 14줄 이상 */
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra > table:nth-of-type(3) tr:not(:first-child) td{
+    height:24px !important;
+    min-height:24px !important;
+    padding:3.6px 3.8px !important;
+    font-size:9.25px !important;
+    line-height:1.17 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs .tfs-item-table .tfs-il,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs > table:nth-of-type(3) .tfs-il,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs .tfs-item-table td[style*="font-size:9px"],
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs > table:nth-of-type(3) td[style*="font-size:9px"]{
+    white-space:normal !important;
+    word-break:keep-all !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-pay-table td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-pay-table td,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-pay-table td{
+    padding:2.2px 3px !important;
+    font-size:8.7px !important;
+    line-height:1.1 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-compact .tfs-bottom,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-dense .tfs-bottom,
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs.tfs-ultra .tfs-bottom{
+    padding:2px 12px 4px !important;
+    min-height:18px !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .excel-divider{
+    height:5mm !important;
+    min-height:5mm !important;
+    max-height:5mm !important;
+    margin:2mm auto !important;
+  }
+
+  /* 선택일괄인쇄는 이전처럼 슬롯 안에서만 압축 유지 */
+  body.print-record-mode #print-target-area.invoice-batch-print,
+  body.print-record-mode #print-target-area .lp-page{
+    width:182mm !important;
+    max-width:182mm !important;
+  }
+
+  body.print-record-mode #print-target-area .lp-slot{
+    height:128mm !important;
+    width:182mm !important;
+    overflow:hidden !important;
+  }
+
+  body.print-record-mode #print-target-area .lp-slot .tfs .tfs-item-table tr:not(:first-child) td,
+  body.print-record-mode #print-target-area .lp-slot .tfs > table:nth-of-type(3) tr:not(:first-child) td{
+    height:10px !important;
+    min-height:10px !important;
+    padding:0.7px 1.6px !important;
+    font-size:7.35px !important;
+    line-height:1.02 !important;
+  }
+}
+
+
+/* ===== v45-invoice-print-left-right-safe-margin-20260710 =====
+   HP/Chrome 인쇄 미리보기에서 좌측 테두리가 잘리는 문제 보정.
+   v44에서 일반 출력 폭을 204mm까지 넓혔던 값을 안전 인쇄폭 196mm로 줄이고,
+   좌우 여백을 동일하게 맞춥니다.
+*/
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:4mm 7mm !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print),
+  body.print-record-mode #print-target-area.pf-active:not(.invoice-batch-print){
+    width:196mm !important;
+    max-width:196mm !important;
+    min-width:196mm !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    padding:0 !important;
+    transform:none !important;
+    overflow:visible !important;
+    --pscale:1 !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .excel-frame,
+  body.print-record-mode #print-target-area.pf-active:not(.invoice-batch-print) .excel-frame{
+    width:196mm !important;
+    max-width:196mm !important;
+    min-width:196mm !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    padding:0 !important;
+    overflow:visible !important;
+    box-sizing:border-box !important;
+    background:#fff !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .tfs,
+  body.print-record-mode #print-target-area.pf-active:not(.invoice-batch-print) .tfs{
+    width:196mm !important;
+    max-width:196mm !important;
+    min-width:196mm !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+    box-sizing:border-box !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .single-copy,
+  body.print-record-mode #print-target-area.pf-active:not(.invoice-batch-print) .single-copy{
+    width:196mm !important;
+    max-width:196mm !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+  }
+
+  body.print-record-mode #print-target-area:not(.invoice-batch-print) .excel-divider{
+    width:196mm !important;
+    max-width:196mm !important;
+    margin-left:auto !important;
+    margin-right:auto !important;
+  }
+
+  /* 선택일괄인쇄는 기존 전용 폭 유지 */
+  body.print-record-mode #print-target-area.invoice-batch-print,
+  body.print-record-mode #print-target-area .lp-page,
+  body.print-record-mode #print-target-area .lp-slot{
+    width:182mm !important;
+    max-width:182mm !important;
+  }
+}
