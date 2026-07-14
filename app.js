@@ -8503,12 +8503,14 @@ function parseEasyInventoryText(text) {
           ${statusBtn(r,"machineNo","기대번호 미입력","기대번호 완료")}
           ${statusBtn(r,"photo","사진 미촬영","사진 완료")}
           ${statusBtn(r,"document","서류 미완료","서류 완료")}
+          ${statusBtn(r,"officeSubmit","서류제출 전","서류제출 완료")}
           ${statusBtn(r,"payment","입금대기","입금확인")}
           ${statusBtn(r,"receipt","영수증 미첨부","영수증 완료")}
           ${statusBtn(r,"complete","완료처리 전","완료")}
         </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}${r.officeSubmittedAt ? `<div class="subsidy-machine">서류제출: ${safe(String(r.officeSubmittedAt).slice(0,10))}</div>` : ""}</td>
         <td class="subsidy-manage-cell"><div class="subsidy-row-actions">
           <button type="button" class="btn btn-o btn-sm subsidy-invoice" data-v53-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
+          <button type="button" class="btn btn-o btn-sm subsidy-detail" data-v56-detail="${safe(r.id)}"><i class="fa-solid fa-circle-info"></i> 상세</button>
           <button type="button" class="btn btn-o btn-sm subsidy-machine-btn" data-v53-machine="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
           <button type="button" class="btn btn-o btn-sm subsidy-edit" data-v53-edit="${safe(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
           <button type="button" class="btn btn-o btn-sm d subsidy-delete" data-v53-delete="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
@@ -8952,4 +8954,219 @@ function parseEasyInventoryText(text) {
   window.NaepoSubsidyV49 = { load, render, clearFilters };
   window.NaepoSubsidyV52 = { load, render, clearFilters };
   window.NaepoSubsidyV53 = { load, render, clearFilters, openReport };
+})();
+
+
+/* ===== v56-subsidy-status-confirm-detail-20260714 =====
+   보조사업 상태버튼 직접 처리 + 되돌리기 확인 + 상세보기 + 서류제출일 표시
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+
+  function closeWorkPopups() {
+    sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v48", "1");
+    sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v47", "1");
+    $("dashboard-work-alert-popup-v48")?.classList.remove("show");
+    $("dashboard-work-alert-popup-v47")?.classList.remove("show");
+  }
+
+  function currentRowFromButton(btn) {
+    const tr = btn.closest("tr[data-id]");
+    const id = btn.getAttribute("data-id") || (tr && tr.dataset.id) || "";
+    return { id, tr };
+  }
+
+  function shouldConfirmRevert(btn, key) {
+    if (key === "contact") {
+      const text = (btn.textContent || "").trim();
+      if (text === "연락완료") {
+        return confirm("연락완료 상태를 미연락으로 되돌릴까?");
+      }
+      if (text === "연락안됨") {
+        return confirm("연락안됨 상태를 미연락으로 되돌릴까?");
+      }
+      return true;
+    }
+    if (btn.classList.contains("ok")) {
+      const label = (btn.textContent || "완료").trim();
+      return confirm(`${label} 상태를 이전 상태로 되돌릴까?`);
+    }
+    return true;
+  }
+
+  function buildStatusPayload(btn, key) {
+    if (key === "contact") {
+      const text = (btn.textContent || "").trim();
+      if (text === "연락완료" || text === "연락안됨") return { key, value: "미연락" };
+      return { key, value: "연락완료" };
+    }
+
+    if (key === "machineNo") {
+      const rowText = btn.closest("td")?.textContent || "";
+      const matched = rowText.match(/기대번호:\s*([^\s]+)/);
+      const cur = matched ? matched[1] : "";
+      const value = prompt("기대번호를 입력해줘.", cur);
+      if (value == null) return null;
+      return { key, machineNo: value, value: Boolean(value.trim()) };
+    }
+
+    const next = !btn.classList.contains("ok");
+    return { key, value: next };
+  }
+
+  async function patchStatus(btn) {
+    const key = btn.getAttribute("data-v53-status") || btn.getAttribute("data-v56-status");
+    const { id } = currentRowFromButton(btn);
+    if (!id || !key) return;
+    closeWorkPopups();
+
+    if (!shouldConfirmRevert(btn, key)) return;
+
+    const body = buildStatusPayload(btn, key);
+    if (!body) return;
+
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = "처리중";
+    try {
+      const updated = await api(`/api/subsidy-projects/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+
+      if (window.NaepoSubsidyV53 && window.NaepoSubsidyV53.load) {
+        await window.NaepoSubsidyV53.load();
+      } else {
+        location.reload();
+      }
+
+      if (key === "officeSubmit" && updated.officeSubmittedAt) {
+        alert(`서류 제출일이 저장됐어.\n제출일: ${String(updated.officeSubmittedAt).slice(0, 10)}`);
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = oldText;
+      alert(e.message || "상태 변경 실패");
+    }
+  }
+
+  function statusLabel(v) {
+    return v ? "완료" : "미완료";
+  }
+
+  function ensureDetailModal() {
+    let modal = $("subsidy-detail-modal-v56");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "subsidy-detail-modal-v56";
+    modal.className = "subsidy-detail-modal-v56";
+    modal.innerHTML = `
+      <div class="subsidy-detail-backdrop" data-v56-detail-close="1"></div>
+      <div class="subsidy-detail-box">
+        <div class="subsidy-detail-head">
+          <strong><i class="fa-solid fa-circle-info"></i> 보조사업 상세보기</strong>
+          <button type="button" data-v56-detail-close="1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="subsidy-detail-body-v56"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  async function openDetail(id) {
+    const modal = ensureDetailModal();
+    const body = $("subsidy-detail-body-v56");
+    modal.classList.add("show");
+    body.innerHTML = `<div class="v56-loading">상세 정보를 불러오는 중...</div>`;
+    try {
+      const payload = await api("/api/subsidy-projects");
+      const list = Array.isArray(payload) ? payload : payload.items || [];
+      const r = list.find((x) => String(x.id) === String(id));
+      if (!r) throw new Error("대상자를 찾지 못했어.");
+
+      const st = Object.assign({ quote:false, contact:"미연락", machineNo:false, photo:false, document:false, officeSubmit:false, payment:false, receipt:false, complete:false }, r.statuses || {});
+      body.innerHTML = `
+        <div class="subsidy-detail-title">
+          <div>
+            <h3>${safe(r.name || "-")}</h3>
+            <p>${safe(r.town || "-")} · ${safe(r.phone || "-")}</p>
+          </div>
+          <span>${st.complete ? "완료" : "진행중"}</span>
+        </div>
+
+        <div class="subsidy-detail-grid">
+          <div><b>연번</b><span>${safe(r.seq || "-")}</span></div>
+          <div><b>지역</b><span>${safe(r.town || "-")}</span></div>
+          <div><b>성명</b><span>${safe(r.name || "-")}</span></div>
+          <div><b>연락처</b><span>${safe(r.phone || "-")}</span></div>
+          <div><b>생년월일</b><span>${safe(r.birthDate || "-")}</span></div>
+          <div class="wide"><b>주소</b><span>${safe(r.address || "-")}</span></div>
+          <div><b>신청기종</b><span>${safe(r.itemName || r.equipment || "-")}</span></div>
+          <div><b>제조회사</b><span>${safe(r.maker || "-")}</span></div>
+          <div><b>형식명</b><span>${safe(r.model || r.modelName || "-")}</span></div>
+          <div><b>총사업비</b><span>${money(r.totalCost)}원</span></div>
+          <div><b>보조금</b><span>${money(r.supportTotal)}원</span></div>
+          <div><b>자부담</b><span>${money(r.selfPay)}원</span></div>
+          <div class="wide"><b>비고/메모</b><span>${safe(r.note || r.memo || "-")}</span></div>
+        </div>
+
+        <h4>업무 상태</h4>
+        <div class="subsidy-detail-status">
+          <div><b>견적서</b><span>${st.quote ? "견적 완료" : "견적 미발행"}</span><small>${safe(r.quoteIssuedAt || "-")}</small></div>
+          <div><b>연락</b><span>${safe(st.contact || "미연락")}</span><small>${safe(r.contactedAt || "-")}</small></div>
+          <div><b>기대번호</b><span>${safe(r.machineNo || (st.machineNo ? "입력완료" : "미입력"))}</span><small>${safe(r.machineNoAt || "-")}</small></div>
+          <div><b>사진</b><span>${statusLabel(st.photo)}</span><small>${safe(r.photoAt || "-")}</small></div>
+          <div><b>서류</b><span>${statusLabel(st.document)}</span><small>${safe(r.documentAt || "-")}</small></div>
+          <div><b>서류제출</b><span>${st.officeSubmit ? "제출완료" : "제출 전"}</span><small>${safe(r.officeSubmittedAt || "-")}</small></div>
+          <div><b>입금</b><span>${st.payment ? "입금확인" : "입금대기"}</span><small>${safe(r.paymentAt || "-")}</small></div>
+          <div><b>영수증</b><span>${st.receipt ? "첨부완료" : "미첨부"}</span><small>${safe(r.receiptAt || "-")}</small></div>
+          <div><b>완료</b><span>${st.complete ? "완료" : "완료처리 전"}</span><small>${safe(r.completedAt || "-")}</small></div>
+        </div>
+
+        <div class="subsidy-detail-foot">
+          <span>등록일: ${safe(r.createdAt || "-")}</span>
+          <span>수정일: ${safe(r.updatedAt || "-")}</span>
+        </div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="v56-error">${safe(e.message || "상세 정보 불러오기 실패")}</div>`;
+    }
+  }
+
+  document.addEventListener("click", (ev) => {
+    const status = ev.target.closest("[data-v53-status],[data-v56-status]");
+    if (status && status.closest("#page-subsidy")) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      patchStatus(status);
+      return;
+    }
+
+    const detail = ev.target.closest("[data-v56-detail]");
+    if (detail) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      openDetail(detail.getAttribute("data-v56-detail"));
+      return;
+    }
+
+    if (ev.target.closest("[data-v56-detail-close]")) {
+      ev.preventDefault();
+      $("subsidy-detail-modal-v56")?.classList.remove("show");
+    }
+  }, true);
 })();
