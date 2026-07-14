@@ -14041,3 +14041,291 @@ tr:hover td{background:#F8FAFC !important;}
 @media(max-width:900px){
   .admin-v48-status-grid{grid-template-columns:1fr}
 }
+
+
+/* ===== v49-subsidy-project-module-20260710 ===== */
+.subsidy-shell{display:grid;gap:14px}
+.subsidy-hero{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:14px;
+  border:1px solid #d9f99d;background:linear-gradient(135deg,#f7fee7,#fff);
+  border-radius:22px;padding:18px;box-shadow:0 16px 42px rgba(15,23,42,.08)
+}
+.subsidy-hero h2{margin:4px 0 6px;font-size:26px;letter-spacing:-.05em;color:#14532d}
+.subsidy-hero p{margin:0;color:#64748b;font-size:13px;font-weight:700}
+.subsidy-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.subsidy-import-label{cursor:pointer}
+.subsidy-summary-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.subsidy-summary-card{border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:13px;box-shadow:0 10px 24px rgba(15,23,42,.05)}
+.subsidy-summary-card span{display:block;color:#64748b;font-size:12px;font-weight:900;margin-bottom:7px}
+.subsidy-summary-card strong{display:block;font-size:24px;line-height:1;color:#0f172a}
+.subsidy-summary-card em{display:block;margin-top:5px;font-style:normal;color:#94a3b8;font-size:11px;font-weight:900}
+.subsidy-summary-card.warn{border-color:#fed7aa;background:#fff7ed}
+.subsidy-summary-card.warn strong{color:#ea580c}
+.subsidy-summary-card.money{border-color:#bbf7d0;background:#f0fdf4}
+.subsidy-summary-card.money strong{color:#15803d}
+.subsidy-filter-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:10px}
+.subsidy-filter-bar input,.subsidy-filter-bar select{height:36px;border:1px solid #cbd5e1;border-radius:10px;padding:0 10px;font-weight:700;color:#334155}
+.subsidy-filter-bar input{min-width:260px;flex:1}
+.subsidy-hint{border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;border-radius:14px;padding:10px 12px;font-size:12.5px;font-weight:800}
+.subsidy-table-wrap{background:#fff;border-radius:18px;border:1px solid #e2e8f0;overflow:auto}
+.subsidy-table{min-width:1420px;width:100%;border-collapse:collapse;font-size:12.5px}
+.subsidy-table th,.subsidy-table td{border-bottom:1px solid #e2e8f0;padding:9px 8px;vertical-align:middle}
+.subsidy-table th{background:#f8fafc;color:#334155;font-weight:900;white-space:nowrap}
+.subsidy-table td small{display:block;margin-top:3px;color:#64748b;font-size:11.5px;font-weight:700}
+.subsidy-town{display:inline-flex;border-radius:999px;background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:4px 8px;font-weight:900}
+.subsidy-selfpay{font-weight:900;color:#dc2626}
+.subsidy-status-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;width:245px}
+.subsidy-status-btn{border:1px solid #e2e8f0;border-radius:999px;padding:5px 7px;background:#fff;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap}
+.subsidy-status-btn.ok{background:#dcfce7;border-color:#86efac;color:#166534}
+.subsidy-status-btn.warn{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+.subsidy-status-btn.bad{background:#fee2e2;border-color:#fecaca;color:#b91c1c}
+.subsidy-row-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;min-width:190px}
+.dash-popup-card.subsidy,.dash-alert-card.subsidy{background:#f7fee7!important;border-color:#d9f99d!important}
+.dash-popup-card.subsidy strong,.dash-alert-card.subsidy strong{color:#4d7c0f!important}
+.dash-popup-list .subsidy b{color:#4d7c0f}
+@media(max-width:1000px){
+  .subsidy-hero{flex-direction:column}
+  .subsidy-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .subsidy-summary-grid{grid-template-columns:1fr}
+  .subsidy-filter-bar input{min-width:100%}
+}
+
+
+/* ===== v49-subsidy-project-management-20260710 ===== */
+.subsidy-shell{
+  display:grid;
+  gap:14px;
+}
+.subsidy-hero{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:18px;
+  padding:18px;
+  border:1px solid #dbeafe;
+  border-radius:22px;
+  background:linear-gradient(135deg,#eff6ff 0%,#ffffff 58%,#f0fdf4 100%);
+  box-shadow:0 16px 34px rgba(15,23,42,.07);
+}
+.subsidy-hero h2{
+  margin:4px 0 5px;
+  color:#0f172a;
+  font-size:25px;
+  letter-spacing:-.04em;
+}
+.subsidy-hero p{
+  margin:0;
+  color:#64748b;
+  font-size:13px;
+  font-weight:700;
+}
+.subsidy-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:8px;
+}
+.subsidy-summary-grid{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+}
+.subsidy-summary-card{
+  border:1px solid #e2e8f0;
+  background:#fff;
+  border-radius:18px;
+  padding:14px;
+  box-shadow:0 8px 22px rgba(15,23,42,.05);
+}
+.subsidy-summary-card span{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:7px;
+}
+.subsidy-summary-card strong{
+  display:inline-block;
+  font-size:28px;
+  color:#0f172a;
+  letter-spacing:-.04em;
+}
+.subsidy-summary-card small{
+  margin-left:4px;
+  color:#64748b;
+  font-weight:800;
+}
+.subsidy-summary-card.warn{
+  border-color:#fed7aa;
+  background:#fff7ed;
+}
+.subsidy-summary-card.warn strong{color:#ea580c;}
+.subsidy-summary-card.danger{
+  border-color:#fecaca;
+  background:#fff1f2;
+}
+.subsidy-summary-card.danger strong{color:#dc2626;}
+.subsidy-summary-card.money{
+  border-color:#bbf7d0;
+  background:#f0fdf4;
+}
+.subsidy-summary-card.money strong{color:#16a34a;}
+.subsidy-filter-bar{
+  display:grid;
+  grid-template-columns:1fr 170px 170px;
+  gap:8px;
+  padding:12px;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  background:#fff;
+}
+.subsidy-filter-bar input,
+.subsidy-filter-bar select{
+  min-height:38px;
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  padding:0 11px;
+  font-weight:700;
+  color:#334155;
+  background:#fff;
+}
+.subsidy-hint{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid #fde68a;
+  background:#fefce8;
+  color:#854d0e;
+  border-radius:14px;
+  padding:9px 11px;
+  font-size:12.5px;
+  font-weight:800;
+}
+.subsidy-table-wrap{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:18px;
+  overflow:auto;
+}
+.subsidy-table{
+  min-width:1320px;
+  width:100%;
+  border-collapse:collapse;
+  font-size:12.5px;
+}
+.subsidy-table th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:#f8fafc;
+  color:#334155;
+  font-weight:900;
+  border-bottom:1px solid #e2e8f0;
+  padding:10px 9px;
+  text-align:left;
+  white-space:nowrap;
+}
+.subsidy-table td{
+  border-bottom:1px solid #f1f5f9;
+  padding:9px;
+  vertical-align:top;
+  color:#334155;
+}
+.subsidy-table td small{
+  display:block;
+  margin-top:3px;
+  color:#64748b;
+  font-size:11.5px;
+}
+.subsidy-table .tr{
+  text-align:right;
+}
+.subsidy-state-grid{
+  display:flex;
+  flex-wrap:wrap;
+  gap:4px;
+  min-width:330px;
+}
+.subsidy-state{
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  color:#475569;
+  border-radius:999px;
+  padding:4px 8px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.subsidy-state.ok{
+  border-color:#bbf7d0;
+  background:#dcfce7;
+  color:#166534;
+}
+.subsidy-state.warn{
+  border-color:#fed7aa;
+  background:#fff7ed;
+  color:#c2410c;
+}
+.subsidy-state.bad{
+  border-color:#fecaca;
+  background:#fee2e2;
+  color:#b91c1c;
+}
+.subsidy-state.muted{
+  border-color:#cbd5e1;
+  background:#f1f5f9;
+  color:#64748b;
+}
+.subsidy-machine{
+  margin-top:6px;
+  color:#0f766e;
+  font-weight:900;
+  font-size:11.5px;
+}
+.subsidy-row-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:5px;
+  min-width:220px;
+}
+.dash-popup-card.subsidy,
+.dash-alert-card.subsidy{
+  background:#f0fdfa!important;
+  border-color:#99f6e4!important;
+}
+.dash-popup-card.subsidy strong,
+.dash-alert-card.subsidy strong{
+  color:#0f766e!important;
+}
+.dash-popup-card.subsidyPay{
+  background:#eef2ff!important;
+  border-color:#c7d2fe!important;
+}
+.dash-popup-card.subsidyPay strong{
+  color:#4f46e5!important;
+}
+.dash-popup-list .subsidy b{
+  color:#0f766e;
+}
+@media(max-width:1000px){
+  .subsidy-hero{
+    flex-direction:column;
+  }
+  .subsidy-actions{
+    justify-content:flex-start;
+  }
+  .subsidy-summary-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .subsidy-filter-bar{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:620px){
+  .subsidy-summary-grid{
+    grid-template-columns:1fr;
+  }
+}

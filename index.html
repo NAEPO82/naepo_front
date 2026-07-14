@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v48-priority-ops-20260710" />
+    <link rel="stylesheet" href="styles.css?v=v49-subsidy-projects-20260710" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -142,6 +142,9 @@
             </button>
             <button class="tab" id="tab-repair">
               <i class="fa-solid fa-screwdriver-wrench"></i> 접수대장
+            </button>
+            <button class="tab" id="tab-subsidy">
+              <i class="fa-solid fa-seedling"></i> 보조사업 관리
             </button>
             <button class="tab" id="tab-daily">
               <i class="fa-solid fa-clipboard-check"></i> 일일정산서
@@ -1590,6 +1593,78 @@
         </div>
 
 
+
+        <div id="page-subsidy" style="display: none">
+          <div class="subsidy-shell">
+            <div class="subsidy-hero">
+              <div>
+                <div class="daily-eyebrow"><i class="fa-solid fa-seedling"></i> Subsidy Project</div>
+                <h2>여성농업인 보조사업 관리</h2>
+                <p>명단 엑셀을 가져오고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 한 화면에서 관리합니다.</p>
+              </div>
+              <div class="subsidy-actions">
+                <label class="btn btn-p btn-sm subsidy-import-label">
+                  <i class="fa-solid fa-file-excel"></i> 엑셀 명단 가져오기
+                  <input type="file" id="subsidy-import-file" accept=".xlsx,.xls,.csv" hidden />
+                </label>
+                <button type="button" class="btn btn-o btn-sm" id="subsidy-refresh"><i class="fa-solid fa-rotate"></i> 새로고침</button>
+                <button type="button" class="btn btn-o btn-sm" id="subsidy-csv"><i class="fa-solid fa-file-csv"></i> CSV</button>
+              </div>
+            </div>
+
+            <div class="subsidy-summary-grid">
+              <div class="subsidy-summary-card"><span>전체</span><strong id="subsidy-sum-total">0</strong><em>명</em></div>
+              <div class="subsidy-summary-card warn"><span>미처리</span><strong id="subsidy-sum-pending">0</strong><em>건</em></div>
+              <div class="subsidy-summary-card"><span>견적서 미발행</span><strong id="subsidy-sum-quote">0</strong><em>건</em></div>
+              <div class="subsidy-summary-card"><span>미연락</span><strong id="subsidy-sum-contact">0</strong><em>건</em></div>
+              <div class="subsidy-summary-card money"><span>자부담 합계</span><strong id="subsidy-sum-selfpay">0</strong><em>원</em></div>
+            </div>
+
+            <div class="subsidy-filter-bar">
+              <input type="search" id="subsidy-search" placeholder="성명, 연락처, 신청기종, 형식명 검색" />
+              <select id="subsidy-status-filter">
+                <option value="">전체상태</option>
+                <option value="pending">미처리 전체</option>
+                <option value="quote">견적서 미발행</option>
+                <option value="contact">미연락/연락안됨</option>
+                <option value="document">서류 미완료</option>
+                <option value="payment">입금대기</option>
+                <option value="receipt">영수증 미첨부</option>
+                <option value="complete">완료</option>
+              </select>
+              <select id="subsidy-town-filter"><option value="">전체지역</option></select>
+              <button type="button" class="btn btn-o btn-sm" id="subsidy-filter-clear">필터 초기화</button>
+            </div>
+
+            <div class="subsidy-hint">
+              <b>업무 순서:</b> 견적서 발행 → 연락 → 기대번호 입력 → 물품사진 → 서류완료 → 입금확인 → 영수증첨부 → 완료
+            </div>
+
+            <div class="tbl-wrap subsidy-table-wrap">
+              <table class="subsidy-table">
+                <thead>
+                  <tr>
+                    <th>연번</th>
+                    <th>지역</th>
+                    <th>성명/연락처</th>
+                    <th>신청기종</th>
+                    <th>제조사/형식명</th>
+                    <th class="tr">총사업비</th>
+                    <th class="tr">보조금</th>
+                    <th class="tr">자부담</th>
+                    <th>상태관리</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="subsidy-body">
+                  <tr><td colspan="10" class="empty-td">명단을 가져오면 여기에 표시됩니다.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
         <div id="page-daily-report" style="display: none">
           <div class="daily-report-shell">
             <div class="daily-report-hero">
@@ -2046,6 +2121,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v48-priority-ops-20260710"></script>
+    <script src="app.js?v=v49-subsidy-projects-20260710"></script>
   </body>
 </html>

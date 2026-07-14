@@ -1871,6 +1871,7 @@
       customer: "page-customer",
       order: "page-order",
       repair: "page-repair",
+      subsidy: "page-subsidy",
       daily: "page-daily-report",
     };
     (Object.keys(n).forEach((e) => {
@@ -2052,6 +2053,11 @@
     document
       .getElementById("tab-customer")
       .addEventListener("click", () => J("customer")),
+    document.getElementById("tab-subsidy") &&
+      document.getElementById("tab-subsidy").addEventListener("click", () => {
+        J("subsidy");
+        if (window.NaepoSubsidyV49 && window.NaepoSubsidyV49.load) window.NaepoSubsidyV49.load();
+      }),
     document.getElementById("tab-daily") &&
       document.getElementById("tab-daily").addEventListener("click", () => {
         J("daily");
@@ -7843,7 +7849,7 @@ function parseEasyInventoryText(text) {
     renderDashboardEnhanced(lastSummary);
   }
 
-  function buildSummary(records, repairs, parts) {
+  function buildSummary(records, repairs, parts, subsidyProjects) {
     const unpaidCredits = records.filter((r) => r && r.payMethod === "외상" && !r.collected);
     const pendingRecords = records.filter((r) => r && String(r.status || "done") === "pending");
     const undoneRepairs = repairs.filter((r) => r && !r.repairDone);
@@ -7853,8 +7859,14 @@ function parseEasyInventoryText(text) {
     const old7 = unpaidCredits.filter((r) => dateAge(r.date) >= 7);
     const old30 = unpaidCredits.filter((r) => dateAge(r.date) >= 30);
     const old60 = unpaidCredits.filter((r) => dateAge(r.date) >= 60);
+    const subsidyQuotePending = (subsidyProjects || []).filter((r) => r && !r.done && String(r.quoteStatus || "") !== "견적서 발행완료");
+    const subsidyContactPending = (subsidyProjects || []).filter((r) => r && !r.done && String(r.contactStatus || "") !== "연락완료");
+    const subsidyDocPending = (subsidyProjects || []).filter((r) => r && !r.done && String(r.documentStatus || "") !== "서류완료");
+    const subsidyPayPending = (subsidyProjects || []).filter((r) => r && !r.done && String(r.paymentStatus || "") !== "입금확인");
+    const subsidyReceiptPending = (subsidyProjects || []).filter((r) => r && !r.done && String(r.receiptStatus || "") !== "영수증 첨부완료");
     return {
       unpaidCredits, pendingRecords, undoneRepairs, noContactRepairs, lowStockParts, paymentExpected, old7, old30, old60,
+      subsidyQuotePending, subsidyContactPending, subsidyDocPending, subsidyPayPending, subsidyReceiptPending,
       creditTotal: unpaidCredits.reduce((s,r)=>s+recordTotal(r),0),
       pendingTotal: pendingRecords.reduce((s,r)=>s+recordTotal(r),0),
       repairTotal: undoneRepairs.reduce((s,r)=>s+(Number(r.repairCost)||0),0),
@@ -7863,11 +7875,12 @@ function parseEasyInventoryText(text) {
       oldTotal: old7.reduce((s,r)=>s+recordTotal(r),0),
       old30Total: old30.reduce((s,r)=>s+recordTotal(r),0),
       old60Total: old60.reduce((s,r)=>s+recordTotal(r),0),
+      subsidySelfPayTotal: subsidyPayPending.reduce((s,r)=>s+(Number(r.selfPay)||0),0),
     };
   }
   function totalIssueCount(s) {
     if (!s) return 0;
-    return s.unpaidCredits.length + s.pendingRecords.length + s.undoneRepairs.length + s.noContactRepairs.length + s.lowStockParts.length + s.old7.length;
+    return s.unpaidCredits.length + s.pendingRecords.length + s.undoneRepairs.length + s.noContactRepairs.length + s.lowStockParts.length + s.old7.length + ((s.subsidyPending && s.subsidyPending.length) || 0);
   }
 
   let lastSummary = null;
@@ -7898,7 +7911,7 @@ function parseEasyInventoryText(text) {
     content.innerHTML = `
       <div class="dash-popup-head">
         <div class="dash-popup-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <div><h2>꼭 확인해야 할 업무가 있어</h2><p>미수금, 미완료, 재고부족, 미연락 건을 확인해줘.</p></div>
+        <div><h2>꼭 확인해야 할 업무가 있어</h2><p>미수금, 미완료, 재고부족, 미연락, 보조사업 미처리 건을 확인해줘.</p></div>
         <button type="button" class="dash-popup-x" data-v48-popup-close="1"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="dash-popup-summary v48-popup-grid">
@@ -7909,6 +7922,7 @@ function parseEasyInventoryText(text) {
         ${popupCard("contact", "수리접수 미연락", summary.noContactRepairs.length, `${money(summary.noContactTotal)}원`, "tab-repair")}
         ${popupCard("expected", "외상입금예정", summary.paymentExpected.length, `${money(summary.paymentExpectedTotal)}원`, "tab-customer")}
         ${popupCard("old", "오래된 미수금", summary.old7.length, `30일 ${summary.old30.length}건 · 60일 ${summary.old60.length}건`, "tab-customer")}
+        ${popupCard("subsidy", "보조사업 미처리", (summary.subsidyPending || []).length, `견적 ${summary.subsidyNeedQuote?.length || 0} · 서류 ${summary.subsidyNeedDocument?.length || 0}`, "tab-subsidy")}
       </div>
       <div class="v48-aging-line">
         <b>오래된 미수금</b>
@@ -7921,6 +7935,7 @@ function parseEasyInventoryText(text) {
         ${summary.old7.slice(0,4).map((r)=>`<div class="old"><b>오래된미수</b><span>${safe(customerName(r))} · ${dateAge(r.date)}일 경과 · ${money(recordTotal(r))}원</span></div>`).join("")}
         ${summary.noContactRepairs.slice(0,4).map((r)=>`<div class="contact"><b>미연락</b><span>${safe(r.name || "고객")} · ${safe(r.modelName || "-")} · ${safe(r.phone || "")}</span></div>`).join("")}
         ${summary.pendingRecords.slice(0,4).map((r)=>`<div class="pending"><b>거래미완료</b><span>${safe(customerName(r))} · ${safe(r.note || r.part || "-")} · ${money(recordTotal(r))}원</span></div>`).join("")}
+        ${(summary.subsidyPending || []).slice(0,5).map((r)=>`<div class="subsidy"><b>보조사업</b><span>${safe(r.town || "")} · ${safe(r.name || "대상자")} · ${safe(r.itemName || r.model || "")}</span></div>`).join("")}
       </div>
       <div class="dash-popup-actions">
         <button type="button" class="dash-popup-main" data-v48-popup-close="1">확인했어</button>
@@ -7962,6 +7977,7 @@ function parseEasyInventoryText(text) {
         <button class="dash-alert-card stock" data-v48-tab="tab-inventory"><span>재고부족</span><strong>${summary.lowStockParts.length}건</strong><em>최소재고 이하</em></button>
         <button class="dash-alert-card contact" data-v48-tab="tab-repair"><span>미연락 접수</span><strong>${summary.noContactRepairs.length}건</strong><em>${money(summary.noContactTotal)}원</em></button>
         <button class="dash-alert-card old" data-v48-tab="tab-customer"><span>오래된 미수</span><strong>${summary.old7.length}건</strong><em>30일 ${summary.old30.length} · 60일 ${summary.old60.length}</em></button>
+        <button class="dash-alert-card subsidy" data-v48-tab="tab-subsidy"><span>보조사업 미처리</span><strong>${summary.subsidyPending?.length || 0}건</strong><em>견적 ${summary.subsidyNeedQuote?.length || 0} · 입금 ${summary.subsidyNeedPayment?.length || 0}</em></button>
       </div>`;
   }
 
@@ -7969,8 +7985,18 @@ function parseEasyInventoryText(text) {
     if (alertLoading || !token()) return;
     alertLoading = true;
     try {
-      const [records, repairs, parts] = await Promise.all([api("/api/records"), api("/api/repair-log"), api("/api/parts")]);
+      const [records, repairs, parts, subsidy] = await Promise.all([api("/api/records"), api("/api/repair-log"), api("/api/parts"), api("/api/subsidy-projects")]);
       const summary = buildSummary(asArray(records), asArray(repairs), asArray(parts));
+      summary.subsidy = asArray(subsidy);
+      summary.subsidyPending = summary.subsidy.filter((r) => {
+        const st = r.statuses || {};
+        return !(st.complete && st.quote && st.contact === "연락완료" && st.document && st.payment && st.receipt);
+      });
+      summary.subsidyNeedQuote = summary.subsidy.filter((r) => !(r.statuses || {}).quote);
+      summary.subsidyNeedContact = summary.subsidy.filter((r) => (r.statuses || {}).contact !== "연락완료");
+      summary.subsidyNeedDocument = summary.subsidy.filter((r) => !(r.statuses || {}).document);
+      summary.subsidyNeedPayment = summary.subsidy.filter((r) => !(r.statuses || {}).payment);
+      summary.subsidyNeedReceipt = summary.subsidy.filter((r) => !(r.statuses || {}).receipt);
       renderDashboardEnhanced(summary);
       if (totalIssueCount(summary) > 0 && (force || (!popupShownOnce && !isSnoozed() && sessionStorage.getItem(SESSION_CLOSE_KEY) !== "1"))) {
         popupShownOnce = true;
@@ -8186,4 +8212,667 @@ function parseEasyInventoryText(text) {
 
   document.addEventListener("DOMContentLoaded", init);
   window.NaepoV48Ops = { reloadAlerts: () => loadAlertSummary(true), loadAdminBackupStatus, loadAdminTrash };
+})();
+
+
+/* ===== v49-subsidy-project-module-20260710 ===== */
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  let rows = [];
+  let currentEdit = null;
+
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const num = (v) => Number(String(v ?? 0).replace(/[,원\s]/g, "")) || 0;
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  function phone(v) {
+    const s = String(v || "").replace(/[^\d]/g, "");
+    return s.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
+  }
+  function pick(row, names) {
+    const keys = Object.keys(row || {});
+    for (const name of names) {
+      const found = keys.find((k) => String(k).replace(/\s/g,"").includes(name.replace(/\s/g,"")));
+      if (found && row[found] != null && row[found] !== "") return row[found];
+    }
+    return "";
+  }
+  function normalizeImportedRow(row, idx) {
+    const year = String(pick(row, ["사업연도","연도"]) || new Date().getFullYear());
+    const town = String(pick(row, ["읍면동","지역","면","동"]) || "").trim();
+    const name = String(pick(row, ["성명","이름","대상자"]) || "").trim();
+    const p = phone(pick(row, ["연락처","전화번호","휴대폰"]));
+    const itemName = String(pick(row, ["신청기종","기종","품목","장비"]) || "").trim();
+    const maker = String(pick(row, ["제조회사","제조사","회사"]) || "").trim();
+    const model = String(pick(row, ["형식명","모델명","모델","형식"]) || "").trim();
+    const totalCost = num(pick(row, ["신청사업비","신청 사업비","총사업비","사업비"]));
+    const provincialAid = num(pick(row, ["도비"]));
+    const countyAid = num(pick(row, ["군비"]));
+    const supportTotal = num(pick(row, ["지원금액합계","지원금액 합계","지원금합계","보조금"]));
+    const selfPay = num(pick(row, ["자부담","자부담금"]));
+    return {
+      year, seq: num(pick(row, ["연번","번호","순번"])) || idx + 1, town, name, phone: p, itemName, maker, model,
+      totalCost, provincialAid, countyAid, supportTotal, selfPay,
+      note: String(pick(row, ["비고","메모"]) || "").trim(),
+    };
+  }
+
+  function statusDone(row, key) {
+    const st = row.statuses || {};
+    return key === "contact" ? st.contact === "연락완료" : Boolean(st[key]);
+  }
+  function statusBtn(row, key, labelOff, labelOn) {
+    const st = row.statuses || {};
+    if (key === "contact") {
+      const val = st.contact || "미연락";
+      const cls = val === "연락완료" ? "ok" : val === "연락안됨" ? "bad" : "warn";
+      return `<button class="subsidy-status-btn ${cls}" data-subsidy-status="${safe(key)}" data-id="${safe(row.id)}">${safe(val)}</button>`;
+    }
+    const done = Boolean(st[key]);
+    return `<button class="subsidy-status-btn ${done ? "ok" : "warn"}" data-subsidy-status="${safe(key)}" data-id="${safe(row.id)}">${done ? safe(labelOn) : safe(labelOff)}</button>`;
+  }
+
+  function filteredRows() {
+    const q = ($("subsidy-search")?.value || "").trim().toLowerCase();
+    const status = $("subsidy-status-filter")?.value || "";
+    const town = $("subsidy-town-filter")?.value || "";
+    return rows.filter((r) => {
+      const st = r.statuses || {};
+      if (town && r.town !== town) return false;
+      if (status === "pending" && st.complete) return false;
+      if (status === "complete" && !st.complete) return false;
+      if (status === "quote" && st.quote) return false;
+      if (status === "contact" && st.contact === "연락완료") return false;
+      if (status === "document" && st.document) return false;
+      if (status === "payment" && st.payment) return false;
+      if (status === "receipt" && st.receipt) return false;
+      if (q) {
+        const hay = [r.year,r.town,r.name,r.phone,r.itemName,r.maker,r.model,r.note,r.machineNo].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b)=>(Number(a.seq)||9999)-(Number(b.seq)||9999));
+  }
+  function updateTownFilter() {
+    const sel = $("subsidy-town-filter");
+    if (!sel) return;
+    const value = sel.value;
+    const towns = [...new Set(rows.map((r)=>r.town).filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">전체지역</option>` + towns.map((t)=>`<option value="${safe(t)}">${safe(t)}</option>`).join("");
+    sel.value = towns.includes(value) ? value : "";
+  }
+  function updateSummary() {
+    const total = rows.length;
+    const pending = rows.filter((r)=>!(r.statuses||{}).complete).length;
+    const quote = rows.filter((r)=>!(r.statuses||{}).quote).length;
+    const contact = rows.filter((r)=>(r.statuses||{}).contact !== "연락완료").length;
+    const selfPay = rows.reduce((s,r)=>s+(Number(r.selfPay)||0),0);
+    if ($("subsidy-sum-total")) $("subsidy-sum-total").textContent = money(total);
+    if ($("subsidy-sum-pending")) $("subsidy-sum-pending").textContent = money(pending);
+    if ($("subsidy-sum-quote")) $("subsidy-sum-quote").textContent = money(quote);
+    if ($("subsidy-sum-contact")) $("subsidy-sum-contact").textContent = money(contact);
+    if ($("subsidy-sum-selfpay")) $("subsidy-sum-selfpay").textContent = money(selfPay);
+  }
+  function render() {
+    updateTownFilter();
+    updateSummary();
+    const list = filteredRows();
+    const body = $("subsidy-body");
+    if (!body) return;
+    body.innerHTML = list.length ? list.map((r)=>`
+      <tr data-id="${safe(r.id)}">
+        <td>${safe(r.seq || "")}</td>
+        <td><span class="subsidy-town">${safe(r.town || "")}</span></td>
+        <td><strong>${safe(r.name || "")}</strong><small>${safe(r.phone || "")}</small></td>
+        <td>${safe(r.itemName || "")}</td>
+        <td><strong>${safe(r.maker || "")}</strong><small>${safe(r.model || "")}</small></td>
+        <td class="tr">${money(r.totalCost)}</td>
+        <td class="tr">${money(r.supportTotal)}</td>
+        <td class="tr subsidy-selfpay">${money(r.selfPay)}</td>
+        <td><div class="subsidy-status-grid">
+          ${statusBtn(r,"quote","견적 미발행","견적 완료")}
+          ${statusBtn(r,"contact","미연락","연락완료")}
+          ${statusBtn(r,"machineNo","기대번호 미입력","기대번호 완료")}
+          ${statusBtn(r,"photo","사진 미촬영","사진 완료")}
+          ${statusBtn(r,"document","서류 미완료","서류 완료")}
+          ${statusBtn(r,"payment","입금대기","입금확인")}
+          ${statusBtn(r,"receipt","영수증 미첨부","영수증 완료")}
+          ${statusBtn(r,"complete","완료처리 전","완료")}
+        </div></td>
+        <td><div class="subsidy-row-actions">
+          <button class="btn btn-o btn-sm subsidy-invoice" data-id="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
+          <button class="btn btn-o btn-sm subsidy-machine" data-id="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
+          <button class="btn btn-o btn-sm subsidy-edit" data-id="${safe(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
+          <button class="btn btn-o btn-sm subsidy-delete" data-id="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+        </div></td>
+      </tr>`).join("") : `<tr><td colspan="10" class="empty-td">조건에 맞는 대상자가 없습니다.</td></tr>`;
+  }
+  async function load() {
+    const payload = await api("/api/subsidy-projects");
+    rows = asArray(payload);
+    render();
+  }
+  async function toggleStatus(id, key) {
+    const row = rows.find((r)=>String(r.id)===String(id));
+    if (!row) return;
+    const body = { key };
+    if (key === "contact") {
+      const order = ["미연락","연락완료","연락안됨"];
+      const cur = (row.statuses || {}).contact || "미연락";
+      body.value = order[(order.indexOf(cur)+1)%order.length] || "미연락";
+    }
+    const updated = await api(`/api/subsidy-projects/${encodeURIComponent(id)}/status`, { method:"PATCH", body: JSON.stringify(body) });
+    const idx = rows.findIndex((r)=>String(r.id)===String(id));
+    if (idx >= 0) rows[idx] = updated;
+    render();
+  }
+  async function importFile(file) {
+    if (!file) return;
+    if (typeof XLSX === "undefined") {
+      alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      return;
+    }
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:"array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    let data = XLSX.utils.sheet_to_json(ws, { defval:"" });
+    // 제목행이 앞에 있고 헤더가 2~4행에 있는 경우 대비
+    if (!data.length || !Object.keys(data[0]).some((k)=>String(k).includes("성명") || String(k).includes("연락"))) {
+      const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:"" });
+      const headerIdx = raw.findIndex((row)=>row.some((cell)=>String(cell).includes("성명")) && row.some((cell)=>String(cell).includes("연락")));
+      if (headerIdx >= 0) {
+        const headers = raw[headerIdx].map((h)=>String(h || "").trim() || "빈칸");
+        data = raw.slice(headerIdx + 1).map((row)=>Object.fromEntries(headers.map((h,i)=>[h,row[i] ?? ""])));
+      }
+    }
+    const rowsToSend = data.map(normalizeImportedRow).filter((r)=>r.name || r.phone || r.itemName || r.model);
+    if (!rowsToSend.length) return alert("가져올 대상자를 찾지 못했습니다. 엑셀 헤더를 확인해주세요.");
+    if (!confirm(`${rowsToSend.length}명을 보조사업 관리에 가져올까?`)) return;
+    const result = await api("/api/subsidy-projects/import", { method:"POST", body: JSON.stringify({ rows: rowsToSend }) });
+    alert(`가져오기 완료\n신규 ${result.created || 0}명 / 업데이트 ${result.updated || 0}명`);
+    await load();
+  }
+  function toInvoice(row) {
+    const tab = $("tab-form");
+    if (tab) tab.click();
+    setTimeout(() => {
+      const set = (id, value) => { const el=$(id); if (el) { el.value=value || ""; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); } };
+      set("f-name", row.name || "");
+      set("f-phone", row.phone || "");
+      set("f-region", row.town || "");
+      set("f-part", row.itemName || "");
+      const note = `여성농업인 농작업 편의장비 지원사업 / ${row.town || ""} / 총사업비 ${money(row.totalCost)}원 / 지원금 ${money(row.supportTotal)}원 / 자부담 ${money(row.selfPay)}원`;
+      const itemInputs = document.querySelectorAll("#item-body tr");
+      const first = itemInputs[0];
+      if (first) {
+        const item = first.querySelector(".it-name");
+        const spec = first.querySelector(".it-spec");
+        const qty = first.querySelector(".it-qty");
+        const price = first.querySelector(".it-price");
+        const itemNote = first.querySelector(".it-note");
+        if (item) item.value = row.itemName || "";
+        if (spec) spec.value = row.model || "";
+        if (qty) qty.value = "1";
+        if (price) price.value = String(row.totalCost || row.selfPay || 0);
+        if (itemNote) itemNote.value = note;
+        [item,spec,qty,price,itemNote].filter(Boolean).forEach((el)=>el.dispatchEvent(new Event("input",{bubbles:true})));
+      }
+      alert("보조사업 대상자 정보를 거래명세서 작성란에 불러왔습니다. 금액/품목을 확인 후 저장해줘.");
+    }, 250);
+  }
+  function editRow(row) {
+    const text = prompt("비고/메모를 입력해줘.", row.note || "");
+    if (text == null) return;
+    api(`/api/subsidy-projects/${encodeURIComponent(row.id)}`, { method:"PUT", body: JSON.stringify({ ...row, note:text }) })
+      .then((updated)=>{ const idx=rows.findIndex((r)=>String(r.id)===String(row.id)); if(idx>=0)rows[idx]=updated; render(); })
+      .catch((e)=>alert(e.message));
+  }
+  function machineNo(row) {
+    const value = prompt("기대번호를 입력해줘.", row.machineNo || "");
+    if (value == null) return;
+    const next = { ...row, machineNo:value, statuses:{...(row.statuses||{}), machineNo: !!value} };
+    api(`/api/subsidy-projects/${encodeURIComponent(row.id)}`, { method:"PUT", body: JSON.stringify(next) })
+      .then((updated)=>{ const idx=rows.findIndex((r)=>String(r.id)===String(row.id)); if(idx>=0)rows[idx]=updated; render(); })
+      .catch((e)=>alert(e.message));
+  }
+  function csv() {
+    const cols = ["연번","읍면동","성명","연락처","신청기종","제조회사","형식명","신청사업비","지원금액합계","자부담","견적서","연락","기대번호","사진","서류","입금","영수증","완료","비고"];
+    const lines = [cols.join(",")].concat(filteredRows().map((r)=>{
+      const st=r.statuses||{};
+      const vals=[r.seq,r.town,r.name,r.phone,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,st.quote?"완료":"미발행",st.contact||"미연락",r.machineNo,st.photo?"완료":"미완료",st.document?"완료":"미완료",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"미완료",r.note];
+      return vals.map((v)=>`"${String(v??"").replace(/"/g,'""')}"`).join(",");
+    }));
+    const blob = new Blob(["\ufeff"+lines.join("\n")], { type:"text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `여성농업인_보조사업_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }
+  function bind() {
+    if (!$("page-subsidy")) return;
+    $("subsidy-refresh")?.addEventListener("click", ()=>load().catch((e)=>alert(e.message)));
+    $("subsidy-csv")?.addEventListener("click", csv);
+    $("subsidy-import-file")?.addEventListener("change", (ev)=>importFile(ev.target.files[0]).catch((e)=>alert(e.message)).finally(()=>{ ev.target.value=""; }));
+    ["subsidy-search","subsidy-status-filter","subsidy-town-filter"].forEach((id)=>$(id)?.addEventListener("input", render));
+    $("subsidy-filter-clear")?.addEventListener("click", ()=>{ if($("subsidy-search"))$("subsidy-search").value=""; if($("subsidy-status-filter"))$("subsidy-status-filter").value=""; if($("subsidy-town-filter"))$("subsidy-town-filter").value=""; render(); });
+    document.addEventListener("click", (ev)=>{
+      const st = ev.target.closest("[data-subsidy-status]");
+      if (st) { ev.preventDefault(); toggleStatus(st.getAttribute("data-id"), st.getAttribute("data-subsidy-status")).catch((e)=>alert(e.message)); return; }
+      const inv = ev.target.closest(".subsidy-invoice");
+      if (inv) { const row=rows.find((r)=>String(r.id)===String(inv.dataset.id)); if(row) toInvoice(row); return; }
+      const edit = ev.target.closest(".subsidy-edit");
+      if (edit) { const row=rows.find((r)=>String(r.id)===String(edit.dataset.id)); if(row) editRow(row); return; }
+      const m = ev.target.closest(".subsidy-machine");
+      if (m) { const row=rows.find((r)=>String(r.id)===String(m.dataset.id)); if(row) machineNo(row); return; }
+      const del = ev.target.closest(".subsidy-delete");
+      if (del) {
+        const row=rows.find((r)=>String(r.id)===String(del.dataset.id));
+        if(!row || !confirm(`${row.name} 대상자를 삭제할까? 관리자 복구함에 보관돼.`)) return;
+        api(`/api/subsidy-projects/${encodeURIComponent(row.id)}`, { method:"DELETE" })
+          .then(()=>{ rows=rows.filter((r)=>String(r.id)!==String(row.id)); render(); })
+          .catch((e)=>alert(e.message));
+      }
+    });
+  }
+  document.addEventListener("DOMContentLoaded", bind);
+  window.NaepoSubsidyV49 = { load };
+})();
+
+
+/* ===== v49-subsidy-project-management-20260710 =====
+   여성농업인/보조사업 명단 엑셀 가져오기 + 상태관리 + 명세서 연동
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  let rows = [];
+  let filterText = "";
+  let filterStatus = "";
+  let filterTown = "";
+
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const num = (v) => Number(String(v == null ? "" : v).replace(/[,원\s]/g, "")) || 0;
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const today = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  };
+  const nowIso = () => new Date().toISOString();
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  const asArray = (data) => Array.isArray(data) ? data : data && Array.isArray(data.items) ? data.items : [];
+
+  function get(row, keys) {
+    for (const key of keys) {
+      if (row[key] != null && String(row[key]).trim() !== "") return row[key];
+    }
+    const normalized = {};
+    Object.keys(row || {}).forEach((k) => {
+      normalized[String(k).replace(/\s+/g, "").toLowerCase()] = row[k];
+    });
+    for (const key of keys) {
+      const nk = String(key).replace(/\s+/g, "").toLowerCase();
+      if (normalized[nk] != null && String(normalized[nk]).trim() !== "") return normalized[nk];
+    }
+    return "";
+  }
+
+  function normalizeExcelRow(raw, idx) {
+    const totalCost = num(get(raw, ["신청 사업비", "신청사업비", "사업비", "총사업비"]));
+    const provincialSupport = num(get(raw, ["도비"]));
+    const countySupport = num(get(raw, ["군비"]));
+    let supportTotal = num(get(raw, ["지원금액합계", "지원금액 합계", "지원금", "보조금"]));
+    if (!supportTotal) supportTotal = provincialSupport + countySupport;
+    let selfPay = num(get(raw, ["자부담", "자부담금"]));
+    if (!selfPay && totalCost) selfPay = Math.max(0, totalCost - supportTotal);
+    const yearValue = get(raw, ["사업연도", "연도", "년도"]) || new Date().getFullYear();
+    return {
+      seq: String(get(raw, ["연번", "번호", "순번"]) || idx + 1),
+      projectYear: String(yearValue).replace(/[^\d]/g, "").slice(0,4) || String(new Date().getFullYear()),
+      projectName: "여성농업인 농작업 편의장비 지원사업",
+      town: String(get(raw, ["읍면동", "읍면", "지역", "주소"]) || "").trim(),
+      name: String(get(raw, ["성명", "이름", "신청자", "대상자"]) || "").trim(),
+      phone: String(get(raw, ["연락처", "전화번호", "핸드폰", "휴대폰"]) || "").trim(),
+      equipment: String(get(raw, ["신청기종", "기종", "품목", "물품명"]) || "").trim(),
+      maker: String(get(raw, ["제조회사", "제조사", "회사", "브랜드"]) || "").trim(),
+      modelName: String(get(raw, ["형식명", "모델명", "모델", "규격"]) || "").trim(),
+      totalCost,
+      provincialSupport,
+      countySupport,
+      supportTotal,
+      selfPay,
+      note: String(get(raw, ["비고", "메모", "특이사항"]) || "").trim(),
+      quoteStatus: "견적서 미발행",
+      contactStatus: "미연락",
+      photoStatus: "사진 미촬영",
+      documentStatus: "서류 미완료",
+      paymentStatus: "입금대기",
+      receiptStatus: "영수증 미첨부",
+      done: false,
+      receivedAt: "",
+      memo: "",
+    };
+  }
+
+  async function load() {
+    if (!$("page-subsidy") || !token()) return;
+    try {
+      const data = await api("/api/subsidy-projects");
+      rows = asArray(data);
+      render();
+    } catch (e) {
+      alert("보조사업 목록 불러오기 실패: " + e.message);
+    }
+  }
+
+  function filteredRows() {
+    const q = filterText.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (filterTown && String(r.town || "") !== filterTown) return false;
+      if (filterStatus === "active" && r.done) return false;
+      if (filterStatus === "done" && !r.done) return false;
+      if (filterStatus === "quote" && r.quoteStatus === "견적서 발행완료") return false;
+      if (filterStatus === "contact" && r.contactStatus === "연락완료") return false;
+      if (filterStatus === "document" && r.documentStatus === "서류완료") return false;
+      if (filterStatus === "payment" && r.paymentStatus === "입금확인") return false;
+      if (filterStatus === "receipt" && r.receiptStatus === "영수증 첨부완료") return false;
+      if (q) {
+        const hay = [r.projectYear,r.town,r.name,r.phone,r.equipment,r.maker,r.modelName,r.note,r.memo,r.machineNo,r.quoteStatus,r.contactStatus,r.documentStatus,r.paymentStatus,r.receiptStatus].join(" ").toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    }).sort((a,b) => String(a.town || "").localeCompare(String(b.town || "")) || Number(a.seq || 0) - Number(b.seq || 0));
+  }
+
+  function updateSummary(list) {
+    const total = rows.length;
+    const quote = rows.filter((r) => r.quoteStatus !== "견적서 발행완료").length;
+    const contact = rows.filter((r) => r.contactStatus !== "연락완료").length;
+    const doc = rows.filter((r) => r.documentStatus !== "서류완료").length;
+    const self = rows.reduce((s,r)=>s+(Number(r.selfPay)||0),0);
+    if ($("subsidy-count-total")) $("subsidy-count-total").textContent = money(total);
+    if ($("subsidy-count-quote")) $("subsidy-count-quote").textContent = money(quote);
+    if ($("subsidy-count-contact")) $("subsidy-count-contact").textContent = money(contact);
+    if ($("subsidy-count-doc")) $("subsidy-count-doc").textContent = money(doc);
+    if ($("subsidy-selfpay-total")) $("subsidy-selfpay-total").textContent = money(self);
+  }
+
+  function updateTownFilter() {
+    const sel = $("subsidy-town-filter");
+    if (!sel) return;
+    const current = sel.value;
+    const towns = [...new Set(rows.map((r)=>r.town).filter(Boolean))].sort();
+    sel.innerHTML = `<option value="">전체 읍면동</option>` + towns.map((t)=>`<option value="${safe(t)}">${safe(t)}</option>`).join("");
+    sel.value = towns.includes(current) ? current : "";
+  }
+
+  function statusButton(id, field, value, cls) {
+    return `<button type="button" class="subsidy-state ${cls || ""}" data-subsidy-status="${safe(id)}" data-field="${safe(field)}">${safe(value || "-")}</button>`;
+  }
+
+  function render() {
+    const list = filteredRows();
+    updateTownFilter();
+    updateSummary(list);
+    const body = $("subsidy-body");
+    if (!body) return;
+    body.innerHTML = list.length ? list.map((r) => {
+      const statusHtml = `
+        <div class="subsidy-state-grid">
+          ${statusButton(r.id, "quoteStatus", r.quoteStatus || "견적서 미발행", r.quoteStatus === "견적서 발행완료" ? "ok" : "warn")}
+          ${statusButton(r.id, "contactStatus", r.contactStatus || "미연락", r.contactStatus === "연락완료" ? "ok" : "bad")}
+          ${statusButton(r.id, "photoStatus", r.photoStatus || "사진 미촬영", r.photoStatus === "사진촬영 완료" ? "ok" : "warn")}
+          ${statusButton(r.id, "documentStatus", r.documentStatus || "서류 미완료", r.documentStatus === "서류완료" ? "ok" : "bad")}
+          ${statusButton(r.id, "paymentStatus", r.paymentStatus || "입금대기", r.paymentStatus === "입금확인" ? "ok" : "warn")}
+          ${statusButton(r.id, "receiptStatus", r.receiptStatus || "영수증 미첨부", r.receiptStatus === "영수증 첨부완료" ? "ok" : "warn")}
+          ${statusButton(r.id, "done", r.done ? "완료" : "진행중", r.done ? "ok" : "muted")}
+        </div>`;
+      return `<tr data-id="${safe(r.id)}">
+        <td><strong>${safe(r.town || "-")}</strong><small>${safe(r.projectYear || "")}</small></td>
+        <td><strong>${safe(r.name || "-")}</strong><small>${safe(r.phone || "")}</small></td>
+        <td>${safe(r.equipment || "-")}</td>
+        <td><strong>${safe(r.maker || "-")}</strong><small>${safe(r.modelName || "")}</small></td>
+        <td class="tr">${money(r.totalCost)}</td>
+        <td class="tr">${money(r.supportTotal)}</td>
+        <td class="tr"><strong>${money(r.selfPay)}</strong></td>
+        <td>${statusHtml}${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}</td>
+        <td>
+          <div class="subsidy-row-actions">
+            <button type="button" class="btn btn-o btn-sm" data-subsidy-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
+            <button type="button" class="btn btn-o btn-sm" data-subsidy-machine="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
+            <button type="button" class="btn btn-o btn-sm" data-subsidy-memo="${safe(r.id)}"><i class="fa-solid fa-note-sticky"></i> 메모</button>
+            <button type="button" class="btn btn-o btn-sm d" data-subsidy-delete="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="9" class="empty-td">등록된 보조사업 대상자가 없습니다. 엑셀 명단을 가져와주세요.</td></tr>`;
+  }
+
+  async function patchRow(row, patch) {
+    const updated = await api(`/api/subsidy-projects/${encodeURIComponent(row.id)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    });
+    const idx = rows.findIndex((r)=>String(r.id) === String(row.id));
+    if (idx >= 0) rows[idx] = updated;
+    render();
+    if (window.NaepoV48Ops && window.NaepoV48Ops.reloadAlerts) window.NaepoV48Ops.reloadAlerts();
+  }
+
+  function nextStatus(field, current) {
+    const map = {
+      quoteStatus: ["견적서 미발행", "견적서 발행완료"],
+      contactStatus: ["미연락", "연락완료", "연락안됨"],
+      photoStatus: ["사진 미촬영", "사진촬영 완료"],
+      documentStatus: ["서류 미완료", "서류완료"],
+      paymentStatus: ["입금대기", "입금확인"],
+      receiptStatus: ["영수증 미첨부", "영수증 첨부완료"],
+    };
+    const arr = map[field] || [];
+    const idx = arr.indexOf(current);
+    return arr[(idx + 1) % arr.length] || arr[0] || current;
+  }
+
+  async function importFile(file) {
+    if (!file) return;
+    if (typeof XLSX === "undefined") {
+      alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      return;
+    }
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+  }
+
+  async function importFileV2(file) {
+    if (!file) return;
+    if (typeof XLSX === "undefined") {
+      alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      return;
+    }
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: "array", cellDates: false });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
+    const normalized = rawRows.map(normalizeExcelRow).filter((r) => r.name || r.phone || r.equipment);
+    if (!normalized.length) {
+      alert("가져올 대상자를 찾지 못했습니다. 엑셀 첫 행의 제목을 확인해주세요.");
+      return;
+    }
+    if (!confirm(`${normalized.length}명을 보조사업 관리에 가져올까? 중복 대상자는 갱신됩니다.`)) return;
+    const result = await api("/api/subsidy-projects/import", {
+      method: "POST",
+      body: JSON.stringify({ rows: normalized }),
+    });
+    alert(`가져오기 완료\n신규 ${result.created || 0}건 / 갱신 ${result.updated || 0}건 / 제외 ${result.skipped || 0}건`);
+    await load();
+  }
+
+  function exportCsv() {
+    const list = filteredRows();
+    const headers = ["사업연도","읍면동","성명","연락처","신청기종","제조회사","형식명","총사업비","지원금","자부담","견적서","연락","기대번호","사진","서류","입금","영수증","완료","메모"];
+    const lines = [headers.join(",")];
+    list.forEach((r) => {
+      const vals = [r.projectYear,r.town,r.name,r.phone,r.equipment,r.maker,r.modelName,r.totalCost,r.supportTotal,r.selfPay,r.quoteStatus,r.contactStatus,r.machineNo,r.photoStatus,r.documentStatus,r.paymentStatus,r.receiptStatus,r.done ? "완료" : "진행중",r.memo];
+      lines.push(vals.map((v)=>`"${String(v == null ? "" : v).replace(/"/g,'""')}"`).join(","));
+    });
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `보조사업관리_${today().replace(/-/g,"")}.csv`;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  }
+
+  function fillInvoice(row) {
+    const tab = $("tab-form");
+    if (tab) tab.click();
+    setTimeout(() => {
+      const set = (id, value) => {
+        const el = $(id);
+        if (!el) return;
+        el.value = value || "";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      set("f-company", "-");
+      set("f-name", row.name || "");
+      set("f-phone", row.phone || "");
+      set("f-region", row.town || "");
+      const itemRoot = $("items-builder-root");
+      if (itemRoot) {
+        const first = itemRoot.querySelector(".item-row-card") || (() => { $("btn-add-item-row")?.click(); return itemRoot.querySelector(".item-row-card"); })();
+        if (first) {
+          const item = first.querySelector(".p-item");
+          const spec = first.querySelector(".p-spec");
+          const qty = first.querySelector(".p-qty");
+          const price = first.querySelector(".p-price");
+          const amount = first.querySelector(".p-amount");
+          const tax = first.querySelector(".p-tax");
+          const note = first.querySelector(".p-item-note");
+          if (item) item.value = row.equipment || "";
+          if (spec) spec.value = [row.maker, row.modelName].filter(Boolean).join(" / ");
+          if (qty) qty.value = "1";
+          if (price) price.value = row.totalCost || row.selfPay || 0;
+          if (amount) amount.value = row.totalCost || row.selfPay || 0;
+          if (tax) tax.value = 0;
+          if (note) note.value = `여성농업인 보조사업 / 지원금 ${money(row.supportTotal)}원 / 자부담 ${money(row.selfPay)}원`;
+          [item,spec,qty,price,amount,tax,note].filter(Boolean).forEach((el)=>el.dispatchEvent(new Event("input", { bubbles:true })));
+        }
+      }
+      alert("보조사업 대상자 정보를 거래명세서 작성란에 불러왔습니다. 확인 후 저장해주세요.");
+    }, 150);
+  }
+
+  function bind() {
+    $("subsidy-import-btn")?.addEventListener("click", () => $("subsidy-import-file")?.click());
+    $("subsidy-import-file")?.addEventListener("change", (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      importFileV2(file).finally(() => { ev.target.value = ""; });
+    });
+    $("subsidy-refresh-btn")?.addEventListener("click", load);
+    $("subsidy-csv-btn")?.addEventListener("click", exportCsv);
+    $("subsidy-search")?.addEventListener("input", (ev) => { filterText = ev.target.value || ""; render(); });
+    $("subsidy-status-filter")?.addEventListener("change", (ev) => { filterStatus = ev.target.value || ""; render(); });
+    $("subsidy-town-filter")?.addEventListener("change", (ev) => { filterTown = ev.target.value || ""; render(); });
+
+    document.addEventListener("click", async (ev) => {
+      const statusBtn = ev.target.closest("[data-subsidy-status]");
+      if (statusBtn) {
+        const row = rows.find((r) => String(r.id) === String(statusBtn.getAttribute("data-subsidy-status")));
+        if (!row) return;
+        const field = statusBtn.getAttribute("data-field");
+        const patch = {};
+        if (field === "done") {
+          patch.done = !row.done;
+          if (!row.done) {
+            patch.quoteStatus = "견적서 발행완료";
+            patch.contactStatus = "연락완료";
+            patch.photoStatus = "사진촬영 완료";
+            patch.documentStatus = "서류완료";
+            patch.paymentStatus = "입금확인";
+            patch.receiptStatus = "영수증 첨부완료";
+          }
+        } else {
+          patch[field] = nextStatus(field, row[field]);
+          if (field === "quoteStatus" && patch[field] === "견적서 발행완료") patch.quoteIssuedAt = nowIso();
+          if (field === "contactStatus" && patch[field] === "연락완료") patch.contactedAt = nowIso();
+        }
+        try { await patchRow(row, patch); } catch (e) { alert(e.message); }
+        return;
+      }
+
+      const invoiceBtn = ev.target.closest("[data-subsidy-invoice]");
+      if (invoiceBtn) {
+        const row = rows.find((r) => String(r.id) === String(invoiceBtn.getAttribute("data-subsidy-invoice")));
+        if (row) fillInvoice(row);
+        return;
+      }
+
+      const machineBtn = ev.target.closest("[data-subsidy-machine]");
+      if (machineBtn) {
+        const row = rows.find((r) => String(r.id) === String(machineBtn.getAttribute("data-subsidy-machine")));
+        if (!row) return;
+        const machineNo = prompt("기대번호를 입력해줘.", row.machineNo || "");
+        if (machineNo == null) return;
+        try { await patchRow(row, { machineNo, receivedAt: row.receivedAt || nowIso() }); } catch (e) { alert(e.message); }
+        return;
+      }
+
+      const memoBtn = ev.target.closest("[data-subsidy-memo]");
+      if (memoBtn) {
+        const row = rows.find((r) => String(r.id) === String(memoBtn.getAttribute("data-subsidy-memo")));
+        if (!row) return;
+        const memo = prompt("메모를 입력해줘.", row.memo || row.note || "");
+        if (memo == null) return;
+        try { await patchRow(row, { memo }); } catch (e) { alert(e.message); }
+        return;
+      }
+
+      const delBtn = ev.target.closest("[data-subsidy-delete]");
+      if (delBtn) {
+        const row = rows.find((r) => String(r.id) === String(delBtn.getAttribute("data-subsidy-delete")));
+        if (!row || !confirm(`${row.name || "대상자"} 항목을 삭제할까? 관리자 복구함에서 복구할 수 있어.`)) return;
+        try {
+          await api(`/api/subsidy-projects/${encodeURIComponent(row.id)}`, { method: "DELETE" });
+          rows = rows.filter((r) => String(r.id) !== String(row.id));
+          render();
+        } catch (e) { alert(e.message); }
+      }
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bind();
+    setTimeout(load, 1200);
+  });
+
+  window.NaepoSubsidyV49 = { load, render };
 })();
