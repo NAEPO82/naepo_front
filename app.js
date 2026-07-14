@@ -8227,8 +8227,11 @@ function parseEasyInventoryText(text) {
 
 /* ===== v49-v50-subsidy-modules-disabled-by-v52-20260710 ===== */
 
-/* ===== v52-subsidy-list-bulk-edit-fix-20260710 =====
-   보조사업 중복등록 방지, 선택삭제, 주소/생년월일 표시, 전체 수정 모달, 레이아웃 보정
+/* ===== v52-subsidy-list-bulk-edit-fix-20260710 REPLACED_BY_V53 ===== */
+
+
+/* ===== v53-subsidy-report-pagination-fit-20260710 =====
+   보조사업: 가로스크롤 제거형 압축표, 지역+기종 복합필터, 페이지, 비고 표시, 보고서 기능
 */
 (() => {
   const API_BASE = "https://naepo-back.onrender.com";
@@ -8236,12 +8239,15 @@ function parseEasyInventoryText(text) {
   let rows = [];
   let selected = new Set();
   let bound = false;
+  let page = 1;
+  let pageSize = 20;
 
   const $ = (id) => document.getElementById(id);
   const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
   const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
   const num = (v) => Number(String(v == null ? "" : v).replace(/[,원\s]/g, "")) || 0;
+  const today = () => new Date().toISOString().slice(0, 10);
 
   async function api(path, options = {}) {
     const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
@@ -8364,17 +8370,21 @@ function parseEasyInventoryText(text) {
       modelName: row.modelName || row.model || "",
       birthDate: row.birthDate || row.birth || row.birthday || "",
       address: row.address || row.addr || "",
+      note: row.note || row.memo || "",
       statuses: st,
     });
   }
 
-  function visibleRows() {
+  function filteredRows() {
     const q = ($("subsidy-search")?.value || "").trim().toLowerCase();
     const status = $("subsidy-status-filter")?.value || "";
     const town = $("subsidy-town-filter")?.value || "";
+    const equipment = $("subsidy-equipment-filter")?.value || "";
     return rows.map(normalizeRow).filter((r) => {
       const st = r.statuses || {};
+      const item = r.itemName || r.equipment || "";
       if (town && r.town !== town) return false;
+      if (equipment && item !== equipment) return false;
       if ((status === "pending" || status === "active") && st.complete) return false;
       if ((status === "complete" || status === "done") && !st.complete) return false;
       if (status === "quote" && st.quote) return false;
@@ -8390,27 +8400,42 @@ function parseEasyInventoryText(text) {
     }).sort((a,b) => Number(a.seq || 999999) - Number(b.seq || 999999) || String(a.town || "").localeCompare(String(b.town || "")));
   }
 
+  function pageRows(all) {
+    pageSize = Number($("subsidy-page-size")?.value || pageSize || 20);
+    const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+    page = Math.min(Math.max(1, page), totalPages);
+    return all.slice((page - 1) * pageSize, page * pageSize);
+  }
+
   function statusBtn(row, key, off, on) {
     const st = row.statuses || {};
     if (key === "contact") {
       const v = st.contact || "미연락";
       const cls = v === "연락완료" ? "ok" : v === "연락안됨" ? "bad" : "warn";
-      return `<button type="button" class="subsidy-status-btn ${cls}" data-v52-status="${safe(key)}" data-id="${safe(row.id)}">${safe(v)}</button>`;
+      return `<button type="button" class="subsidy-status-btn ${cls}" data-v53-status="${safe(key)}" data-id="${safe(row.id)}">${safe(v)}</button>`;
     }
     const done = Boolean(st[key]);
-    return `<button type="button" class="subsidy-status-btn ${done ? "ok" : "warn"}" data-v52-status="${safe(key)}" data-id="${safe(row.id)}">${done ? safe(on) : safe(off)}</button>`;
+    return `<button type="button" class="subsidy-status-btn ${done ? "ok" : "warn"}" data-v53-status="${safe(key)}" data-id="${safe(row.id)}">${done ? safe(on) : safe(off)}</button>`;
   }
 
-  function updateTownFilter() {
-    const sel = $("subsidy-town-filter");
-    if (!sel) return;
-    const current = sel.value;
-    const towns = [...new Set(rows.map((r) => normalizeRow(r).town).filter(Boolean))].sort();
-    sel.innerHTML = `<option value="">전체 읍면동</option>` + towns.map((t) => `<option value="${safe(t)}">${safe(t)}</option>`).join("");
-    sel.value = towns.includes(current) ? current : "";
+  function updateFilters() {
+    const townSel = $("subsidy-town-filter");
+    const equipSel = $("subsidy-equipment-filter");
+    if (townSel) {
+      const cur = townSel.value;
+      const towns = [...new Set(rows.map((r) => normalizeRow(r).town).filter(Boolean))].sort();
+      townSel.innerHTML = `<option value="">전체지역</option>` + towns.map((t) => `<option value="${safe(t)}">${safe(t)}</option>`).join("");
+      townSel.value = towns.includes(cur) ? cur : "";
+    }
+    if (equipSel) {
+      const cur = equipSel.value;
+      const items = [...new Set(rows.map((r) => normalizeRow(r).itemName || normalizeRow(r).equipment).filter(Boolean))].sort();
+      equipSel.innerHTML = `<option value="">전체기종</option>` + items.map((t) => `<option value="${safe(t)}">${safe(t)}</option>`).join("");
+      equipSel.value = items.includes(cur) ? cur : "";
+    }
   }
 
-  function updateSummary() {
+  function updateSummary(allFiltered) {
     const normalized = rows.map(normalizeRow);
     const total = normalized.length;
     const pending = normalized.filter((r) => !r.statuses.complete).length;
@@ -8425,29 +8450,47 @@ function parseEasyInventoryText(text) {
     if (btn) btn.innerHTML = `<i class="fa-solid fa-trash-check"></i> 선택삭제 ${selected.size ? `(${selected.size})` : ""}`;
   }
 
+  function renderPagination(all) {
+    const box = $("subsidy-pagination-v53");
+    if (!box) return;
+    const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+    const start = all.length ? ((page - 1) * pageSize + 1) : 0;
+    const end = Math.min(all.length, page * pageSize);
+    box.innerHTML = `
+      <div class="subsidy-page-info">총 ${money(all.length)}명 · ${start}-${end} 표시 · ${page}/${totalPages}페이지</div>
+      <div class="subsidy-page-actions">
+        <button type="button" class="btn btn-o btn-sm" data-v53-page="first" ${page <= 1 ? "disabled" : ""}>처음</button>
+        <button type="button" class="btn btn-o btn-sm" data-v53-page="prev" ${page <= 1 ? "disabled" : ""}>이전</button>
+        <button type="button" class="btn btn-o btn-sm" data-v53-page="next" ${page >= totalPages ? "disabled" : ""}>다음</button>
+        <button type="button" class="btn btn-o btn-sm" data-v53-page="last" ${page >= totalPages ? "disabled" : ""}>마지막</button>
+      </div>`;
+  }
+
   function render() {
-    updateTownFilter();
-    updateSummary();
+    updateFilters();
+    const all = filteredRows();
+    updateSummary(all);
+    const list = pageRows(all);
+    selected = new Set([...selected].filter((id) => rows.some((r) => String(r.id) === String(id))));
     const body = $("subsidy-body");
     if (!body) return;
-    const list = visibleRows();
-    selected = new Set([...selected].filter((id) => rows.some((r) => String(r.id) === String(id))));
     body.innerHTML = list.length ? list.map((r) => `
       <tr data-id="${safe(r.id)}" class="${selected.has(String(r.id)) ? "subsidy-selected-row" : ""}">
-        <td class="subsidy-check-cell"><input type="checkbox" class="subsidy-row-check" data-v52-check="${safe(r.id)}" ${selected.has(String(r.id)) ? "checked" : ""} /></td>
+        <td class="subsidy-check-cell"><input type="checkbox" class="subsidy-row-check" data-v53-check="${safe(r.id)}" ${selected.has(String(r.id)) ? "checked" : ""} /></td>
         <td class="subsidy-col-no">${safe(r.seq || "")}</td>
         <td><span class="subsidy-town">${safe(r.town || "")}</span></td>
         <td class="subsidy-person-cell">
           <strong>${safe(r.name || "")}</strong>
-          <small><i class="fa-solid fa-phone"></i> ${safe(r.phone || "-")}</small>
-          <small><i class="fa-solid fa-cake-candles"></i> ${safe(r.birthDate || "생년월일 없음")}</small>
-          <small class="addr"><i class="fa-solid fa-location-dot"></i> ${safe(r.address || "주소 없음")}</small>
+          <small>${safe(r.phone || "-")}</small>
+          <small>생년: ${safe(r.birthDate || "-")}</small>
+          <small class="addr">주소: ${safe(r.address || "-")}</small>
         </td>
-        <td>${safe(r.itemName || r.equipment || "")}</td>
+        <td class="subsidy-item-cell">${safe(r.itemName || r.equipment || "")}</td>
         <td><strong>${safe(r.maker || "")}</strong><small>${safe(r.model || r.modelName || "")}</small></td>
         <td class="tr">${money(r.totalCost)}</td>
         <td class="tr">${money(r.supportTotal)}</td>
         <td class="tr subsidy-selfpay">${money(r.selfPay)}</td>
+        <td class="subsidy-note-cell" title="${safe(r.note || "")}">${safe(r.note || "-")}</td>
         <td><div class="subsidy-status-grid">
           ${statusBtn(r,"quote","견적 미발행","견적 완료")}
           ${statusBtn(r,"contact","미연락","연락완료")}
@@ -8459,18 +8502,19 @@ function parseEasyInventoryText(text) {
           ${statusBtn(r,"complete","완료처리 전","완료")}
         </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}</td>
         <td class="subsidy-manage-cell"><div class="subsidy-row-actions">
-          <button type="button" class="btn btn-o btn-sm subsidy-invoice" data-v52-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
-          <button type="button" class="btn btn-o btn-sm subsidy-machine-btn" data-v52-machine="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
-          <button type="button" class="btn btn-o btn-sm subsidy-edit" data-v52-edit="${safe(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
-          <button type="button" class="btn btn-o btn-sm d subsidy-delete" data-v52-delete="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
+          <button type="button" class="btn btn-o btn-sm subsidy-invoice" data-v53-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
+          <button type="button" class="btn btn-o btn-sm subsidy-machine-btn" data-v53-machine="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
+          <button type="button" class="btn btn-o btn-sm subsidy-edit" data-v53-edit="${safe(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
+          <button type="button" class="btn btn-o btn-sm d subsidy-delete" data-v53-delete="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
         </div></td>
-      </tr>`).join("") : `<tr><td colspan="11" class="empty-td">조건에 맞는 대상자가 없습니다.</td></tr>`;
-    const all = $("subsidy-check-all");
-    if (all) {
+      </tr>`).join("") : `<tr><td colspan="12" class="empty-td">조건에 맞는 대상자가 없습니다.</td></tr>`;
+    const allCheck = $("subsidy-check-all");
+    if (allCheck) {
       const ids = list.map((r) => String(r.id));
-      all.checked = ids.length > 0 && ids.every((id) => selected.has(id));
-      all.indeterminate = ids.some((id) => selected.has(id)) && !all.checked;
+      allCheck.checked = ids.length > 0 && ids.every((id) => selected.has(id));
+      allCheck.indeterminate = ids.some((id) => selected.has(id)) && !allCheck.checked;
     }
+    renderPagination(all);
   }
 
   async function load() {
@@ -8494,6 +8538,7 @@ function parseEasyInventoryText(text) {
     const result = await api("/api/subsidy-projects/import", { method: "POST", body: JSON.stringify({ rows: sendRows }) });
     alert(`가져오기 완료\n신규 ${result.created || 0}명 / 업데이트 ${result.updated || 0}명 / 제외 ${result.skipped || 0}명`);
     selected.clear();
+    page = 1;
     await load();
   }
 
@@ -8550,17 +8595,17 @@ function parseEasyInventoryText(text) {
   }
 
   function ensureEditModal() {
-    let modal = $("subsidy-edit-modal-v52");
+    let modal = $("subsidy-edit-modal-v53");
     if (modal) return modal;
     modal = document.createElement("div");
-    modal.id = "subsidy-edit-modal-v52";
+    modal.id = "subsidy-edit-modal-v53";
     modal.className = "subsidy-edit-modal-v52";
     modal.innerHTML = `
-      <div class="subsidy-edit-backdrop" data-v52-edit-close="1"></div>
+      <div class="subsidy-edit-backdrop" data-v53-edit-close="1"></div>
       <div class="subsidy-edit-box">
         <div class="subsidy-edit-head">
           <strong><i class="fa-solid fa-pen-to-square"></i> 보조사업 대상자 수정</strong>
-          <button type="button" data-v52-edit-close="1"><i class="fa-solid fa-xmark"></i></button>
+          <button type="button" data-v53-edit-close="1"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="subsidy-edit-grid">
           <label>연번<input id="se-seq" /></label>
@@ -8578,8 +8623,8 @@ function parseEasyInventoryText(text) {
           <label class="wide">비고/메모<input id="se-note" /></label>
         </div>
         <div class="subsidy-edit-actions">
-          <button type="button" class="btn btn-o" data-v52-edit-close="1">취소</button>
-          <button type="button" class="btn btn-p" id="subsidy-edit-save-v52">저장</button>
+          <button type="button" class="btn btn-o" data-v53-edit-close="1">취소</button>
+          <button type="button" class="btn btn-p" id="subsidy-edit-save-v53">저장</button>
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -8607,7 +8652,7 @@ function parseEasyInventoryText(text) {
   }
 
   async function saveEdit() {
-    const modal = $("subsidy-edit-modal-v52");
+    const modal = $("subsidy-edit-modal-v53");
     if (!modal || !modal.dataset.id) return;
     const old = rows.map(normalizeRow).find((r) => String(r.id) === String(modal.dataset.id));
     if (!old) return;
@@ -8647,18 +8692,110 @@ function parseEasyInventoryText(text) {
     await load();
   }
 
+  function makeGroup(list, keyFn) {
+    const map = new Map();
+    list.forEach((r) => {
+      const key = keyFn(r) || "미지정";
+      const cur = map.get(key) || { key, count: 0, totalCost: 0, supportTotal: 0, selfPay: 0 };
+      cur.count += 1;
+      cur.totalCost += Number(r.totalCost) || 0;
+      cur.supportTotal += Number(r.supportTotal) || 0;
+      cur.selfPay += Number(r.selfPay) || 0;
+      map.set(key, cur);
+    });
+    return [...map.values()].sort((a,b) => b.count - a.count || a.key.localeCompare(b.key));
+  }
+
+  function reportHtml(list) {
+    const town = $("subsidy-town-filter")?.value || "전체지역";
+    const equipment = $("subsidy-equipment-filter")?.value || "전체기종";
+    const status = $("subsidy-status-filter")?.selectedOptions?.[0]?.textContent || "전체상태";
+    const total = list.reduce((s,r)=>s+(Number(r.totalCost)||0),0);
+    const support = list.reduce((s,r)=>s+(Number(r.supportTotal)||0),0);
+    const self = list.reduce((s,r)=>s+(Number(r.selfPay)||0),0);
+    const byItem = makeGroup(list, (r)=>r.itemName || r.equipment);
+    const byTown = makeGroup(list, (r)=>r.town);
+    const byCombo = makeGroup(list, (r)=>`${r.town || "미지정"} / ${r.itemName || r.equipment || "미지정"}`);
+    const row = (g) => `<tr><td>${safe(g.key)}</td><td class="tr">${money(g.count)}대</td><td class="tr">${money(g.totalCost)}</td><td class="tr">${money(g.supportTotal)}</td><td class="tr">${money(g.selfPay)}</td></tr>`;
+    return `
+      <div class="subsidy-report-doc">
+        <h2>여성농업인 보조사업 보고서</h2>
+        <div class="subsidy-report-meta">기준: ${safe(town)} · ${safe(equipment)} · ${safe(status)} · 출력일 ${today()}</div>
+        <div class="subsidy-report-cards">
+          <div><span>대상자</span><b>${money(list.length)}명</b></div>
+          <div><span>총사업비</span><b>${money(total)}원</b></div>
+          <div><span>보조금</span><b>${money(support)}원</b></div>
+          <div><span>자부담</span><b>${money(self)}원</b></div>
+        </div>
+        <h3>신청기종 / 제품명별 대수</h3>
+        <table><thead><tr><th>신청기종/제품명</th><th>대수</th><th>총사업비</th><th>보조금</th><th>자부담</th></tr></thead><tbody>${byItem.map(row).join("") || `<tr><td colspan="5">없음</td></tr>`}</tbody></table>
+        <h3>지역별 현황</h3>
+        <table><thead><tr><th>지역</th><th>대수</th><th>총사업비</th><th>보조금</th><th>자부담</th></tr></thead><tbody>${byTown.map(row).join("") || `<tr><td colspan="5">없음</td></tr>`}</tbody></table>
+        <h3>지역 + 신청기종별 현황</h3>
+        <table><thead><tr><th>지역 / 신청기종</th><th>대수</th><th>총사업비</th><th>보조금</th><th>자부담</th></tr></thead><tbody>${byCombo.map(row).join("") || `<tr><td colspan="5">없음</td></tr>`}</tbody></table>
+      </div>`;
+  }
+
+  function ensureReportModal() {
+    let modal = $("subsidy-report-modal-v53");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "subsidy-report-modal-v53";
+    modal.className = "subsidy-report-modal-v53";
+    modal.innerHTML = `
+      <div class="subsidy-report-backdrop" data-v53-report-close="1"></div>
+      <div class="subsidy-report-box">
+        <div class="subsidy-report-head">
+          <strong><i class="fa-solid fa-chart-pie"></i> 보조사업 보고</strong>
+          <div>
+            <button type="button" class="btn btn-o btn-sm" id="subsidy-report-print-v53"><i class="fa-solid fa-print"></i> 인쇄</button>
+            <button type="button" class="btn btn-o btn-sm" data-v53-report-close="1"><i class="fa-solid fa-xmark"></i> 닫기</button>
+          </div>
+        </div>
+        <div id="subsidy-report-body-v53"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  function openReport() {
+    const list = filteredRows();
+    const modal = ensureReportModal();
+    $("subsidy-report-body-v53").innerHTML = reportHtml(list);
+    modal.classList.add("show");
+  }
+
+  function printReport() {
+    const html = $("subsidy-report-body-v53")?.innerHTML || reportHtml(filteredRows());
+    const win = window.open("", "_blank", "width=900,height=900");
+    if (!win) return alert("팝업이 차단되었습니다. 브라우저 팝업 허용 후 다시 시도해줘.");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>보조사업 보고서</title><style>
+      body{font-family:'Noto Sans KR',Arial,sans-serif;margin:22px;color:#0f172a}
+      h2{text-align:center;margin:0 0 8px;font-size:22px}
+      h3{margin:22px 0 8px;font-size:15px}
+      .subsidy-report-meta{text-align:center;color:#64748b;font-size:12px;margin-bottom:12px}
+      .subsidy-report-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+      .subsidy-report-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:10px}
+      .subsidy-report-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.subsidy-report-cards b{font-size:17px}
+      table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:6px 7px}th{background:#f1f5f9}.tr{text-align:right}
+      @page{size:A4 portrait;margin:10mm}
+    </style></head><body>${html}</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 250);
+  }
+
   function exportCsv() {
-    const list = visibleRows();
-    const headers = ["연번","읍면동","성명","연락처","생년월일","주소","신청기종","제조회사","형식명","총사업비","보조금","자부담","견적서","연락","기대번호","사진","서류","입금","영수증","완료","비고"];
+    const list = filteredRows();
+    const headers = ["연번","읍면동","성명","연락처","생년월일","주소","신청기종","제조회사","형식명","총사업비","보조금","자부담","비고","견적서","연락","기대번호","사진","서류","입금","영수증","완료"];
     const lines = [headers.join(",")].concat(list.map((r) => {
       const st = r.statuses || {};
-      const vals = [r.seq,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중",r.note || r.memo];
+      const vals = [r.seq,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,r.note,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중"];
       return vals.map((v) => `"${String(v == null ? "" : v).replace(/"/g,'""')}"`).join(",");
     }));
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `보조사업관리_${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `보조사업관리_${today()}.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
@@ -8667,6 +8804,8 @@ function parseEasyInventoryText(text) {
     if ($("subsidy-search")) $("subsidy-search").value = "";
     if ($("subsidy-status-filter")) $("subsidy-status-filter").value = "";
     if ($("subsidy-town-filter")) $("subsidy-town-filter").value = "";
+    if ($("subsidy-equipment-filter")) $("subsidy-equipment-filter").value = "";
+    page = 1;
     render();
   }
 
@@ -8680,81 +8819,97 @@ function parseEasyInventoryText(text) {
     $("subsidy-csv")?.addEventListener("click", exportCsv);
     $("subsidy-filter-clear")?.addEventListener("click", clearFilters);
     $("subsidy-selected-delete")?.addEventListener("click", bulkDeleteSelected);
+    $("subsidy-report-btn")?.addEventListener("click", openReport);
 
     const search = $("subsidy-search");
-    if (search) ["input", "keyup", "change", "search"].forEach((ev) => search.addEventListener(ev, render));
-    $("subsidy-status-filter")?.addEventListener("change", render);
-    $("subsidy-status-filter")?.addEventListener("input", render);
-    $("subsidy-town-filter")?.addEventListener("change", render);
-    $("subsidy-town-filter")?.addEventListener("input", render);
+    if (search) ["input", "keyup", "change", "search"].forEach((ev) => search.addEventListener(ev, () => { page = 1; render(); }));
+    ["subsidy-status-filter","subsidy-town-filter","subsidy-equipment-filter","subsidy-page-size"].forEach((id) => {
+      $(id)?.addEventListener("change", () => { page = 1; render(); });
+      $(id)?.addEventListener("input", () => { page = 1; render(); });
+    });
     $("subsidy-check-all")?.addEventListener("change", (ev) => {
-      const ids = visibleRows().map((r) => String(r.id));
+      const ids = pageRows(filteredRows()).map((r) => String(r.id));
       if (ev.target.checked) ids.forEach((id) => selected.add(id));
       else ids.forEach((id) => selected.delete(id));
       render();
     });
 
     document.addEventListener("click", async (ev) => {
-      if (ev.target.closest("#subsidy-edit-save-v52")) {
+      const pbtn = ev.target.closest("[data-v53-page]");
+      if (pbtn) {
+        ev.preventDefault();
+        const all = filteredRows();
+        const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+        const act = pbtn.getAttribute("data-v53-page");
+        if (act === "first") page = 1;
+        if (act === "prev") page = Math.max(1, page - 1);
+        if (act === "next") page = Math.min(totalPages, page + 1);
+        if (act === "last") page = totalPages;
+        render();
+        return;
+      }
+      if (ev.target.closest("#subsidy-report-print-v53")) { ev.preventDefault(); printReport(); return; }
+      if (ev.target.closest("[data-v53-report-close]")) { ev.preventDefault(); $("subsidy-report-modal-v53")?.classList.remove("show"); return; }
+      if (ev.target.closest("#subsidy-edit-save-v53")) {
         ev.preventDefault();
         try { await saveEdit(); } catch (e) { alert(e.message); }
         return;
       }
-      if (ev.target.closest("[data-v52-edit-close]")) {
+      if (ev.target.closest("[data-v53-edit-close]")) {
         ev.preventDefault();
-        $("subsidy-edit-modal-v52")?.classList.remove("show");
+        $("subsidy-edit-modal-v53")?.classList.remove("show");
         return;
       }
-      const check = ev.target.closest("[data-v52-check]");
+      const check = ev.target.closest("[data-v53-check]");
       if (check) {
         ev.stopPropagation();
-        const id = String(check.getAttribute("data-v52-check"));
+        const id = String(check.getAttribute("data-v53-check"));
         check.checked ? selected.add(id) : selected.delete(id);
         render();
         return;
       }
-      const row = ev.target.closest("#subsidy-body tr[data-id]");
+      const rowEl = ev.target.closest("#subsidy-body tr[data-id]");
       const buttonLike = ev.target.closest("button,a,input,select,textarea,label");
-      if (row && !buttonLike) {
-        const id = String(row.dataset.id);
+      if (rowEl && !buttonLike) {
+        const id = String(rowEl.dataset.id);
         selected.has(id) ? selected.delete(id) : selected.add(id);
         render();
         return;
       }
-      const status = ev.target.closest("[data-v52-status]");
+      const status = ev.target.closest("[data-v53-status]");
       if (status) {
         ev.preventDefault();
         ev.stopPropagation();
         const row = rows.map(normalizeRow).find((r) => String(r.id) === String(status.getAttribute("data-id")));
         if (!row) return;
-        try { await patchStatus(row, status.getAttribute("data-v52-status")); } catch (e) { alert(e.message); }
+        try { await patchStatus(row, status.getAttribute("data-v53-status")); } catch (e) { alert(e.message); }
         return;
       }
-      const invoice = ev.target.closest("[data-v52-invoice]");
+      const invoice = ev.target.closest("[data-v53-invoice]");
       if (invoice) {
         ev.preventDefault();
-        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(invoice.getAttribute("data-v52-invoice")));
+        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(invoice.getAttribute("data-v53-invoice")));
         if (row) toInvoice(row);
         return;
       }
-      const machine = ev.target.closest("[data-v52-machine]");
+      const machine = ev.target.closest("[data-v53-machine]");
       if (machine) {
         ev.preventDefault();
-        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(machine.getAttribute("data-v52-machine")));
+        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(machine.getAttribute("data-v53-machine")));
         if (row) { try { await patchStatus(row, "machineNo"); } catch (e) { alert(e.message); } }
         return;
       }
-      const edit = ev.target.closest("[data-v52-edit]");
+      const edit = ev.target.closest("[data-v53-edit]");
       if (edit) {
         ev.preventDefault();
-        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(edit.getAttribute("data-v52-edit")));
+        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(edit.getAttribute("data-v53-edit")));
         if (row) openEdit(row);
         return;
       }
-      const del = ev.target.closest("[data-v52-delete]");
+      const del = ev.target.closest("[data-v53-delete]");
       if (del) {
         ev.preventDefault();
-        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(del.getAttribute("data-v52-delete")));
+        const row = rows.map(normalizeRow).find((r) => String(r.id) === String(del.getAttribute("data-v53-delete")));
         if (!row) return;
         if (!confirm(`${row.name || "대상자"} 항목을 삭제할까?\n관리자 복구함에서 복구할 수 있어.`)) return;
         try {
@@ -8773,6 +8928,6 @@ function parseEasyInventoryText(text) {
   });
 
   window.NaepoSubsidyV49 = { load, render, clearFilters };
-  window.NaepoSubsidyV50 = { load, render, clearFilters };
   window.NaepoSubsidyV52 = { load, render, clearFilters };
+  window.NaepoSubsidyV53 = { load, render, clearFilters, openReport };
 })();
