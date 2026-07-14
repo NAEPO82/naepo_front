@@ -8012,7 +8012,9 @@ function parseEasyInventoryText(text) {
       summary.subsidyNeedPayment = summary.subsidy.filter((r) => !(r.statuses || {}).payment);
       summary.subsidyNeedReceipt = summary.subsidy.filter((r) => !(r.statuses || {}).receipt);
       renderDashboardEnhanced(summary);
-      if (totalIssueCount(summary) > 0 && (force || (!popupShownOnce && !isSnoozed() && sessionStorage.getItem(SESSION_CLOSE_KEY) !== "1"))) {
+      const dashboard = $("page-dashboard");
+      const onDashboard = dashboard && getComputedStyle(dashboard).display !== "none";
+      if (onDashboard && totalIssueCount(summary) > 0 && (force || (!popupShownOnce && !isSnoozed() && sessionStorage.getItem(SESSION_CLOSE_KEY) !== "1"))) {
         popupShownOnce = true;
         renderPopup(summary, force);
       }
@@ -8320,7 +8322,7 @@ function parseEasyInventoryText(text) {
       supportTotal,
       selfPay,
       note: String(get(raw, ["비고", "메모", "특이사항"]) || "").trim(),
-      statuses: { quote:false, contact:"미연락", machineNo:false, photo:false, document:false, payment:false, receipt:false, complete:false },
+      statuses: { quote:false, contact:"미연락", machineNo:false, photo:false, document:false, payment:false, receipt:false, officeSubmit:false, complete:false },
     };
   }
 
@@ -8355,7 +8357,7 @@ function parseEasyInventoryText(text) {
 
   function normalizeRow(row) {
     const st = Object.assign({
-      quote:false, contact:"미연락", machineNo:false, photo:false, document:false, payment:false, receipt:false, complete:false,
+      quote:false, contact:"미연락", machineNo:false, photo:false, document:false, payment:false, receipt:false, officeSubmit:false, complete:false,
     }, row.statuses || {});
     if (row.quoteStatus === "견적서 발행완료") st.quote = true;
     if (row.contactStatus) st.contact = row.contactStatus;
@@ -8504,7 +8506,7 @@ function parseEasyInventoryText(text) {
           ${statusBtn(r,"payment","입금대기","입금확인")}
           ${statusBtn(r,"receipt","영수증 미첨부","영수증 완료")}
           ${statusBtn(r,"complete","완료처리 전","완료")}
-        </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}</td>
+        </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}${r.officeSubmittedAt ? `<div class="subsidy-machine">서류제출: ${safe(String(r.officeSubmittedAt).slice(0,10))}</div>` : ""}</td>
         <td class="subsidy-manage-cell"><div class="subsidy-row-actions">
           <button type="button" class="btn btn-o btn-sm subsidy-invoice" data-v53-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
           <button type="button" class="btn btn-o btn-sm subsidy-machine-btn" data-v53-machine="${safe(r.id)}"><i class="fa-solid fa-hashtag"></i> 기대번호</button>
@@ -8802,10 +8804,10 @@ function parseEasyInventoryText(text) {
 
   function exportCsv() {
     const list = filteredRows();
-    const headers = ["연번","읍면동","성명","연락처","생년월일","주소","신청기종","제조회사","형식명","총사업비","보조금","자부담","비고","견적서","연락","기대번호","사진","서류","입금","영수증","완료"];
+    const headers = ["연번","읍면동","성명","연락처","생년월일","주소","신청기종","제조회사","형식명","총사업비","보조금","자부담","비고","견적서","연락","기대번호","사진","서류","서류제출","입금","영수증","완료"];
     const lines = [headers.join(",")].concat(list.map((r) => {
       const st = r.statuses || {};
-      const vals = [r.seq,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,r.note,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중"];
+      const vals = [r.seq,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,r.note,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.officeSubmit?"제출완료":"제출전",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중"];
       return vals.map((v) => `"${String(v == null ? "" : v).replace(/"/g,'""')}"`).join(",");
     }));
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -8896,6 +8898,10 @@ function parseEasyInventoryText(text) {
       if (status) {
         ev.preventDefault();
         ev.stopPropagation();
+        sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v48", "1");
+        sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v47", "1");
+        document.getElementById("dashboard-work-alert-popup-v48")?.classList.remove("show");
+        document.getElementById("dashboard-work-alert-popup-v47")?.classList.remove("show");
         const row = rows.map(normalizeRow).find((r) => String(r.id) === String(status.getAttribute("data-id")));
         if (!row) return;
         try { await patchStatus(row, status.getAttribute("data-v53-status")); } catch (e) { alert(e.message); }

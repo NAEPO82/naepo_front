@@ -14845,3 +14845,25 @@ tr:hover td{background:#F8FAFC !important;}
 .subsidy-report-doc table tbody tr.subsidy-town-start td{
   border-top:2px solid #94a3b8 !important;
 }
+
+
+/* ===== v55-subsidy-import-status-persist-fix-20260714 ===== */
+.subsidy-table th:nth-child(2),
+.subsidy-table td:nth-child(2){
+  width:3.8% !important;
+  min-width:46px !important;
+  text-align:center !important;
+}
+.subsidy-table th:nth-child(11),
+.subsidy-table td:nth-child(11){
+  width:26.5% !important;
+}
+.subsidy-status-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+}
+.subsidy-status-btn,
+.subsidy-state{
+  font-size:9.1px !important;
+  min-height:22px !important;
+  padding:2px 2px !important;
+}
