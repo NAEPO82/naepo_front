@@ -3197,6 +3197,14 @@
           <div class="field"><label>규격</label><input type="text" id="pem-spec" value="${n(part.spec || "")}" /></div>
           <div class="field"><label>기본 단가</label><input type="number" id="pem-price" min="0" step="1" value="${Number(part.unitPrice || 0)}" /></div>
           <div class="field"><label>최소 재고</label><input type="number" id="pem-min" min="0" step="1" value="${Number(part.minStock || 0)}" /></div>
+          <div class="field"><label>보관 위치</label><input type="text" id="pem-location" value="${n(part.storageLocation || part.location || "")}" placeholder="예: A-1" /></div>
+          <div class="field"><label>물품 구분</label><select id="pem-class">
+            <option value="일반판매" ${(part.inventoryClass || part.itemClass || part.saleType || "일반판매") === "일반판매" ? "selected" : ""}>일반판매</option>
+            <option value="계통물품" ${(part.inventoryClass || part.itemClass || part.saleType || "") === "계통물품" ? "selected" : ""}>계통물품</option>
+            <option value="자체물품" ${(part.inventoryClass || part.itemClass || part.saleType || "") === "자체물품" ? "selected" : ""}>자체물품</option>
+            <option value="수리부품" ${(part.inventoryClass || part.itemClass || part.saleType || "") === "수리부품" ? "selected" : ""}>수리부품</option>
+            <option value="보조사업" ${(part.inventoryClass || part.itemClass || part.saleType || "") === "보조사업" ? "selected" : ""}>보조사업</option>
+          </select></div>
         </div>
         <div class="ppm-foot">
           <button type="button" class="btn btn-o" id="pem-cancel">취소</button>
@@ -3213,7 +3221,9 @@
       const spec = overlay.querySelector("#pem-spec").value.trim();
       const unitPrice = parseFloat(overlay.querySelector("#pem-price").value) || 0;
       const minStock = parseInt(overlay.querySelector("#pem-min").value, 10) || 0;
-      onConfirm && onConfirm({ name, spec, unitPrice, minStock });
+      const storageLocation = overlay.querySelector("#pem-location").value.trim();
+      const inventoryClass = overlay.querySelector("#pem-class").value || "일반판매";
+      onConfirm && onConfirm({ name, spec, unitPrice, minStock, storageLocation, inventoryClass });
       close();
     });
     setTimeout(() => overlay.querySelector("#pem-name").focus(), 50);
@@ -3449,7 +3459,7 @@
       const t = document.getElementById("parts-body");
       if (0 === nt.length)
         return void (t.innerHTML =
-          '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:20px;">등록된 부품이 없습니다.</td></tr>');
+          '<tr><td colspan="10" style="text-align:center;color:#94a3b8;padding:20px;">등록된 부품이 없습니다.</td></tr>');
       const e = new Set(ot.flatMap((t) => t.partIds));
       let a = "";
       function o(t, e) {
@@ -3469,7 +3479,7 @@
         if (!window.__groupCollapsed) window.__groupCollapsed = {};
         if (typeof window.__groupCollapsed[gid] === "undefined") window.__groupCollapsed[gid] = true;
         const collapsed = window.__groupCollapsed[gid];
-        a += `<tr class="group-header-row" data-gid="${gid}" style="background:#f0fdf4;cursor:pointer;" title="클릭하여 접기/펼치기"><td colspan="8" style="padding:8px 14px;font-weight:700;font-size:12.5px;color:#065f46;border-top:2px solid #a7f3d0;"><i class="fa-solid fa-layer-group" style="margin-right:6px;"></i>${n(t.name)} <i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}" style="float:right;opacity:0.5;margin-top:2px;"></i></td></tr>`;
+        a += `<tr class="group-header-row" data-gid="${gid}" style="background:#f0fdf4;cursor:pointer;" title="클릭하여 접기/펼치기"><td colspan="10" style="padding:8px 14px;font-weight:700;font-size:12.5px;color:#065f46;border-top:2px solid #a7f3d0;"><i class="fa-solid fa-layer-group" style="margin-right:6px;"></i>${n(t.name)} <i class="fa-solid ${collapsed ? "fa-chevron-right" : "fa-chevron-down"}" style="float:right;opacity:0.5;margin-top:2px;"></i></td></tr>`;
         if (!collapsed) {
           e.forEach((t) => {
             a += o(t, !0);
@@ -3480,7 +3490,7 @@
       s.length > 0 &&
         (ot.length > 0 &&
           (a +=
-            '<tr style="background:#f8fafc;"><td colspan="8" style="padding:8px 14px;font-weight:700;font-size:12.5px;color:#64748b;border-top:2px solid #e2e8f0;"><i class="fa-solid fa-box" style="margin-right:6px;"></i>미분류 부품</td></tr>'),
+            '<tr style="background:#f8fafc;"><td colspan="10" style="padding:8px 14px;font-weight:700;font-size:12.5px;color:#64748b;border-top:2px solid #e2e8f0;"><i class="fa-solid fa-box" style="margin-right:6px;"></i>미분류 부품</td></tr>'),
         s.forEach((t) => {
           a += o(t, !1);
         }));
@@ -3827,6 +3837,8 @@
               unitPrice: n,
               stock: a,
               minStock: o,
+              storageLocation: (document.getElementById("part-location") && document.getElementById("part-location").value.trim()) || "",
+              inventoryClass: (document.getElementById("part-class") && document.getElementById("part-class").value) || "일반판매",
             }),
           }),
             (document.getElementById("part-name").value = ""),
@@ -3834,6 +3846,8 @@
             (document.getElementById("part-price").value = ""),
             (document.getElementById("part-stock").value = ""),
             (document.getElementById("part-minstock").value = ""),
+            document.getElementById("part-location") && (document.getElementById("part-location").value = ""),
+            document.getElementById("part-class") && (document.getElementById("part-class").value = "일반판매"),
             M(`[${t}] 부품이 등록되었습니다.`, "ok"),
             await ut(),
             await gt(),
@@ -3871,6 +3885,8 @@
                   unitPrice: parseInt(n[2], 10) || 0,
                   stock: parseInt(n[3], 10) || 0,
                   minStock: parseInt(n[4], 10) || 0,
+                  storageLocation: (n[5] || "").trim(),
+                  inventoryClass: (n[6] || "일반판매").trim(),
                 });
           }),
           0 === a.length)
@@ -9169,4 +9185,444 @@ function parseEasyInventoryText(text) {
       $("subsidy-detail-modal-v56")?.classList.remove("show");
     }
   }, true);
+})();
+
+
+/* ===== v57-subsidy-contact-date-direct-handler-20260714 =====
+   미연락 버튼 직접 처리, 완료 되돌리기 확인, 날짜 표기 정리, 기대번호 옆 서류제출일 표시
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+
+  function fmtDate(v) {
+    if (!v) return "-";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v).slice(0, 10) || "-";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function fmtDateTime(v) {
+    if (!v) return "-";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v).replace("T", " ").replace("Z", "").slice(0, 16) || "-";
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  function closeWorkPopups() {
+    sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v48", "1");
+    sessionStorage.setItem("naepo_dashboard_work_alert_popup_closed_v47", "1");
+    $("dashboard-work-alert-popup-v48")?.classList.remove("show");
+    $("dashboard-work-alert-popup-v47")?.classList.remove("show");
+  }
+
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+
+  function shouldConfirmRevert(btn, key) {
+    const text = (btn.textContent || "").trim();
+    if (key === "contact") {
+      if (text === "연락완료") return confirm("연락완료 상태를 미연락으로 되돌릴까?");
+      if (text === "연락안됨") return confirm("연락안됨 상태를 미연락으로 되돌릴까?");
+      return true;
+    }
+    if (btn.classList.contains("ok")) return confirm(`${text || "완료"} 상태를 이전 상태로 되돌릴까?`);
+    return true;
+  }
+
+  function payloadFor(btn, key) {
+    const text = (btn.textContent || "").trim();
+    if (key === "contact") {
+      if (text === "연락완료" || text === "연락안됨") return { key, value: "미연락" };
+      return { key, value: "연락완료" };
+    }
+    if (key === "machineNo") {
+      const td = btn.closest("td");
+      const cur = (td?.textContent || "").match(/기대번호:\s*([^·\s]+)/)?.[1] || "";
+      const value = prompt("기대번호를 입력해줘.", cur);
+      if (value == null) return null;
+      return { key, machineNo: value, value: Boolean(value.trim()) };
+    }
+    return { key, value: !btn.classList.contains("ok") };
+  }
+
+  async function handleStatusClick(btn, ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    ev.stopImmediatePropagation();
+
+    const id = btn.getAttribute("data-id") || btn.closest("tr[data-id]")?.dataset.id;
+    const key = btn.getAttribute("data-v53-status") || btn.getAttribute("data-v56-status") || btn.getAttribute("data-v57-status");
+    if (!id || !key) return;
+
+    closeWorkPopups();
+
+    if (!shouldConfirmRevert(btn, key)) return;
+    const body = payloadFor(btn, key);
+    if (!body) return;
+
+    const before = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "처리중";
+    try {
+      const updated = await api(`/api/subsidy-projects/${encodeURIComponent(id)}/status`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+
+      if (window.NaepoSubsidyV53 && window.NaepoSubsidyV53.load) {
+        await window.NaepoSubsidyV53.load();
+      } else if (window.NaepoSubsidyV52 && window.NaepoSubsidyV52.load) {
+        await window.NaepoSubsidyV52.load();
+      } else {
+        location.reload();
+      }
+
+      if (key === "officeSubmit" && updated.officeSubmittedAt) {
+        alert(`서류제출 완료 처리됐어.\n제출일: ${fmtDate(updated.officeSubmittedAt)}`);
+      }
+    } catch (e) {
+      btn.disabled = false;
+      btn.textContent = before;
+      alert(e.message || "상태 변경 실패");
+    }
+  }
+
+  // window capture 단계에서 먼저 잡아야 기존 document capture 핸들러가 미연락 클릭을 가로채지 못함.
+  window.addEventListener("click", (ev) => {
+    const btn = ev.target.closest && ev.target.closest("[data-v53-status],[data-v56-status],[data-v57-status]");
+    if (btn && btn.closest("#page-subsidy")) {
+      handleStatusClick(btn, ev);
+    }
+  }, true);
+
+  // 기존 상세보기의 ISO 시간을 사람이 읽기 쉬운 형태로 바꿔주는 보정
+  window.NaepoSubsidyFormatDateV57 = { fmtDate, fmtDateTime };
+})();
+
+
+/* ===== v57-subsidy-detail-readable-dates-20260714 ===== */
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const fmt = (v) => window.NaepoSubsidyFormatDateV57 ? window.NaepoSubsidyFormatDateV57.fmtDateTime(v) : (v || "-");
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  function ensureModal() {
+    let modal = $("subsidy-detail-modal-v57");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "subsidy-detail-modal-v57";
+    modal.className = "subsidy-detail-modal-v56";
+    modal.innerHTML = `
+      <div class="subsidy-detail-backdrop" data-v57-detail-close="1"></div>
+      <div class="subsidy-detail-box">
+        <div class="subsidy-detail-head">
+          <strong><i class="fa-solid fa-circle-info"></i> 보조사업 상세보기</strong>
+          <button type="button" data-v57-detail-close="1"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="subsidy-detail-body-v57"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+  function statusLabel(v) { return v ? "완료" : "미완료"; }
+  async function openDetail(id) {
+    const modal = ensureModal();
+    const body = $("subsidy-detail-body-v57");
+    modal.classList.add("show");
+    body.innerHTML = `<div class="v56-loading">상세 정보를 불러오는 중...</div>`;
+    try {
+      const payload = await api("/api/subsidy-projects");
+      const list = Array.isArray(payload) ? payload : payload.items || [];
+      const r = list.find((x) => String(x.id) === String(id));
+      if (!r) throw new Error("대상자를 찾지 못했어.");
+      const st = Object.assign({ quote:false, contact:"미연락", machineNo:false, photo:false, document:false, officeSubmit:false, payment:false, receipt:false, complete:false }, r.statuses || {});
+      body.innerHTML = `
+        <div class="subsidy-detail-title"><div><h3>${safe(r.name || "-")}</h3><p>${safe(r.town || "-")} · ${safe(r.phone || "-")}</p></div><span>${st.complete ? "완료" : "진행중"}</span></div>
+        <div class="subsidy-detail-grid">
+          <div><b>연번</b><span>${safe(r.seq || "-")}</span></div>
+          <div><b>지역</b><span>${safe(r.town || "-")}</span></div>
+          <div><b>성명</b><span>${safe(r.name || "-")}</span></div>
+          <div><b>연락처</b><span>${safe(r.phone || "-")}</span></div>
+          <div><b>생년월일</b><span>${safe(r.birthDate || "-")}</span></div>
+          <div class="wide"><b>주소</b><span>${safe(r.address || "-")}</span></div>
+          <div><b>신청기종</b><span>${safe(r.itemName || r.equipment || "-")}</span></div>
+          <div><b>제조회사</b><span>${safe(r.maker || "-")}</span></div>
+          <div><b>형식명</b><span>${safe(r.model || r.modelName || "-")}</span></div>
+          <div><b>총사업비</b><span>${money(r.totalCost)}원</span></div>
+          <div><b>보조금</b><span>${money(r.supportTotal)}원</span></div>
+          <div><b>자부담</b><span>${money(r.selfPay)}원</span></div>
+          <div class="wide"><b>비고/메모</b><span>${safe(r.note || r.memo || "-")}</span></div>
+        </div>
+        <h4>업무 상태</h4>
+        <div class="subsidy-detail-status">
+          <div><b>견적서</b><span>${st.quote ? "견적 완료" : "견적 미발행"}</span><small>${fmt(r.quoteIssuedAt)}</small></div>
+          <div><b>연락</b><span>${safe(st.contact || "미연락")}</span><small>${fmt(r.contactedAt)}</small></div>
+          <div><b>기대번호</b><span>${safe(r.machineNo || (st.machineNo ? "입력완료" : "미입력"))}</span><small>${fmt(r.machineNoAt)}</small></div>
+          <div><b>사진</b><span>${statusLabel(st.photo)}</span><small>${fmt(r.photoAt)}</small></div>
+          <div><b>서류</b><span>${statusLabel(st.document)}</span><small>${fmt(r.documentAt)}</small></div>
+          <div><b>서류제출</b><span>${st.officeSubmit ? "제출완료" : "제출 전"}</span><small>${fmt(r.officeSubmittedAt)}</small></div>
+          <div><b>입금</b><span>${st.payment ? "입금확인" : "입금대기"}</span><small>${fmt(r.paymentAt)}</small></div>
+          <div><b>영수증</b><span>${st.receipt ? "첨부완료" : "미첨부"}</span><small>${fmt(r.receiptAt)}</small></div>
+          <div><b>완료</b><span>${st.complete ? "완료" : "완료처리 전"}</span><small>${fmt(r.completedAt)}</small></div>
+        </div>
+        <div class="subsidy-detail-foot"><span>등록일: ${fmt(r.createdAt)}</span><span>수정일: ${fmt(r.updatedAt)}</span></div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="v56-error">${safe(e.message || "상세 정보 불러오기 실패")}</div>`;
+    }
+  }
+  window.addEventListener("click", (ev) => {
+    const detail = ev.target.closest && ev.target.closest("[data-v56-detail]");
+    if (detail) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      openDetail(detail.getAttribute("data-v56-detail"));
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("[data-v57-detail-close]")) {
+      ev.preventDefault();
+      $("subsidy-detail-modal-v57")?.classList.remove("show");
+    }
+  }, true);
+})();
+
+
+/* ===== v57-subsidy-machine-office-line-decorator-20260714 ===== */
+(() => {
+  function fmtDate(v) {
+    if (!v) return "";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+  async function decorate() {
+    // 서버에서 받은 최신 값으로 재렌더까지는 v53.load가 처리하고,
+    // 여기서는 혹시 따로 떨어져 보이는 줄들을 한 줄 스타일로 정리한다.
+    document.querySelectorAll("#subsidy-body tr[data-id]").forEach((tr) => {
+      const statusCell = tr.children && tr.children[10];
+      if (!statusCell) return;
+      const lines = [...statusCell.querySelectorAll(".subsidy-machine")];
+      if (lines.length >= 2) {
+        lines[0].textContent = lines.map((el) => el.textContent.trim()).filter(Boolean).join(" · ");
+        lines.slice(1).forEach((el) => el.remove());
+      }
+    });
+  }
+  const mo = new MutationObserver(() => decorate());
+  document.addEventListener("DOMContentLoaded", () => {
+    const body = document.getElementById("subsidy-body");
+    if (body) mo.observe(body, { childList:true, subtree:true });
+    setInterval(decorate, 1000);
+  });
+})();
+
+
+/* ===== v58-inventory-location-class-report-20260714 =====
+   재고 보관위치/물품구분 + 출고/재고 보고서
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  async function api(path) {
+    const headers = {};
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, { headers });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  function monthStart() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
+  }
+
+  function ensureModal() {
+    let modal = $("inventory-report-modal-v58");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "inventory-report-modal-v58";
+    modal.className = "inventory-report-modal-v58";
+    modal.innerHTML = `
+      <div class="inventory-report-backdrop" data-inv-report-close="1"></div>
+      <div class="inventory-report-box">
+        <div class="inventory-report-head">
+          <strong><i class="fa-solid fa-chart-column"></i> 출고/재고 보고</strong>
+          <div>
+            <button type="button" class="btn btn-o btn-sm" id="inventory-report-print-v58"><i class="fa-solid fa-print"></i> 인쇄</button>
+            <button type="button" class="btn btn-o btn-sm" data-inv-report-close="1"><i class="fa-solid fa-xmark"></i> 닫기</button>
+          </div>
+        </div>
+        <div class="inventory-report-filter">
+          <label>시작일<input type="date" id="inv-report-from"></label>
+          <label>종료일<input type="date" id="inv-report-to"></label>
+          <label>물품구분<select id="inv-report-class"><option value="">전체</option><option>계통물품</option><option>자체물품</option><option>일반판매</option><option>수리부품</option><option>보조사업</option></select></label>
+          <label>보관위치<input type="text" id="inv-report-location" placeholder="A-1"></label>
+          <button type="button" class="btn btn-p btn-sm" id="inv-report-run"><i class="fa-solid fa-rotate"></i> 조회</button>
+        </div>
+        <div id="inventory-report-body-v58"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    $("inv-report-from").value = monthStart();
+    $("inv-report-to").value = today();
+    return modal;
+  }
+
+  function groupBy(list, keyFn) {
+    const map = new Map();
+    list.forEach((r) => {
+      const key = keyFn(r) || "미지정";
+      const cur = map.get(key) || { key, count: 0, qty: 0, amount: 0, rows: [] };
+      cur.count += 1;
+      cur.qty += Number(r.qty) || 0;
+      cur.amount += (Number(r.qty) || 0) * (Number(r.unitPrice) || 0);
+      cur.rows.push(r);
+      map.set(key, cur);
+    });
+    return [...map.values()].sort((a,b) => b.qty - a.qty || String(a.key).localeCompare(String(b.key), "ko-KR"));
+  }
+
+  function renderReport(parts, logs) {
+    const cls = $("inv-report-class")?.value || "";
+    const loc = ($("inv-report-location")?.value || "").trim().toLowerCase();
+    const from = $("inv-report-from")?.value || "";
+    const to = $("inv-report-to")?.value || "";
+    const partMap = new Map(parts.map((p) => [String(p.id), p]));
+
+    const filteredParts = parts.filter((p) => {
+      if (cls && (p.inventoryClass || p.itemClass || p.saleType || "일반판매") !== cls) return false;
+      if (loc && !String(p.storageLocation || p.location || "").toLowerCase().includes(loc)) return false;
+      return true;
+    });
+    const allowedIds = new Set(filteredParts.map((p) => String(p.id)));
+    const outLogs = logs.filter((l) => {
+      if (l.type !== "out") return false;
+      const d = String(l.date || "").slice(0, 10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      if (allowedIds.size && l.partId && !allowedIds.has(String(l.partId))) return false;
+      if ((cls || loc) && l.partId && !allowedIds.has(String(l.partId))) return false;
+      return true;
+    }).map((l) => {
+      const p = partMap.get(String(l.partId)) || parts.find((x) => x.name === l.partName) || {};
+      return Object.assign({}, l, {
+        partClass: p.inventoryClass || p.itemClass || p.saleType || "일반판매",
+        storageLocation: p.storageLocation || p.location || "",
+        stockNow: p.stock,
+      });
+    });
+
+    const byPart = groupBy(outLogs, (r) => r.partName);
+    const byDate = groupBy(outLogs, (r) => String(r.date || "").slice(0,10));
+    const byClass = groupBy(outLogs, (r) => r.partClass);
+    const low = filteredParts.filter((p) => Number(p.minStock) > 0 && Number(p.stock) <= Number(p.minStock));
+    const valueByClass = groupBy(filteredParts.map((p) => ({ qty:Number(p.stock)||0, unitPrice:Number(p.unitPrice)||0, partName:p.name, partClass:p.inventoryClass || p.itemClass || p.saleType || "일반판매", storageLocation:p.storageLocation || "" })), (r) => r.partClass);
+
+    const table = (title, rows, firstLabel) => `
+      <h4>${safe(title)}</h4>
+      <table class="inv-report-table"><thead><tr><th>${safe(firstLabel)}</th><th>건수</th><th>수량</th><th>금액</th></tr></thead><tbody>
+        ${rows.map((r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.count)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`).join("") || `<tr><td colspan="4">내역 없음</td></tr>`}
+      </tbody></table>`;
+
+    const body = $("inventory-report-body-v58");
+    body.innerHTML = `
+      <div class="inv-report-cards">
+        <div><span>기간 출고수량</span><b>${money(outLogs.reduce((s,r)=>s+(Number(r.qty)||0),0))}</b></div>
+        <div><span>출고품목 수</span><b>${money(byPart.length)}</b></div>
+        <div><span>부족품목</span><b>${money(low.length)}</b></div>
+        <div><span>현재 재고가치</span><b>${money(filteredParts.reduce((s,p)=>s+(Number(p.stock)||0)*(Number(p.unitPrice)||0),0))}원</b></div>
+      </div>
+      ${table("품목별 출고 현황", byPart, "품목명")}
+      ${table("날짜별 출고 현황", byDate, "날짜")}
+      ${table("물품구분별 출고 현황", byClass, "물품구분")}
+      ${table("물품구분별 현재 재고가치", valueByClass, "물품구분")}
+      <h4>부족/최소재고 이하 품목</h4>
+      <table class="inv-report-table"><thead><tr><th>품목명</th><th>보관위치</th><th>구분</th><th>현재</th><th>최소</th></tr></thead><tbody>
+        ${low.map((p)=>`<tr><td>${safe(p.name)}</td><td>${safe(p.storageLocation || "-")}</td><td>${safe(p.inventoryClass || "일반판매")}</td><td class="tr">${money(p.stock)}</td><td class="tr">${money(p.minStock)}</td></tr>`).join("") || `<tr><td colspan="5">부족 품목 없음</td></tr>`}
+      </tbody></table>
+      <h4>최근 출고 상세</h4>
+      <table class="inv-report-table"><thead><tr><th>날짜</th><th>품목명</th><th>위치</th><th>구분</th><th>수량</th><th>비고</th></tr></thead><tbody>
+        ${outLogs.slice(0, 80).map((r)=>`<tr><td>${safe(String(r.date||"").slice(0,10))}</td><td>${safe(r.partName)}</td><td>${safe(r.storageLocation || "-")}</td><td>${safe(r.partClass)}</td><td class="tr">${money(r.qty)}</td><td>${safe(r.note || "")}</td></tr>`).join("") || `<tr><td colspan="6">출고 상세 없음</td></tr>`}
+      </tbody></table>`;
+  }
+
+  async function loadReport() {
+    const body = $("inventory-report-body-v58");
+    body.innerHTML = `<div class="inv-report-loading">불러오는 중...</div>`;
+    try {
+      const [partsPayload, logsPayload] = await Promise.all([api("/api/parts"), api("/api/inventory-log")]);
+      renderReport(asArray(partsPayload), asArray(logsPayload));
+    } catch (e) {
+      body.innerHTML = `<div class="inv-report-error">${safe(e.message)}</div>`;
+    }
+  }
+
+  function openReport() {
+    ensureModal().classList.add("show");
+    loadReport();
+  }
+
+  function printReport() {
+    const body = $("inventory-report-body-v58")?.innerHTML || "";
+    const win = window.open("", "_blank", "width=900,height=900");
+    if (!win) return alert("팝업이 차단되었습니다.");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>출고/재고 보고</title><style>
+      body{font-family:'Noto Sans KR',Arial,sans-serif;margin:18px;color:#0f172a} h3{text-align:center} h4{margin:18px 0 8px}
+      .inv-report-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.inv-report-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:10px}.inv-report-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.inv-report-cards b{font-size:16px}
+      table{width:100%;border-collapse:collapse;font-size:11.5px}th,td{border:1px solid #cbd5e1;padding:6px 7px}th{background:#f1f5f9}.tr{text-align:right}@page{size:A4 portrait;margin:10mm}
+    </style></head><body><h3>출고/재고 보고</h3>${body}</body></html>`);
+    win.document.close();
+    setTimeout(()=>{ win.focus(); win.print(); }, 250);
+  }
+
+  document.addEventListener("click", (ev) => {
+    if (ev.target.closest("#btn-inventory-out-report")) {
+      ev.preventDefault();
+      openReport();
+    }
+    if (ev.target.closest("#inv-report-run")) {
+      ev.preventDefault();
+      loadReport();
+    }
+    if (ev.target.closest("#inventory-report-print-v58")) {
+      ev.preventDefault();
+      printReport();
+    }
+    if (ev.target.closest("[data-inv-report-close]")) {
+      ev.preventDefault();
+      $("inventory-report-modal-v58")?.classList.remove("show");
+    }
+  });
 })();

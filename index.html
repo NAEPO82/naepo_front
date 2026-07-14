@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v56-subsidy-detail-status-confirm-20260714" />
+    <link rel="stylesheet" href="styles.css?v=v58-inventory-location-report-20260714" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -1059,6 +1059,20 @@
                   min="0"
                 />
               </div>
+              <div class="field">
+                <label>보관 위치</label
+                ><input type="text" id="part-location" placeholder="예: A-1, 창고 B-2" />
+              </div>
+              <div class="field">
+                <label>물품 구분</label>
+                <select id="part-class">
+                  <option value="일반판매">일반판매</option>
+                  <option value="계통물품">계통물품</option>
+                  <option value="자체물품">자체물품</option>
+                  <option value="수리부품">수리부품</option>
+                  <option value="보조사업">보조사업</option>
+                </select>
+              </div>
             </div>
             <button
               class="btn btn-p"
@@ -1086,8 +1100,8 @@
               style="display: none"
             />
             <div style="margin-top: 8px; font-size: 11px; color: #94a3b8">
-              형식: 품목명/규격/기본단가/초기재고/최소재고 (한 줄에 1개씩, 예:
-              오일필터/14*1.5/3500/10/3)
+              형식: 품목명/규격/기본단가/초기재고/최소재고/보관위치/물품구분 (예:
+              회전자/BC60/5000/1/0/A-1/일반판매)
             </div>
             <span class="ferr" id="e-part"></span>
           </div>
@@ -1129,6 +1143,17 @@
               </button>
               <button
                 class="btn btn-o btn-sm"
+                id="btn-inventory-out-report"
+                style="
+                  color: #0f766e;
+                  border-color: #99f6e4;
+                  background: #ecfeff;
+                "
+              >
+                <i class="fa-solid fa-chart-column"></i> 출고/재고 보고
+              </button>
+              <button
+                class="btn btn-o btn-sm"
                 id="btn-parts-add-to-group"
                 style="
                   color: #7c3aed;
@@ -1143,12 +1168,14 @@
               <table class="parts-table">
                 <colgroup>
                   <col style="width: 5%" />
-                  <col style="width: 18%" />
-                  <col style="width: 13%" />
-                  <col style="width: 12%" />
-                  <col style="width: 11%" />
+                  <col style="width: 14%" />
                   <col style="width: 11%" />
                   <col style="width: 10%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
                   <col />
                 </colgroup>
                 <thead>
@@ -1167,6 +1194,8 @@
                     </th>
                     <th>품목명</th>
                     <th>규격</th>
+                    <th>보관위치</th>
+                    <th>물품구분</th>
                     <th style="text-align: right">단가</th>
                     <th style="text-align: right">현재 재고</th>
                     <th style="text-align: right">최소 재고</th>
@@ -2128,6 +2157,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v56-subsidy-detail-status-confirm-20260714"></script>
+    <script src="app.js?v=v58-inventory-location-report-20260714"></script>
   </body>
 </html>
