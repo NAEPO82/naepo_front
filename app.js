@@ -8523,7 +8523,7 @@ function parseEasyInventoryText(text) {
           ${statusBtn(r,"payment","입금대기","입금확인")}
           ${statusBtn(r,"receipt","영수증 미첨부","영수증 완료")}
           ${statusBtn(r,"complete","완료처리 전","완료")}
-        </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}${r.officeSubmittedAt ? `<div class="subsidy-machine">서류제출: ${safe(String(r.officeSubmittedAt).slice(0,10))}</div>` : ""}</td>
+        </div>${r.machineNo ? `<div class="subsidy-machine">기대번호: ${safe(r.machineNo)}</div>` : ""}${(r.officeSubmittedAt || (r.statuses && r.statuses.officeSubmit && r.updatedAt)) ? `<div class="subsidy-machine">서류제출: ${safe(String(r.officeSubmittedAt || r.updatedAt).slice(0,10))}</div>` : ""}</td>
         <td class="subsidy-manage-cell"><div class="subsidy-row-actions">
           <button type="button" class="btn btn-o btn-sm subsidy-invoice" data-v53-invoice="${safe(r.id)}"><i class="fa-solid fa-file-invoice"></i> 명세서</button>
           <button type="button" class="btn btn-o btn-sm subsidy-detail" data-v56-detail="${safe(r.id)}"><i class="fa-solid fa-circle-info"></i> 상세</button>
@@ -9624,5 +9624,31 @@ function parseEasyInventoryText(text) {
       ev.preventDefault();
       $("inventory-report-modal-v58")?.classList.remove("show");
     }
+  });
+})();
+
+
+/* ===== v59-subsidy-office-date-inventory-fit-20260714 =====
+   서류제출일 한 줄 표시 보강 + 재고관리 표 잘림 방지 보정
+*/
+(() => {
+  function mergeOfficeSubmitLines() {
+    document.querySelectorAll("#subsidy-body tr[data-id]").forEach((tr) => {
+      const statusCell = [...tr.children].find((td) => td.querySelector && td.querySelector(".subsidy-status-grid"));
+      if (!statusCell) return;
+      const lines = [...statusCell.querySelectorAll(".subsidy-machine")];
+      if (lines.length >= 2) {
+        const merged = lines.map((el) => el.textContent.trim()).filter(Boolean).join(" · ");
+        lines[0].textContent = merged;
+        lines.slice(1).forEach((el) => el.remove());
+      }
+    });
+  }
+  document.addEventListener("DOMContentLoaded", () => {
+    const body = document.getElementById("subsidy-body");
+    if (body && window.MutationObserver) {
+      new MutationObserver(mergeOfficeSubmitLines).observe(body, { childList: true, subtree: true });
+    }
+    setInterval(mergeOfficeSubmitLines, 800);
   });
 })();
