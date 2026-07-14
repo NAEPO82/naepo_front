@@ -14814,3 +14814,34 @@ tr:hover td{background:#F8FAFC !important;}
   .subsidy-pagination-v53{flex-direction:column;align-items:stretch}
   .subsidy-report-cards{grid-template-columns:1fr 1fr}
 }
+
+
+/* ===== v54-subsidy-report-backup-polish-20260714 ===== */
+.subsidy-table-wrap{
+  padding-left:0 !important;
+}
+.subsidy-table th:first-child,
+.subsidy-table td:first-child{
+  border-left:1px solid #e2e8f0 !important;
+}
+.subsidy-table th{
+  text-align:center !important;
+}
+.subsidy-table th:nth-child(2),
+.subsidy-table td:nth-child(2){
+  width:3.3% !important;
+  min-width:34px !important;
+  text-align:center !important;
+}
+.subsidy-note-cell{
+  background:#fff !important;
+  color:#334155 !important;
+  font-weight:700 !important;
+}
+.subsidy-table td:nth-child(10){
+  background:#fff !important;
+  color:#334155 !important;
+}
+.subsidy-report-doc table tbody tr.subsidy-town-start td{
+  border-top:2px solid #94a3b8 !important;
+}

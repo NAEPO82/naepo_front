@@ -2715,7 +2715,11 @@
     document.getElementById("admin-btn-email-backup") && document.getElementById("admin-btn-email-backup").addEventListener("click", async () => {
       try {
         const result = await adminJson("/api/admin/backup/email", { method: "POST", body: JSON.stringify({}) });
-        I("수동 이메일 백업 전송", result && result.message ? result.message : "백업 메일 전송을 요청했습니다.");
+        if (result && result.skipped && result.reason === "running") {
+          I("이메일 백업 진행 중", result.message || "이미 이전 이메일 백업 전송이 진행 중입니다. 잠시 후 다시 시도해주세요.");
+        } else {
+          I("수동 이메일 백업 전송", result && result.message ? result.message : "백업 메일 전송을 요청했습니다.");
+        }
       } catch (error) { I("이메일 백업 실패", error.message); }
     }),
     document.getElementById("admin-btn-log-refresh") && document.getElementById("admin-btn-log-refresh").addEventListener("click", loadAdminActionLog),
@@ -8553,7 +8557,6 @@ function parseEasyInventoryText(text) {
     const idx = rows.findIndex((r) => String(r.id) === String(row.id));
     if (idx >= 0) rows[idx] = normalizeRow(updated);
     render();
-    if (window.NaepoV48Ops && window.NaepoV48Ops.reloadAlerts) window.NaepoV48Ops.reloadAlerts();
   }
 
   function toInvoice(row) {
@@ -8692,18 +8695,27 @@ function parseEasyInventoryText(text) {
     await load();
   }
 
-  function makeGroup(list, keyFn) {
+  function makeGroup(list, keyFn, sorter) {
     const map = new Map();
     list.forEach((r) => {
-      const key = keyFn(r) || "미지정";
-      const cur = map.get(key) || { key, count: 0, totalCost: 0, supportTotal: 0, selfPay: 0 };
+      const rawKey = keyFn(r) || "미지정";
+      const key = typeof rawKey === "string" ? rawKey : rawKey.key;
+      const cur = map.get(key) || { key, town: rawKey.town || "", item: rawKey.item || "", count: 0, totalCost: 0, supportTotal: 0, selfPay: 0 };
       cur.count += 1;
       cur.totalCost += Number(r.totalCost) || 0;
       cur.supportTotal += Number(r.supportTotal) || 0;
       cur.selfPay += Number(r.selfPay) || 0;
       map.set(key, cur);
     });
-    return [...map.values()].sort((a,b) => b.count - a.count || a.key.localeCompare(b.key));
+    const arr = [...map.values()];
+    if (sorter) return arr.sort(sorter);
+    return arr.sort((a,b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+  }
+
+  function sortTownItem(a, b) {
+    return String(a.town || "").localeCompare(String(b.town || ""), "ko-KR") ||
+      String(a.item || "").localeCompare(String(b.item || ""), "ko-KR") ||
+      String(a.key || "").localeCompare(String(b.key || ""), "ko-KR");
   }
 
   function reportHtml(list) {
@@ -8715,7 +8727,11 @@ function parseEasyInventoryText(text) {
     const self = list.reduce((s,r)=>s+(Number(r.selfPay)||0),0);
     const byItem = makeGroup(list, (r)=>r.itemName || r.equipment);
     const byTown = makeGroup(list, (r)=>r.town);
-    const byCombo = makeGroup(list, (r)=>`${r.town || "미지정"} / ${r.itemName || r.equipment || "미지정"}`);
+    const byCombo = makeGroup(list, (r)=>{
+      const town = r.town || "미지정";
+      const item = r.itemName || r.equipment || "미지정";
+      return { key: `${town} / ${item}`, town, item };
+    }, sortTownItem);
     const row = (g) => `<tr><td>${safe(g.key)}</td><td class="tr">${money(g.count)}대</td><td class="tr">${money(g.totalCost)}</td><td class="tr">${money(g.supportTotal)}</td><td class="tr">${money(g.selfPay)}</td></tr>`;
     return `
       <div class="subsidy-report-doc">
