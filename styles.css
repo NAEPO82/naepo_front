@@ -14329,3 +14329,77 @@ tr:hover td{background:#F8FAFC !important;}
     grid-template-columns:1fr;
   }
 }
+
+
+/* ===== v50-subsidy-layout-fix-20260710 ===== */
+.subsidy-table-wrap{
+  overflow-x:auto !important;
+  overflow-y:visible !important;
+  max-width:100% !important;
+}
+.subsidy-table{
+  min-width:1480px !important;
+  table-layout:fixed !important;
+}
+.subsidy-table th:nth-child(1), .subsidy-table td:nth-child(1){width:58px !important;}
+.subsidy-table th:nth-child(2), .subsidy-table td:nth-child(2){width:86px !important;}
+.subsidy-table th:nth-child(3), .subsidy-table td:nth-child(3){width:140px !important;}
+.subsidy-table th:nth-child(4), .subsidy-table td:nth-child(4){width:150px !important;}
+.subsidy-table th:nth-child(5), .subsidy-table td:nth-child(5){width:160px !important;}
+.subsidy-table th:nth-child(6), .subsidy-table td:nth-child(6),
+.subsidy-table th:nth-child(7), .subsidy-table td:nth-child(7),
+.subsidy-table th:nth-child(8), .subsidy-table td:nth-child(8){width:105px !important;}
+.subsidy-table th:nth-child(9), .subsidy-table td:nth-child(9){width:420px !important;}
+.subsidy-table th:nth-child(10), .subsidy-table td:nth-child(10){
+  width:255px !important;
+  min-width:255px !important;
+}
+.subsidy-manage-cell{
+  position:sticky !important;
+  right:0 !important;
+  background:#fff !important;
+  z-index:2 !important;
+  box-shadow:-8px 0 16px rgba(15,23,42,.06) !important;
+}
+.subsidy-table thead th:nth-child(10){
+  position:sticky !important;
+  right:0 !important;
+  z-index:4 !important;
+  background:#f8fafc !important;
+}
+.subsidy-row-actions{
+  display:grid !important;
+  grid-template-columns:1fr 1fr !important;
+  gap:6px !important;
+  min-width:230px !important;
+}
+.subsidy-row-actions .btn{
+  width:100% !important;
+  justify-content:center !important;
+  white-space:nowrap !important;
+  padding-left:6px !important;
+  padding-right:6px !important;
+}
+.subsidy-status-grid{
+  display:grid !important;
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:5px !important;
+  min-width:390px !important;
+}
+.subsidy-status-btn,
+.subsidy-state{
+  width:100% !important;
+  justify-content:center !important;
+  text-align:center !important;
+}
+.subsidy-filter-bar{
+  grid-template-columns:minmax(260px,1fr) 170px 170px 140px !important;
+}
+@media(max-width:900px){
+  .subsidy-filter-bar{
+    grid-template-columns:1fr !important;
+  }
+  .subsidy-table{
+    min-width:1380px !important;
+  }
+}
