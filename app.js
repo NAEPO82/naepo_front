@@ -3468,7 +3468,7 @@
             ? `<span class="badge-low">부족 (최소 ${t.minStock})</span>`
             : '<span class="badge-ok">정상</span>',
           s = e ? "padding-left:22px;" : "";
-        return `\n          <tr>\n            <td style="text-align:center;"><input type="checkbox" class="chk-part" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>\n            <td style="${s}"><strong>${e ? "∟ " : ""}${n(t.name)}</strong></td>\n            <td>${n(t.spec)}</td>\n            <td class="tr">${t.unitPrice.toLocaleString()}원</td>\n            <td class="tr" style="font-weight:700;${a ? "color:#dc2626;" : ""}">${t.stock.toLocaleString()}</td>\n            <td class="tr">${t.minStock.toLocaleString()}</td>\n            <td>${o}</td>\n            <td>\n              <div class="ibtns">\n                <button class="ibtn btn-stock-in" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-truck-ramp-box"></i> 입고</button>\n                <button class="ibtn btn-stock-adjust" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-sliders"></i> 보정</button>\n                <button class="ibtn btn-part-group" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-layer-group"></i> 그룹</button>\n                <button class="ibtn btn-part-edit" data-id="${n(t.id)}" style="color:#0ea5e9;"><i class="fa-solid fa-pen"></i> 수정</button>\n                <button class="ibtn d btn-part-delete" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n              </div>\n            </td>\n          </tr>`;
+        return `\n          <tr>\n            <td style="text-align:center;"><input type="checkbox" class="chk-part" data-id="${n(t.id)}" style="accent-color:#047857; cursor:pointer; width:15px; height:15px; margin:0 6px;"/></td>\n            <td style="${s}"><strong>${e ? "∟ " : ""}${n(t.name)}</strong><small class="part-row-timestamp">수정: ${n(String(t.updatedAt || t.createdAt || "").replace("T"," ").replace("Z","").slice(0,16) || "-")}</small></td>\n            <td>${n(t.spec || "-")}</td>\n            <td><span class="part-location-badge">${n(t.storageLocation || t.location || "-")}</span></td>\n            <td><span class="part-class-badge">${n(t.inventoryClass || t.itemClass || t.saleType || "일반판매")}</span></td>\n            <td class="tr">${t.unitPrice.toLocaleString()}원</td>\n            <td class="tr" style="font-weight:700;${a ? "color:#dc2626;" : ""}">${t.stock.toLocaleString()}</td>\n            <td class="tr">${t.minStock.toLocaleString()}</td>\n            <td>${o}</td>\n            <td>\n              <div class="ibtns">\n                <button class="ibtn btn-stock-in" data-id="${n(t.id)}" style="color:#0284c7;"><i class="fa-solid fa-truck-ramp-box"></i> 입고</button>\n                <button class="ibtn btn-stock-adjust" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-sliders"></i> 보정</button>\n                <button class="ibtn btn-part-group" data-id="${n(t.id)}" style="color:#7c3aed;"><i class="fa-solid fa-layer-group"></i> 그룹</button>\n                <button class="ibtn btn-part-edit" data-id="${n(t.id)}" style="color:#0ea5e9;"><i class="fa-solid fa-pen"></i> 수정</button>\n                <button class="ibtn d btn-part-delete" data-id="${n(t.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>\n              </div>\n            </td>\n          </tr>`;
       }
       ot.forEach((t) => {
         const e = t.partIds
@@ -8497,7 +8497,7 @@ function parseEasyInventoryText(text) {
     const body = $("subsidy-body");
     if (!body) return;
     body.innerHTML = list.length ? list.map((r) => `
-      <tr data-id="${safe(r.id)}" class="${selected.has(String(r.id)) ? "subsidy-selected-row" : ""}">
+      <tr data-id="${safe(r.id)}" data-updated-at="${safe(r.updatedAt || r.createdAt || "")}" class="${selected.has(String(r.id)) ? "subsidy-selected-row" : ""}">
         <td class="subsidy-check-cell"><input type="checkbox" class="subsidy-row-check" data-v53-check="${safe(r.id)}" ${selected.has(String(r.id)) ? "checked" : ""} /></td>
         <td class="subsidy-col-no">${safe(r.seq || "")}</td>
         <td><span class="subsidy-town">${safe(r.town || "")}</span></td>
@@ -9650,5 +9650,33 @@ function parseEasyInventoryText(text) {
       new MutationObserver(mergeOfficeSubmitLines).observe(body, { childList: true, subtree: true });
     }
     setInterval(mergeOfficeSubmitLines, 800);
+  });
+})();
+
+
+/* ===== v60-subsidy-inventory-timestamps-20260714 ===== */
+(() => {
+  function fmt(v){
+    if(!v) return "";
+    const d = new Date(v);
+    if(Number.isNaN(d.getTime())) return String(v).replace("T"," ").replace("Z","").slice(0,16);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+  async function decorateSubsidyTimestamp(){
+    document.querySelectorAll("#subsidy-body tr[data-id]").forEach((tr)=>{
+      const statusCell = [...tr.children].find((td)=>td.querySelector && td.querySelector(".subsidy-status-grid"));
+      if(!statusCell || statusCell.querySelector(".subsidy-row-updated-at")) return;
+      const text = tr.dataset.updatedAt || "";
+      if (!text) return;
+      const div = document.createElement("div");
+      div.className = "subsidy-row-updated-at";
+      div.textContent = "수정: " + fmt(text);
+      statusCell.appendChild(div);
+    });
+  }
+  document.addEventListener("DOMContentLoaded", ()=>{
+    const body = document.getElementById("subsidy-body");
+    if(body && window.MutationObserver) new MutationObserver(decorateSubsidyTimestamp).observe(body,{childList:true,subtree:true});
+    setInterval(decorateSubsidyTimestamp, 1500);
   });
 })();
