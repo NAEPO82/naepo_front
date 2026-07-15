@@ -15719,3 +15719,199 @@ tr:hover td{background:#F8FAFC !important;}
   min-width:0 !important;
   justify-content:center !important;
 }
+
+
+/* ===== v65-subsidy-projects-monthly-inventory-fix-20260715 ===== */
+.subsidy-project-year-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+.subsidy-project-year-row label{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#475569;
+  font-size:12px;
+  font-weight:900;
+}
+.subsidy-project-year-row select{
+  height:34px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:0 10px;
+  background:#fff;
+  color:#334155;
+  font-weight:900;
+}
+.subsidy-project-delete{
+  border:1px solid #fecaca;
+  background:#fff1f2;
+  color:#dc2626;
+  border-radius:999px;
+  padding:7px 11px;
+  font-weight:900;
+  cursor:pointer;
+}
+#page-inventory .tbl-wrap{
+  overflow-x:auto !important;
+}
+#page-inventory .parts-table{
+  min-width:1180px !important;
+  width:100% !important;
+  table-layout:fixed !important;
+}
+#page-inventory .parts-table th,
+#page-inventory .parts-table td{
+  box-sizing:border-box !important;
+  vertical-align:middle !important;
+}
+#page-inventory .parts-table .ibtns{
+  display:grid !important;
+  grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+  gap:5px !important;
+}
+#page-inventory .parts-table .ibtn{
+  min-width:0 !important;
+  width:100% !important;
+  padding:4px 6px !important;
+  font-size:10px !important;
+  justify-content:center !important;
+  white-space:nowrap !important;
+}
+.inventory-monthly-report-modal-v65{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:47000;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.inventory-monthly-report-modal-v65.show{display:flex}
+.inventory-monthly-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(15,23,42,.58);
+  backdrop-filter:blur(4px);
+}
+.inventory-monthly-box{
+  position:relative;
+  width:min(97vw,1220px);
+  max-height:91vh;
+  overflow:auto;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:22px;
+  box-shadow:0 28px 80px rgba(15,23,42,.38);
+  padding:18px;
+}
+.inventory-monthly-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  border-bottom:1px solid #e2e8f0;
+  padding-bottom:12px;
+  margin-bottom:12px;
+}
+.inventory-monthly-head strong{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:18px;
+  color:#0f172a;
+}
+.inventory-monthly-head > div{
+  display:flex;
+  gap:6px;
+}
+.inventory-monthly-filter{
+  display:grid;
+  grid-template-columns:130px 130px 130px 1fr 1fr 100px;
+  gap:8px;
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  border-radius:14px;
+  padding:10px;
+  margin-bottom:12px;
+}
+.inventory-monthly-filter label{
+  display:grid;
+  gap:4px;
+  font-size:11px;
+  font-weight:900;
+  color:#475569;
+}
+.inventory-monthly-filter input,
+.inventory-monthly-filter select{
+  min-height:34px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+  padding:0 9px;
+  background:#fff;
+  color:#334155;
+  font-weight:700;
+}
+.monthly-cards{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:8px;
+  margin-bottom:14px;
+}
+.monthly-cards div{
+  border:1px solid #e2e8f0;
+  background:#f8fafc;
+  border-radius:14px;
+  padding:11px;
+}
+.monthly-cards span{
+  display:block;
+  color:#64748b;
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+.monthly-cards b{
+  font-size:16px;
+  color:#0f172a;
+}
+#inventory-monthly-body-v65 h4{
+  margin:18px 0 8px;
+  color:#0f172a;
+  font-size:14px;
+}
+.monthly-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.monthly-table th,
+.monthly-table td{
+  border:1px solid #e2e8f0;
+  padding:7px 8px;
+}
+.monthly-table th{
+  background:#f1f5f9;
+  color:#334155;
+}
+.monthly-table .empty,
+.monthly-loading,
+.monthly-error{
+  text-align:center;
+  color:#64748b;
+  padding:14px;
+  font-weight:800;
+}
+.monthly-error{
+  color:#be123c;
+  background:#fff1f2;
+  border-radius:12px;
+}
+@media(max-width:1000px){
+  .inventory-monthly-filter{grid-template-columns:1fr 1fr}
+  .monthly-cards{grid-template-columns:1fr 1fr}
+}

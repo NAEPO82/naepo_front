@@ -4471,6 +4471,29 @@
     return `${d[0] || ""}년 ${Number(d[1] || 0) || ""}월 ${Number(d[2] || 0) || ""}일`;
   }
 
+
+  async function deleteCurrentSubsidyProjectV65() {
+    const projectName = activeProjectName();
+    const projectYear = activeProjectYear();
+    if (projectName === DEFAULT_PROJECT_NAME && rows.map(normalizeRow).filter((r) => rowProjectName(r) === projectName && rowProjectYear(r) === projectYear).length > 0) {
+      if (!confirm(`${projectYear}년 ${projectName} 사업에는 명단이 있습니다.\n정말 이 사업 명단 전체를 삭제할까요?`)) return;
+    } else if (!confirm(`${projectYear}년 ${projectName} 사업을 삭제할까요?`)) return;
+
+    const password = prompt("삭제하려면 로그인 비밀번호를 입력해주세요.");
+    if (!password) return;
+
+    const result = await api("/api/subsidy-projects/delete-project", {
+      method: "POST",
+      body: JSON.stringify({ projectName, projectYear, password }),
+    });
+
+    const currentList = getSavedProjectList().filter((name) => name !== projectName);
+    saveProjectList(currentList);
+    if (projectName === activeProjectName()) setActiveProjectName(DEFAULT_PROJECT_NAME);
+    alert(`${projectYear}년 ${projectName} 사업 삭제 완료\n삭제된 명단: ${result.deleted || 0}명`);
+    await load();
+  }
+
   async function api(path, options = {}) {
     const token = sessionStorage.getItem(TOKEN_KEY);
     const headers = Object.assign(
@@ -7547,6 +7570,11 @@ function parseEasyInventoryText(text) {
   }
 
   function bindAlertEvents() {
+    document.addEventListener("change", (ev) => {
+      const yearSel = ev.target.closest("#subsidy-project-year-v65");
+      if (yearSel) setActiveProjectYear(yearSel.value);
+    });
+
     document.addEventListener("click", (ev) => {
       const snoozeBtn = ev.target.closest("[data-alert-snooze]");
       if (snoozeBtn) {
@@ -8273,6 +8301,23 @@ function parseEasyInventoryText(text) {
   const PROJECT_KEY = "naepo_subsidy_active_project_v63";
   const PROJECT_LIST_KEY = "naepo_subsidy_project_list_v63";
   const DEFAULT_PROJECT_NAME = "여성농업";
+  const PROJECT_YEAR_KEY = "naepo_subsidy_active_year_v65";
+  function currentProjectYear() {
+    return String(new Date().getFullYear());
+  }
+  function normalizeProjectYear(year) {
+    const y = String(year || "").replace(/[^\d]/g, "").slice(0, 4);
+    return y || currentProjectYear();
+  }
+  function activeProjectYear() {
+    try { return normalizeProjectYear(localStorage.getItem(PROJECT_YEAR_KEY) || currentProjectYear()); } catch (_) { return currentProjectYear(); }
+  }
+  function setActiveProjectYear(year) {
+    try { localStorage.setItem(PROJECT_YEAR_KEY, normalizeProjectYear(year)); } catch (_) {}
+    page = 1;
+    selected.clear();
+    render();
+  }
   function normalizeProjectName(name) {
     const raw = String(name || "").trim();
     if (!raw) return DEFAULT_PROJECT_NAME;
@@ -8306,6 +8351,9 @@ function parseEasyInventoryText(text) {
   function rowProjectName(row) {
     return normalizeProjectName(row.projectDisplayName || row.projectTitle || row.projectName || row.businessName || row.subsidyName || DEFAULT_PROJECT_NAME);
   }
+  function rowProjectYear(row) {
+    return normalizeProjectYear(row.projectYear || row.year || activeProjectYear());
+  }
   function getProjectNames() {
     const fromRows = rows.map(rowProjectName).filter(Boolean);
     return saveProjectList(fromRows.concat(getSavedProjectList()));
@@ -8314,22 +8362,34 @@ function parseEasyInventoryText(text) {
     const box = $("subsidy-project-switcher-v63");
     if (!box) return;
     const active = activeProjectName();
+    const activeYear = activeProjectYear();
     const names = getProjectNames();
     const counts = new Map();
-    rows.map(normalizeRow).forEach((r) => counts.set(rowProjectName(r), (counts.get(rowProjectName(r)) || 0) + 1));
+    rows.map(normalizeRow).filter((r) => rowProjectYear(r) === activeYear).forEach((r) => counts.set(rowProjectName(r), (counts.get(rowProjectName(r)) || 0) + 1));
+    const yearSet = new Set([currentProjectYear(), String(Number(currentProjectYear()) + 1), activeYear]);
+    rows.map(normalizeRow).forEach((r) => yearSet.add(rowProjectYear(r)));
+    const years = [...yearSet].filter(Boolean).sort();
     box.innerHTML = `
       <div class="subsidy-project-switcher-head">
         <strong><i class="fa-solid fa-folder-tree"></i> 보조사업 선택</strong>
-        <span>사업별로 명단과 상태를 따로 관리합니다.</span>
+        <span>사업별·연도별로 명단과 상태를 따로 관리합니다.</span>
+      </div>
+      <div class="subsidy-project-year-row">
+        <label>사업연도
+          <select id="subsidy-project-year-v65">
+            ${years.map((y) => `<option value="${safe(y)}" ${y === activeYear ? "selected" : ""}>${safe(y)}년</option>`).join("")}
+          </select>
+        </label>
+        <button type="button" class="subsidy-project-delete" id="subsidy-project-delete-v65"><i class="fa-solid fa-trash"></i> 현재 사업 삭제</button>
       </div>
       <div class="subsidy-project-buttons">
         ${names.map((name) => `<button type="button" class="subsidy-project-btn ${name === active ? "on" : ""}" data-subsidy-project="${safe(name)}">${safe(name)}<em>${money(counts.get(name) || 0)}명</em></button>`).join("")}
         <button type="button" class="subsidy-project-add" id="subsidy-project-add-v63"><i class="fa-solid fa-plus"></i> 사업추가</button>
       </div>`;
     const title = $("subsidy-current-title");
-    if (title) title.textContent = `${active} 보조사업 관리`;
+    if (title) title.textContent = `${activeYear}년 ${active} 보조사업 관리`;
     const desc = $("subsidy-current-desc");
-    if (desc) desc.textContent = `${active} 명단 엑셀을 가져오고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.`;
+    if (desc) desc.textContent = `${activeYear}년 ${active} 명단 엑셀을 가져오고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.`;
   }
 
   async function api(path, options = {}) {
@@ -8374,7 +8434,7 @@ function parseEasyInventoryText(text) {
     const totalCost = num(get(raw, ["신청사업비원계", "신청사업비계", "신청 사업비 계", "총사업비", "사업비", "계"]));
     let selfPay = num(get(raw, ["자부담", "자부담20%", "자부담금"]));
     if (!selfPay && totalCost) selfPay = Math.max(0, totalCost - supportTotal);
-    const yearRaw = get(raw, ["사업연도", "연도", "년도"]) || new Date().getFullYear();
+    const yearRaw = get(raw, ["사업연도", "연도", "년도"]) || activeProjectYear();
     const equipment = String(get(raw, ["신청기종", "기종", "품목", "장비"]) || "").trim();
     const model = String(get(raw, ["형식명", "형식명농업기계모", "모델명", "모델", "형식"]) || "").trim();
     return {
@@ -8470,7 +8530,7 @@ function parseEasyInventoryText(text) {
     return rows.map(normalizeRow).filter((r) => {
       const st = r.statuses || {};
       const item = r.itemName || r.equipment || "";
-      if (rowProjectName(r) !== activeProjectName()) return false;
+      if (rowProjectName(r) !== activeProjectName() || rowProjectYear(r) !== activeProjectYear()) return false;
       if (town && r.town !== town) return false;
       if (equipment && item !== equipment) return false;
       if ((status === "pending" || status === "active") && st.complete) return false;
@@ -8511,14 +8571,14 @@ function parseEasyInventoryText(text) {
     const equipSel = $("subsidy-equipment-filter");
     if (townSel) {
       const cur = townSel.value;
-      const projectRows = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName());
+      const projectRows = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName() && rowProjectYear(r) === activeProjectYear());
       const towns = [...new Set(projectRows.map((r) => r.town).filter(Boolean))].sort();
       townSel.innerHTML = `<option value="">전체지역</option>` + towns.map((t) => `<option value="${safe(t)}">${safe(t)}</option>`).join("");
       townSel.value = towns.includes(cur) ? cur : "";
     }
     if (equipSel) {
       const cur = equipSel.value;
-      const projectRows = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName());
+      const projectRows = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName() && rowProjectYear(r) === activeProjectYear());
       const items = [...new Set(projectRows.map((r) => r.itemName || r.equipment).filter(Boolean))].sort();
       equipSel.innerHTML = `<option value="">전체기종</option>` + items.map((t) => `<option value="${safe(t)}">${safe(t)}</option>`).join("");
       equipSel.value = items.includes(cur) ? cur : "";
@@ -8526,7 +8586,7 @@ function parseEasyInventoryText(text) {
   }
 
   function updateSummary(allFiltered) {
-    const normalized = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName());
+    const normalized = rows.map(normalizeRow).filter((r) => rowProjectName(r) === activeProjectName() && rowProjectYear(r) === activeProjectYear());
     const total = normalized.length;
     const pending = normalized.filter((r) => !r.statuses.complete).length;
     const quote = normalized.filter((r) => !r.statuses.quote).length;
@@ -8627,7 +8687,7 @@ function parseEasyInventoryText(text) {
     if (!data.length) data = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
     const sendRows = data.map(normalizeImportedRow).filter((r) => r.name || r.phone || r.itemName || r.model);
     if (!sendRows.length) return alert("가져올 대상자를 찾지 못했습니다. 엑셀 제목/헤더를 확인해줘.");
-    if (!confirm(`[${activeProjectName()}] 사업에 ${sendRows.length}명을 가져올까?\n같은 대상자는 중복등록하지 않고 업데이트돼.`)) return;
+    if (!confirm(`[${activeProjectYear()}년 ${activeProjectName()}] 사업에 ${sendRows.length}명을 가져올까?\n같은 대상자는 중복등록하지 않고 업데이트돼.`)) return;
     const result = await api("/api/subsidy-projects/import", { method: "POST", body: JSON.stringify({ rows: sendRows }) });
     alert(`가져오기 완료\n신규 ${result.created || 0}명 / 업데이트 ${result.updated || 0}명 / 제외 ${result.skipped || 0}명`);
     selected.clear();
@@ -8809,6 +8869,7 @@ function parseEasyInventoryText(text) {
 
   function reportHtml(list) {
     const project = activeProjectName();
+    const projectYear = activeProjectYear();
     const town = $("subsidy-town-filter")?.value || "전체지역";
     const equipment = $("subsidy-equipment-filter")?.value || "전체기종";
     const status = $("subsidy-status-filter")?.selectedOptions?.[0]?.textContent || "전체상태";
@@ -8825,8 +8886,8 @@ function parseEasyInventoryText(text) {
     const row = (g) => `<tr><td>${safe(g.key)}</td><td class="tr">${money(g.count)}대</td><td class="tr">${money(g.totalCost)}</td><td class="tr">${money(g.supportTotal)}</td><td class="tr">${money(g.selfPay)}</td></tr>`;
     return `
       <div class="subsidy-report-doc">
-        <h2>${safe(project)} 보조사업 보고서</h2>
-        <div class="subsidy-report-meta">기준: ${safe(project)} · ${safe(town)} · ${safe(equipment)} · ${safe(status)} · 출력일 ${today()}</div>
+        <h2>${safe(projectYear)}년 ${safe(project)} 보조사업 보고서</h2>
+        <div class="subsidy-report-meta">기준: ${safe(projectYear)}년 ${safe(project)} · ${safe(town)} · ${safe(equipment)} · ${safe(status)} · 출력일 ${today()}</div>
         <div class="subsidy-report-cards">
           <div><span>대상자</span><b>${money(list.length)}명</b></div>
           <div><span>총사업비</span><b>${money(total)}원</b></div>
@@ -10047,6 +10108,211 @@ function parseEasyInventoryText(text) {
     if (ev.target.closest && ev.target.closest("[data-class-report-close]")) {
       ev.preventDefault();
       $("class-out-report-modal-v62")?.classList.remove("show");
+      return;
+    }
+  }, true);
+})();
+
+
+/* ===== v65-inventory-monthly-settlement-report-20260715 =====
+   재고관리 전체 품목 + 계통/자체 출고까지 월말정산 보고서로 표시
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  async function api(path) {
+    const headers = {};
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, { headers });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+  function today() { return new Date().toISOString().slice(0, 10); }
+  function monthStart() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
+  }
+  function customerFromRecord(record, fallback) {
+    if (!record) return String(fallback || "미지정").replace(/님$/, "");
+    const company = String(record.company || "").trim();
+    const name = String(record.name || "").trim();
+    const region = String(record.region || "").trim();
+    if (company && company !== "-") return company;
+    if (name) return name;
+    return region || String(fallback || "미지정").replace(/님$/, "");
+  }
+  function groupRows(list, keyFn) {
+    const map = new Map();
+    list.forEach((r) => {
+      const keyObj = keyFn(r);
+      const key = typeof keyObj === "string" ? keyObj : keyObj.key;
+      const cur = map.get(key) || Object.assign({ key, count: 0, qty: 0, amount: 0, latest: "", itemSet: new Set() }, typeof keyObj === "string" ? {} : keyObj);
+      cur.count += 1;
+      cur.qty += Number(r.qty) || 0;
+      cur.amount += (Number(r.qty) || 0) * (Number(r.unitPrice) || 0);
+      if (r.partName) cur.itemSet.add(r.partName);
+      if (!cur.latest || String(r.date || "") > cur.latest) cur.latest = String(r.date || "");
+      map.set(key, cur);
+    });
+    return [...map.values()].map((x) => Object.assign(x, { itemCount: x.itemSet ? x.itemSet.size : 0 }));
+  }
+  function ensureModal() {
+    let modal = $("inventory-monthly-report-modal-v65");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "inventory-monthly-report-modal-v65";
+    modal.className = "inventory-monthly-report-modal-v65";
+    modal.innerHTML = `
+      <div class="inventory-monthly-backdrop" data-monthly-close="1"></div>
+      <div class="inventory-monthly-box">
+        <div class="inventory-monthly-head">
+          <strong><i class="fa-solid fa-chart-column"></i> 월말정산 / 재고 보고</strong>
+          <div>
+            <button type="button" class="btn btn-o btn-sm" id="inventory-monthly-print-v65"><i class="fa-solid fa-print"></i> 인쇄</button>
+            <button type="button" class="btn btn-o btn-sm" data-monthly-close="1"><i class="fa-solid fa-xmark"></i> 닫기</button>
+          </div>
+        </div>
+        <div class="inventory-monthly-filter">
+          <label>시작일<input type="date" id="monthly-from-v65"></label>
+          <label>종료일<input type="date" id="monthly-to-v65"></label>
+          <label>물품구분<select id="monthly-class-v65"><option value="">전체</option><option>계통물품</option><option>자체물품</option><option>일반판매</option><option>수리부품</option><option>보조사업</option></select></label>
+          <label>농협/거래처<input id="monthly-customer-v65" placeholder="예: 홍성농협"></label>
+          <label>품목명<input id="monthly-part-v65" placeholder="예: 분무기"></label>
+          <button type="button" class="btn btn-p btn-sm" id="monthly-run-v65"><i class="fa-solid fa-rotate"></i> 조회</button>
+        </div>
+        <div id="inventory-monthly-body-v65"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    $("monthly-from-v65").value = monthStart();
+    $("monthly-to-v65").value = today();
+    return modal;
+  }
+  function table(title, headers, rows, rowFn) {
+    return `<h4>${safe(title)}</h4><table class="monthly-table"><thead><tr>${headers.map((h)=>`<th>${safe(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map(rowFn).join("") : `<tr><td colspan="${headers.length}" class="empty">내역 없음</td></tr>`}</tbody></table>`;
+  }
+  function render(parts, logs, records) {
+    const recordMap = new Map(records.map((r) => [String(r.id), r]));
+    const partMap = new Map(parts.map((p) => [String(p.id), p]));
+    const cls = $("monthly-class-v65")?.value || "";
+    const customerQ = String($("monthly-customer-v65")?.value || "").trim().toLowerCase();
+    const partQ = String($("monthly-part-v65")?.value || "").trim().toLowerCase();
+    const from = $("monthly-from-v65")?.value || "";
+    const to = $("monthly-to-v65")?.value || "";
+
+    const filteredParts = parts.filter((p) => {
+      const pcls = p.inventoryClass || p.itemClass || p.saleType || "일반판매";
+      if (cls && pcls !== cls) return false;
+      if (partQ && !String(p.name || "").toLowerCase().includes(partQ)) return false;
+      return true;
+    });
+
+    const outLogs = logs.filter((l) => {
+      if (l.type !== "out") return false;
+      const d = String(l.date || "").slice(0,10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    }).map((l) => {
+      const part = partMap.get(String(l.partId)) || parts.find((p) => String(p.name || "") === String(l.partName || "")) || {};
+      const record = recordMap.get(String(l.relatedRecordId || ""));
+      const pcls = part.inventoryClass || part.itemClass || part.saleType || "일반판매";
+      const customer = customerFromRecord(record, l.relatedRecordCustomer);
+      return Object.assign({}, l, {
+        date: String(l.date || "").slice(0,10),
+        partName: l.partName || part.name || "-",
+        customer,
+        inventoryClass: pcls,
+        storageLocation: part.storageLocation || part.location || "",
+      });
+    }).filter((l) => {
+      if (cls && l.inventoryClass !== cls) return false;
+      if (customerQ && !String(l.customer || "").toLowerCase().includes(customerQ)) return false;
+      if (partQ && !String(l.partName || "").toLowerCase().includes(partQ)) return false;
+      return true;
+    });
+
+    const inventoryValue = filteredParts.reduce((s,p)=>s+(Number(p.stock)||0)*(Number(p.unitPrice)||0),0);
+    const outQty = outLogs.reduce((s,l)=>s+(Number(l.qty)||0),0);
+    const outAmount = outLogs.reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unitPrice)||0),0);
+    const shortage = filteredParts.filter((p)=>Number(p.minStock)>0 && Number(p.stock)<=Number(p.minStock));
+
+    const byCustomer = groupRows(outLogs, (r)=>r.customer).sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
+    const byDateCustomerPart = groupRows(outLogs, (r)=>({key:`${r.date}|${r.customer}|${r.partName}`, date:r.date, customer:r.customer, partName:r.partName, inventoryClass:r.inventoryClass}))
+      .sort((a,b)=>String(a.date).localeCompare(String(b.date)) || String(a.customer).localeCompare(String(b.customer),"ko-KR") || String(a.partName).localeCompare(String(b.partName),"ko-KR"));
+    const byClass = groupRows(filteredParts.map((p)=>({partName:p.name, qty:Number(p.stock)||0, unitPrice:Number(p.unitPrice)||0, inventoryClass:p.inventoryClass||"일반판매"})), (r)=>r.inventoryClass)
+      .sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
+    const byLocation = groupRows(filteredParts.map((p)=>({partName:p.name, qty:Number(p.stock)||0, unitPrice:Number(p.unitPrice)||0, storageLocation:p.storageLocation||p.location||"미지정"})), (r)=>r.storageLocation)
+      .sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
+
+    $("inventory-monthly-body-v65").innerHTML = `
+      <div class="monthly-cards">
+        <div><span>전체 품목</span><b>${money(filteredParts.length)}개</b></div>
+        <div><span>현재 재고가치</span><b>${money(inventoryValue)}원</b></div>
+        <div><span>기간 출고수량</span><b>${money(outQty)}개</b></div>
+        <div><span>기간 출고금액</span><b>${money(outAmount)}원</b></div>
+        <div><span>부족품목</span><b>${money(shortage.length)}개</b></div>
+      </div>
+      ${table("농협/거래처별 출고 합계", ["농협/거래처","품목수","수량","금액","최근출고일"], byCustomer, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td><td>${safe(r.latest || "-")}</td></tr>`)}
+      ${table("날짜 + 농협/거래처 + 품목별 출고", ["날짜","농협/거래처","품목명","구분","수량","금액"], byDateCustomerPart, (r)=>`<tr><td>${safe(r.date)}</td><td>${safe(r.customer)}</td><td>${safe(r.partName)}</td><td>${safe(r.inventoryClass)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
+      ${table("물품구분별 현재 재고", ["물품구분","품목수","현재수량","재고가치"], byClass, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
+      ${table("보관위치별 현재 재고", ["보관위치","품목수","현재수량","재고가치"], byLocation, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
+      ${table("부족/최소재고 이하 품목", ["품목명","보관위치","구분","현재","최소","단가"], shortage, (p)=>`<tr><td>${safe(p.name)}</td><td>${safe(p.storageLocation||"-")}</td><td>${safe(p.inventoryClass||"일반판매")}</td><td class="tr">${money(p.stock)}</td><td class="tr">${money(p.minStock)}</td><td class="tr">${money(p.unitPrice)}원</td></tr>`)}
+      ${table("재고 전체 목록", ["품목명","규격","보관위치","구분","단가","현재","최소","재고가치"], filteredParts, (p)=>`<tr><td>${safe(p.name)}</td><td>${safe(p.spec||"-")}</td><td>${safe(p.storageLocation||"-")}</td><td>${safe(p.inventoryClass||"일반판매")}</td><td class="tr">${money(p.unitPrice)}원</td><td class="tr">${money(p.stock)}</td><td class="tr">${money(p.minStock)}</td><td class="tr">${money((Number(p.stock)||0)*(Number(p.unitPrice)||0))}원</td></tr>`)}
+    `;
+  }
+  async function load() {
+    const body = $("inventory-monthly-body-v65");
+    body.innerHTML = `<div class="monthly-loading">불러오는 중...</div>`;
+    try {
+      const [partsPayload, logsPayload, recordsPayload] = await Promise.all([api("/api/parts"), api("/api/inventory-log"), api("/api/records")]);
+      render(asArray(partsPayload), asArray(logsPayload), asArray(recordsPayload));
+    } catch (e) {
+      body.innerHTML = `<div class="monthly-error">${safe(e.message || "조회 실패")}</div>`;
+    }
+  }
+  function open() {
+    ensureModal().classList.add("show");
+    load();
+  }
+  function print() {
+    const body = $("inventory-monthly-body-v65")?.innerHTML || "";
+    const win = window.open("", "_blank", "width=1100,height=900");
+    if (!win) return alert("팝업이 차단되었습니다.");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>월말정산 재고보고</title><style>
+      body{font-family:'Noto Sans KR',Arial,sans-serif;margin:18px;color:#0f172a}h2{text-align:center;margin:0 0 12px}.monthly-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.monthly-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:9px}.monthly-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.monthly-cards b{font-size:15px}h4{margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #cbd5e1;padding:5px 6px}th{background:#f1f5f9}.tr{text-align:right}.empty{text-align:center;color:#94a3b8}@page{size:A4 landscape;margin:8mm}
+    </style></head><body><h2>월말정산 / 재고 보고</h2>${body}</body></html>`);
+    win.document.close();
+    setTimeout(()=>{ win.focus(); win.print(); }, 250);
+  }
+  window.addEventListener("click", (ev) => {
+    if (ev.target.closest && ev.target.closest("#btn-inventory-out-report")) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      open();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("#monthly-run-v65")) {
+      ev.preventDefault();
+      load();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("#inventory-monthly-print-v65")) {
+      ev.preventDefault();
+      print();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("[data-monthly-close]")) {
+      ev.preventDefault();
+      $("inventory-monthly-report-modal-v65")?.classList.remove("show");
       return;
     }
   }, true);
