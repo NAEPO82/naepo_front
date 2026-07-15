@@ -9768,137 +9768,40 @@ function parseEasyInventoryText(text) {
 })();
 
 
-/* ===== v61-inventory-layout-office-time-stockmatch-20260715 =====
-   재고 표 칸 정렬 보정 + 보관위치/물품구분 목록 표시 + 서류제출 날짜시간 표시 보정
+
+/* ===== v64-disable-auto-api-polling-20260715 =====
+   v61 자동 API 폴링 제거: 목록 보정은 DOM 기준으로만 처리해서 429 방지
 */
 (() => {
-  const API_BASE = "https://naepo-back.onrender.com";
-  const TOKEN_KEY = "npo_session_token";
-  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
-  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
-  const fmtDateTime = (v) => {
-    if (!v) return "";
-    const d = new Date(v);
-    if (Number.isNaN(d.getTime())) return String(v).replace("T", " ").replace("Z", "").slice(0, 16);
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-  };
-
-  async function api(path) {
-    const headers = {};
-    const t = token();
-    if (t) headers.Authorization = "Bearer " + t;
-    const res = await fetch(API_BASE + path, { headers });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
-    return data;
-  }
-
-  let partsCache = null;
-  async function getParts() {
-    if (partsCache) return partsCache;
-    partsCache = asArray(await api("/api/parts"));
-    return partsCache;
-  }
-
-  function makeCell(html) {
-    const td = document.createElement("td");
-    td.innerHTML = html;
-    return td;
-  }
-
-  async function normalizeInventoryRows() {
-    const body = document.getElementById("parts-body");
-    if (!body) return;
-    const parts = await getParts().catch(() => []);
-    const partMap = new Map(parts.map((p) => [String(p.id), p]));
-
-    body.querySelectorAll("tr").forEach((tr) => {
-      const chk = tr.querySelector(".chk-part");
-      if (!chk) return;
-      const part = partMap.get(String(chk.dataset.id)) || {};
-      const cells = [...tr.children];
-
-      // 예전 행 구조가 남아 있으면 규격 다음에 보관위치/물품구분 칸을 삽입한다.
-      if (cells.length === 8) {
-        tr.insertBefore(makeCell(`<span class="part-location-badge">${safe(part.storageLocation || part.location || "-")}</span>`), cells[3]);
-        tr.insertBefore(makeCell(`<span class="part-class-badge">${safe(part.inventoryClass || part.itemClass || part.saleType || "일반판매")}</span>`), cells[3]);
-      }
-
-      // 최신 구조라도 값이 비어 보이면 실제 API 값으로 다시 채운다.
-      const nextCells = [...tr.children];
-      if (nextCells[3]) nextCells[3].innerHTML = `<span class="part-location-badge">${safe(part.storageLocation || part.location || "-")}</span>`;
-      if (nextCells[4]) nextCells[4].innerHTML = `<span class="part-class-badge">${safe(part.inventoryClass || part.itemClass || part.saleType || "일반판매")}</span>`;
-
-      // 품목명 아래 타임스탬프 보정
-      const nameCell = nextCells[1];
-      if (nameCell && !nameCell.querySelector(".part-row-timestamp")) {
-        const stamp = fmtDateTime(part.updatedAt || part.createdAt);
-        if (stamp) {
-          const small = document.createElement("small");
-          small.className = "part-row-timestamp";
-          small.textContent = `수정: ${stamp}`;
-          nameCell.appendChild(small);
-        }
-      }
-    });
-  }
-
-  let subsidyCache = null;
-  async function getSubsidy() {
-    subsidyCache = asArray(await api("/api/subsidy-projects"));
-    return subsidyCache;
-  }
-
-  async function normalizeSubsidyOfficeLine() {
-    const body = document.getElementById("subsidy-body");
-    if (!body) return;
-    const list = await getSubsidy().catch(() => []);
-    const map = new Map(list.map((r) => [String(r.id), r]));
-
-    body.querySelectorAll("tr[data-id]").forEach((tr) => {
-      const row = map.get(String(tr.dataset.id));
-      if (!row) return;
+  function mergeSubsidyLinesDomOnly() {
+    document.querySelectorAll("#subsidy-body tr[data-id]").forEach((tr) => {
       const statusCell = [...tr.children].find((td) => td.querySelector && td.querySelector(".subsidy-status-grid"));
       if (!statusCell) return;
-
-      const machine = String(row.machineNo || "").trim();
-      const submittedAt = row.officeSubmittedAt || ((row.statuses && row.statuses.officeSubmit) ? row.updatedAt : "");
-      if (!machine && !submittedAt) return;
-
-      statusCell.querySelectorAll(".subsidy-machine").forEach((el) => el.remove());
-      const line = document.createElement("div");
-      line.className = "subsidy-machine";
-      const chunks = [];
-      if (machine) chunks.push(`기대번호: ${machine}`);
-      if (submittedAt) chunks.push(`서류제출: ${fmtDateTime(submittedAt)}`);
-      line.textContent = chunks.join(" · ");
-      statusCell.appendChild(line);
+      const lines = [...statusCell.querySelectorAll(".subsidy-machine")];
+      if (lines.length >= 2) {
+        lines[0].textContent = lines.map((el) => el.textContent.trim()).filter(Boolean).join(" · ");
+        lines.slice(1).forEach((el) => el.remove());
+      }
     });
   }
 
-  function scheduleInventoryNormalize() {
-    setTimeout(normalizeInventoryRows, 80);
-    setTimeout(normalizeInventoryRows, 500);
-  }
-
-  function scheduleSubsidyNormalize() {
-    setTimeout(normalizeSubsidyOfficeLine, 120);
-    setTimeout(normalizeSubsidyOfficeLine, 700);
+  function fitInventoryButtonsDomOnly() {
+    document.querySelectorAll("#page-inventory .parts-table .ibtns").forEach((box) => {
+      box.classList.add("v64-inv-buttons-fit");
+    });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    const partsBody = document.getElementById("parts-body");
-    if (partsBody && window.MutationObserver) {
-      new MutationObserver(scheduleInventoryNormalize).observe(partsBody, { childList: true, subtree: true });
-    }
     const subsidyBody = document.getElementById("subsidy-body");
     if (subsidyBody && window.MutationObserver) {
-      new MutationObserver(scheduleSubsidyNormalize).observe(subsidyBody, { childList: true, subtree: true });
+      new MutationObserver(mergeSubsidyLinesDomOnly).observe(subsidyBody, { childList: true, subtree: true });
     }
-    scheduleInventoryNormalize();
-    scheduleSubsidyNormalize();
-    setInterval(() => { partsCache = null; subsidyCache = null; scheduleInventoryNormalize(); scheduleSubsidyNormalize(); }, 5000);
+    const partsBody = document.getElementById("parts-body");
+    if (partsBody && window.MutationObserver) {
+      new MutationObserver(fitInventoryButtonsDomOnly).observe(partsBody, { childList: true, subtree: true });
+    }
+    mergeSubsidyLinesDomOnly();
+    fitInventoryButtonsDomOnly();
   });
 })();
 
