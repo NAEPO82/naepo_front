@@ -2722,6 +2722,16 @@
         }
       } catch (error) { I("이메일 백업 실패", error.message); }
     }),
+    document.getElementById("admin-btn-save-current") && document.getElementById("admin-btn-save-current").addEventListener("click", async () => {
+      S("현재 데이터 전체저장", "현재 화면/서버에 남아있는 데이터를 JSON 미러와 PostgreSQL에 강제로 저장합니다.\n삭제한 데이터가 업데이트 후 다시 살아나는 문제를 줄이기 위한 기능입니다. 계속할까요?", async () => {
+        try {
+          const result = await adminJson("/api/admin/save-current-data", { method: "POST", body: JSON.stringify({}) });
+          const c = result.counts || {};
+          I("현재 데이터 전체저장 완료", `저장 완료\n거래 ${c.records || 0}건 · 거래처 ${c.customers || 0}건 · 재고 ${c.parts || 0}건 · 입출고 ${c.inventoryLog || 0}건 · 보조사업 ${c.subsidyProjects || 0}건\n스냅샷: ${result.snapshotFile || "-"}`);
+          await loadAdminActionLog();
+        } catch (error) { I("현재 데이터 전체저장 실패", error.message); }
+      }, () => {});
+    }),
     document.getElementById("admin-btn-log-refresh") && document.getElementById("admin-btn-log-refresh").addEventListener("click", loadAdminActionLog),
     document.getElementById("admin-btn-log-csv") && document.getElementById("admin-btn-log-csv").addEventListener("click", async () => {
       try { await downloadWithAuth("/api/admin/action-log/download.csv", "naepo-action-log.csv", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
@@ -10154,15 +10164,22 @@ function parseEasyInventoryText(text) {
     list.forEach((r) => {
       const keyObj = keyFn(r);
       const key = typeof keyObj === "string" ? keyObj : keyObj.key;
-      const cur = map.get(key) || Object.assign({ key, count: 0, qty: 0, amount: 0, latest: "", itemSet: new Set() }, typeof keyObj === "string" ? {} : keyObj);
+      const cur = map.get(key) || Object.assign({ key, count: 0, qty: 0, amount: 0, latest: "", itemSet: new Set(), itemQtyMap: new Map() }, typeof keyObj === "string" ? {} : keyObj);
+      const qty = Number(r.qty) || 0;
       cur.count += 1;
-      cur.qty += Number(r.qty) || 0;
-      cur.amount += (Number(r.qty) || 0) * (Number(r.unitPrice) || 0);
-      if (r.partName) cur.itemSet.add(r.partName);
+      cur.qty += qty;
+      cur.amount += qty * (Number(r.unitPrice) || 0);
+      if (r.partName) {
+        cur.itemSet.add(r.partName);
+        cur.itemQtyMap.set(r.partName, (cur.itemQtyMap.get(r.partName) || 0) + qty);
+      }
       if (!cur.latest || String(r.date || "") > cur.latest) cur.latest = String(r.date || "");
       map.set(key, cur);
     });
-    return [...map.values()].map((x) => Object.assign(x, { itemCount: x.itemSet ? x.itemSet.size : 0 }));
+    return [...map.values()].map((x) => Object.assign(x, {
+      itemCount: x.itemSet ? x.itemSet.size : 0,
+      itemSummary: x.itemQtyMap ? [...x.itemQtyMap.entries()].map(([name, qty]) => `${name} ${money(qty)}개`).join(" / ") : "",
+    }));
   }
   function ensureModal() {
     let modal = $("inventory-monthly-report-modal-v65");
@@ -10260,7 +10277,7 @@ function parseEasyInventoryText(text) {
         <div><span>기간 출고금액</span><b>${money(outAmount)}원</b></div>
         <div><span>부족품목</span><b>${money(shortage.length)}개</b></div>
       </div>
-      ${table("농협/거래처별 출고 합계", ["농협/거래처","품목수","수량","금액","최근출고일"], byCustomer, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td><td>${safe(r.latest || "-")}</td></tr>`)}
+      ${table("농협/거래처별 출고 합계", ["농협/거래처","판매품목","품목수","수량","금액","최근출고일"], byCustomer, (r)=>`<tr><td>${safe(r.key)}</td><td>${safe(r.itemSummary || "-")}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td><td>${safe(r.latest || "-")}</td></tr>`)}
       ${table("날짜 + 농협/거래처 + 품목별 출고", ["날짜","농협/거래처","품목명","구분","수량","금액"], byDateCustomerPart, (r)=>`<tr><td>${safe(r.date)}</td><td>${safe(r.customer)}</td><td>${safe(r.partName)}</td><td>${safe(r.inventoryClass)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
       ${table("물품구분별 현재 재고", ["물품구분","품목수","현재수량","재고가치"], byClass, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
       ${table("보관위치별 현재 재고", ["보관위치","품목수","현재수량","재고가치"], byLocation, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}

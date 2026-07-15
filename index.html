@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v65-subsidy-project-delete-year-monthly-20260715" />
+    <link rel="stylesheet" href="styles.css?v=v66-inventory-align-save-report-backup-20260715" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -1168,15 +1168,15 @@
               <table class="parts-table">
                 <colgroup>
                   <col style="width: 3%" />
-                  <col style="width: 13%" />
+                  <col style="width: 16%" />
+                  <col style="width: 10%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
+                  <col style="width: 9%" />
                   <col style="width: 8%" />
                   <col style="width: 8%" />
                   <col style="width: 8%" />
-                  <col style="width: 8%" />
-                  <col style="width: 7%" />
-                  <col style="width: 7%" />
-                  <col style="width: 8%" />
-                  <col style="width: 30%" />
+                  <col style="width: 20%" />
                 </colgroup>
                 <thead>
                   <tr>
@@ -2088,6 +2088,7 @@
               <button class="admin-tool-btn" id="admin-btn-full-backup"><i class="fa-solid fa-box-archive"></i><span>전체백업 다운로드</span><small>JSON + SQL + CSV ZIP 묶음</small></button>
               <button class="admin-tool-btn" id="admin-btn-restore"><i class="fa-solid fa-cloud-arrow-up"></i><span>백업파일 복원</span><small>JSON / SQL 백업 미리보기 후 복원</small></button>
               <button class="admin-tool-btn" id="admin-btn-email-backup"><i class="fa-solid fa-envelope-circle-check"></i><span>수동 이메일 백업</span><small>백업 메일 즉시 전송</small></button>
+              <button class="admin-tool-btn" id="admin-btn-save-current"><i class="fa-solid fa-floppy-disk"></i><span>현재 데이터 전체저장</span><small>삭제/수정된 현재 상태를 JSON + PostgreSQL에 강제 반영</small></button>
             </div>
             <input type="file" id="admin-restore-file-input" accept=".json,.sql,application/json,text/plain,application/sql" style="display:none" />
           </div>
@@ -2159,6 +2160,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v65-subsidy-project-delete-year-monthly-20260715"></script>
+    <script src="app.js?v=v66-inventory-align-save-report-backup-20260715"></script>
   </body>
 </html>
