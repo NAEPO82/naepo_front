@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v62-nonghyup-class-outbound-report-20260715" />
+    <link rel="stylesheet" href="styles.css?v=v63-subsidy-project-switcher-20260715" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -1628,8 +1628,8 @@
             <div class="subsidy-hero">
               <div>
                 <div class="daily-eyebrow"><i class="fa-solid fa-seedling"></i> Subsidy Project</div>
-                <h2>여성농업인 보조사업 관리</h2>
-                <p>명단 엑셀을 가져오고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 한 화면에서 관리합니다.</p>
+                <h2 id="subsidy-current-title">여성농업 보조사업 관리</h2>
+                <p id="subsidy-current-desc">보조사업을 선택하고, 명단 엑셀/견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.</p>
               </div>
               <div class="subsidy-actions">
                 <label class="btn btn-p btn-sm subsidy-import-label">
@@ -1642,6 +1642,8 @@
                 <button type="button" class="btn btn-danger btn-sm" id="subsidy-selected-delete"><i class="fa-solid fa-trash-check"></i> 선택삭제</button>
               </div>
             </div>
+
+            <div class="subsidy-project-switcher-v63" id="subsidy-project-switcher-v63"></div>
 
             <div class="subsidy-summary-grid">
               <div class="subsidy-summary-card"><span>전체</span><strong id="subsidy-sum-total">0</strong><em>명</em></div>
@@ -2157,6 +2159,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v62-nonghyup-class-outbound-report-20260715"></script>
+    <script src="app.js?v=v63-subsidy-project-switcher-20260715"></script>
   </body>
 </html>

@@ -15635,3 +15635,74 @@ tr:hover td{background:#F8FAFC !important;}
   .class-out-report-filter{grid-template-columns:1fr 1fr}
   .class-out-cards{grid-template-columns:1fr 1fr}
 }
+
+
+/* ===== v63-subsidy-project-switcher-20260715 ===== */
+.subsidy-project-switcher-v63{
+  border:1px solid #dbeafe;
+  background:linear-gradient(135deg,#f8fafc,#eff6ff);
+  border-radius:18px;
+  padding:13px 14px;
+  margin:14px 0;
+}
+.subsidy-project-switcher-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+.subsidy-project-switcher-head strong{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#0f172a;
+  font-size:14px;
+}
+.subsidy-project-switcher-head span{
+  color:#64748b;
+  font-size:12px;
+  font-weight:800;
+}
+.subsidy-project-buttons{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.subsidy-project-btn,
+.subsidy-project-add{
+  border:1px solid #cbd5e1;
+  background:#fff;
+  color:#334155;
+  border-radius:999px;
+  padding:8px 12px;
+  font-weight:900;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  transition:.15s;
+}
+.subsidy-project-btn em{
+  font-style:normal;
+  color:#64748b;
+  font-size:11px;
+}
+.subsidy-project-btn.on{
+  background:#0f766e;
+  color:#fff;
+  border-color:#0f766e;
+  box-shadow:0 8px 18px rgba(15,118,110,.18);
+}
+.subsidy-project-btn.on em{
+  color:#ccfbf1;
+}
+.subsidy-project-add{
+  border-color:#99f6e4;
+  background:#ecfdf5;
+  color:#0f766e;
+}
+@media(max-width:700px){
+  .subsidy-project-switcher-head{align-items:flex-start;flex-direction:column}
+  .subsidy-project-btn,.subsidy-project-add{width:100%;justify-content:space-between}
+}
