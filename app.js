@@ -9815,3 +9815,250 @@ function parseEasyInventoryText(text) {
     setInterval(() => { partsCache = null; subsidyCache = null; scheduleInventoryNormalize(); scheduleSubsidyNormalize(); }, 5000);
   });
 })();
+
+
+/* ===== v62-nonghyup-class-outbound-report-20260715 =====
+   계통/자체 판매 출고를 농협·거래처/날짜/품목 기준으로 정리
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  async function api(path) {
+    const headers = {};
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, { headers });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+  function monthStart() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
+  }
+  function getCustomerFromRecord(record, fallback) {
+    if (!record) return String(fallback || "미지정").replace(/님$/, "");
+    const company = String(record.company || "").trim();
+    const name = String(record.name || "").trim();
+    const region = String(record.region || "").trim();
+    if (company && company !== "-") return company;
+    if (name) return name;
+    if (region) return region;
+    return String(fallback || "미지정").replace(/님$/, "");
+  }
+  function getRecordTotal(record) {
+    if (!record) return 0;
+    if (Number(record.total) > 0) return Number(record.total);
+    if (Array.isArray(record.items)) {
+      return record.items.reduce((s, it) => s + (Number(it.amount) || 0) + (Number(it.tax) || 0), 0);
+    }
+    return (Number(record.amount) || 0) + (Number(record.tax) || 0);
+  }
+  function group(list, keyFn, seed = {}) {
+    const map = new Map();
+    list.forEach((row) => {
+      const keyObj = keyFn(row);
+      const key = typeof keyObj === "string" ? keyObj : keyObj.key;
+      const cur = map.get(key) || Object.assign({ key, qty: 0, amount: 0, count: 0, latest: "", itemSet: new Set() }, typeof keyObj === "string" ? {} : keyObj, seed);
+      const qty = Number(row.qty) || 0;
+      cur.qty += qty;
+      cur.amount += qty * (Number(row.unitPrice) || 0);
+      cur.count += 1;
+      cur.latest = !cur.latest || String(row.date || "") > String(cur.latest) ? String(row.date || "") : cur.latest;
+      if (row.partName) cur.itemSet.add(row.partName);
+      map.set(key, cur);
+    });
+    return [...map.values()].map((r) => Object.assign({}, r, { itemCount: r.itemSet ? r.itemSet.size : 0 }));
+  }
+
+  function ensureModal() {
+    let modal = $("class-out-report-modal-v62");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "class-out-report-modal-v62";
+    modal.className = "class-out-report-modal-v62";
+    modal.innerHTML = `
+      <div class="class-out-report-backdrop" data-class-report-close="1"></div>
+      <div class="class-out-report-box">
+        <div class="class-out-report-head">
+          <strong><i class="fa-solid fa-warehouse"></i> 계통/자체 출고 보고</strong>
+          <div>
+            <button type="button" class="btn btn-o btn-sm" id="class-out-report-print-v62"><i class="fa-solid fa-print"></i> 인쇄</button>
+            <button type="button" class="btn btn-o btn-sm" data-class-report-close="1"><i class="fa-solid fa-xmark"></i> 닫기</button>
+          </div>
+        </div>
+        <div class="class-out-report-filter">
+          <label>시작일<input type="date" id="class-report-from"></label>
+          <label>종료일<input type="date" id="class-report-to"></label>
+          <label>물품구분
+            <select id="class-report-class">
+              <option value="계통자체">계통+자체</option>
+              <option value="계통물품">계통물품</option>
+              <option value="자체물품">자체물품</option>
+              <option value="">전체</option>
+            </select>
+          </label>
+          <label>농협/거래처<input id="class-report-customer" placeholder="예: 홍성농협, 구항농협"></label>
+          <label>품목명<input id="class-report-part" placeholder="예: 분무기"></label>
+          <button type="button" class="btn btn-p btn-sm" id="class-report-run"><i class="fa-solid fa-rotate"></i> 조회</button>
+        </div>
+        <div id="class-out-report-body-v62"></div>
+      </div>`;
+    document.body.appendChild(modal);
+    $("class-report-from").value = monthStart();
+    $("class-report-to").value = today();
+    return modal;
+  }
+
+  function tableHtml(title, headers, rows, rowFn, emptyColspan) {
+    return `
+      <h4>${safe(title)}</h4>
+      <table class="class-out-table">
+        <thead><tr>${headers.map((h) => `<th>${safe(h)}</th>`).join("")}</tr></thead>
+        <tbody>${rows.length ? rows.map(rowFn).join("") : `<tr><td colspan="${emptyColspan}" class="empty">내역 없음</td></tr>`}</tbody>
+      </table>`;
+  }
+
+  function renderReport(parts, logs, records) {
+    const partMap = new Map(parts.map((p) => [String(p.id), p]));
+    const recordMap = new Map(records.map((r) => [String(r.id), r]));
+    const clsFilter = $("class-report-class")?.value || "계통자체";
+    const customerFilter = String($("class-report-customer")?.value || "").trim().toLowerCase();
+    const partFilter = String($("class-report-part")?.value || "").trim().toLowerCase();
+    const from = $("class-report-from")?.value || "";
+    const to = $("class-report-to")?.value || "";
+
+    const enriched = logs.filter((log) => {
+      if (log.type !== "out") return false;
+      const d = String(log.date || "").slice(0, 10);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    }).map((log) => {
+      const part = partMap.get(String(log.partId)) || parts.find((p) => String(p.name || "") === String(log.partName || "")) || {};
+      const record = recordMap.get(String(log.relatedRecordId || ""));
+      const inventoryClass = part.inventoryClass || part.itemClass || part.saleType || "일반판매";
+      const customer = getCustomerFromRecord(record, log.relatedRecordCustomer);
+      return Object.assign({}, log, {
+        date: String(log.date || "").slice(0, 10),
+        customer,
+        record,
+        recordTotal: getRecordTotal(record),
+        inventoryClass,
+        storageLocation: part.storageLocation || part.location || "",
+        maker: part.maker || "",
+      });
+    }).filter((row) => {
+      if (clsFilter === "계통자체" && row.inventoryClass !== "계통물품" && row.inventoryClass !== "자체물품") return false;
+      if (clsFilter && clsFilter !== "계통자체" && row.inventoryClass !== clsFilter) return false;
+      if (customerFilter && !String(row.customer || "").toLowerCase().includes(customerFilter)) return false;
+      if (partFilter && !String(row.partName || "").toLowerCase().includes(partFilter)) return false;
+      return true;
+    }).sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.customer).localeCompare(String(b.customer), "ko-KR") || String(a.partName).localeCompare(String(b.partName), "ko-KR"));
+
+    const totalQty = enriched.reduce((s, r) => s + (Number(r.qty) || 0), 0);
+    const totalAmount = enriched.reduce((s, r) => s + (Number(r.qty) || 0) * (Number(r.unitPrice) || 0), 0);
+    const customerSummary = group(enriched, (r) => r.customer).sort((a,b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+    const dateCustomerItem = group(enriched, (r) => ({ key: `${r.date}|${r.customer}|${r.partName}|${r.inventoryClass}`, date: r.date, customer: r.customer, partName: r.partName, inventoryClass: r.inventoryClass }))
+      .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.customer).localeCompare(String(b.customer), "ko-KR") || String(a.partName).localeCompare(String(b.partName), "ko-KR"));
+    const monthCustomer = group(enriched, (r) => ({ key: `${String(r.date).slice(0,7)}|${r.customer}`, month: String(r.date).slice(0,7), customer: r.customer }))
+      .sort((a,b) => String(a.month).localeCompare(String(b.month)) || String(a.customer).localeCompare(String(b.customer), "ko-KR"));
+    const classSummary = group(enriched, (r) => r.inventoryClass).sort((a,b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+
+    const body = $("class-out-report-body-v62");
+    body.innerHTML = `
+      <div class="class-out-hint">
+        거래명세서 출고 이력을 기준으로, 재고 품목의 <b>물품구분</b>이 계통물품/자체물품인 출고를 농협·거래처별로 모아서 보여줘.
+      </div>
+      <div class="class-out-cards">
+        <div><span>출고 건수</span><b>${money(enriched.length)}건</b></div>
+        <div><span>출고 수량</span><b>${money(totalQty)}개</b></div>
+        <div><span>출고 금액</span><b>${money(totalAmount)}원</b></div>
+        <div><span>거래처 수</span><b>${money(customerSummary.length)}곳</b></div>
+      </div>
+      ${tableHtml("농협/거래처별 출고 합계", ["농협/거래처", "품목수", "출고수량", "출고금액", "최근출고일"], customerSummary, (r) => `
+        <tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td><td>${safe(r.latest || "-")}</td></tr>`, 5)}
+      ${tableHtml("날짜 + 농협/거래처 + 품목별 출고", ["날짜", "농협/거래처", "품목명", "구분", "수량", "금액"], dateCustomerItem, (r) => `
+        <tr><td>${safe(r.date)}</td><td>${safe(r.customer)}</td><td>${safe(r.partName)}</td><td>${safe(r.inventoryClass)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`, 6)}
+      ${tableHtml("월별 농협/거래처 출고", ["월", "농협/거래처", "품목수", "수량", "금액"], monthCustomer, (r) => `
+        <tr><td>${safe(r.month)}</td><td>${safe(r.customer)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`, 5)}
+      ${tableHtml("물품구분별 출고", ["물품구분", "품목수", "수량", "금액"], classSummary, (r) => `
+        <tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`, 4)}
+      <h4>출고 상세</h4>
+      <table class="class-out-table">
+        <thead><tr><th>날짜</th><th>농협/거래처</th><th>품목명</th><th>구분</th><th>보관위치</th><th>수량</th><th>단가</th><th>비고</th></tr></thead>
+        <tbody>${enriched.slice(0, 300).map((r) => `
+          <tr><td>${safe(r.date)}</td><td>${safe(r.customer)}</td><td>${safe(r.partName)}</td><td>${safe(r.inventoryClass)}</td><td>${safe(r.storageLocation || "-")}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.unitPrice)}원</td><td>${safe(r.note || "")}</td></tr>`).join("") || `<tr><td colspan="8" class="empty">출고 상세 없음</td></tr>`}</tbody>
+      </table>`;
+  }
+
+  async function loadReport() {
+    const body = $("class-out-report-body-v62");
+    body.innerHTML = `<div class="class-out-loading">불러오는 중...</div>`;
+    try {
+      const [partsPayload, logsPayload, recordsPayload] = await Promise.all([
+        api("/api/parts"),
+        api("/api/inventory-log"),
+        api("/api/records"),
+      ]);
+      renderReport(asArray(partsPayload), asArray(logsPayload), asArray(recordsPayload));
+    } catch (e) {
+      body.innerHTML = `<div class="class-out-error">${safe(e.message || "보고서 조회 실패")}</div>`;
+    }
+  }
+
+  function openReport() {
+    const modal = ensureModal();
+    modal.classList.add("show");
+    loadReport();
+  }
+
+  function printReport() {
+    const body = $("class-out-report-body-v62")?.innerHTML || "";
+    const filter = `기간 ${$("class-report-from")?.value || ""} ~ ${$("class-report-to")?.value || ""} / 구분 ${$("class-report-class")?.value || ""}`;
+    const win = window.open("", "_blank", "width=1000,height=900");
+    if (!win) return alert("팝업이 차단되었습니다.");
+    win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>계통/자체 출고 보고</title><style>
+      body{font-family:'Noto Sans KR',Arial,sans-serif;margin:18px;color:#0f172a}h2{text-align:center;margin:0 0 6px}.meta{text-align:center;color:#64748b;font-size:12px;margin-bottom:14px}
+      h4{margin:18px 0 8px}.class-out-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.class-out-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:10px}.class-out-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.class-out-cards b{font-size:16px}
+      .class-out-hint{display:none}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #cbd5e1;padding:5px 6px}th{background:#f1f5f9}.tr{text-align:right}.empty{text-align:center;color:#94a3b8}@page{size:A4 landscape;margin:8mm}
+    </style></head><body><h2>계통/자체 출고 보고</h2><div class="meta">${safe(filter)}</div>${body}</body></html>`);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 250);
+  }
+
+  document.addEventListener("click", (ev) => {
+    const reportBtn = ev.target.closest && ev.target.closest("#btn-inventory-out-report");
+    if (reportBtn) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      openReport();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("#class-report-run")) {
+      ev.preventDefault();
+      loadReport();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("#class-out-report-print-v62")) {
+      ev.preventDefault();
+      printReport();
+      return;
+    }
+    if (ev.target.closest && ev.target.closest("[data-class-report-close]")) {
+      ev.preventDefault();
+      $("class-out-report-modal-v62")?.classList.remove("show");
+      return;
+    }
+  }, true);
+})();
