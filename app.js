@@ -4497,9 +4497,10 @@
       body: JSON.stringify({ projectName, projectYear, password }),
     });
 
-    const currentList = getSavedProjectList().filter((name) => name !== projectName);
-    saveProjectList(currentList);
-    if (projectName === activeProjectName()) setActiveProjectName(DEFAULT_PROJECT_NAME);
+    removeProjectFromList(projectName, projectYear);
+    if (projectName === activeProjectName()) {
+      try { localStorage.setItem(PROJECT_KEY, DEFAULT_PROJECT_NAME); } catch (_) {}
+    }
     alert(`${projectYear}년 ${projectName} 사업 삭제 완료\n삭제된 명단: ${result.deleted || 0}명`);
     await load();
   }
@@ -8310,6 +8311,7 @@ function parseEasyInventoryText(text) {
   const today = () => new Date().toISOString().slice(0, 10);
   const PROJECT_KEY = "naepo_subsidy_active_project_v63";
   const PROJECT_LIST_KEY = "naepo_subsidy_project_list_v63";
+  const PROJECT_LIST_BY_YEAR_KEY = "naepo_subsidy_project_list_by_year_v68";
   const DEFAULT_PROJECT_NAME = "여성농업";
   const PROJECT_YEAR_KEY = "naepo_subsidy_active_year_v65";
   function currentProjectYear() {
@@ -8334,18 +8336,58 @@ function parseEasyInventoryText(text) {
     if (/여성\s*농업|여성농업인|편의장비/.test(raw)) return DEFAULT_PROJECT_NAME;
     return raw;
   }
-  function getSavedProjectList() {
+  function getProjectRegistry() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(PROJECT_LIST_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed.map(normalizeProjectName).filter(Boolean) : [];
-    } catch (_) {
-      return [];
-    }
+      const parsed = JSON.parse(localStorage.getItem(PROJECT_LIST_BY_YEAR_KEY) || "{}");
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+    return {};
   }
-  function saveProjectList(list) {
-    const uniq = [...new Set([DEFAULT_PROJECT_NAME].concat(list.map(normalizeProjectName).filter(Boolean)))];
-    try { localStorage.setItem(PROJECT_LIST_KEY, JSON.stringify(uniq)); } catch (_) {}
+  function saveProjectRegistry(registry) {
+    try { localStorage.setItem(PROJECT_LIST_BY_YEAR_KEY, JSON.stringify(registry || {})); } catch (_) {}
+  }
+  function getSavedProjectList(year) {
+    const y = normalizeProjectYear(year || activeProjectYear());
+    const registry = getProjectRegistry();
+
+    // 기존 v63 전역 사업목록은 현재연도에만 1회 이관합니다.
+    if (!registry[y] && y === currentProjectYear()) {
+      try {
+        const legacy = JSON.parse(localStorage.getItem(PROJECT_LIST_KEY) || "[]");
+        if (Array.isArray(legacy) && legacy.length) {
+          registry[y] = legacy.map(normalizeProjectName).filter(Boolean);
+          saveProjectRegistry(registry);
+        }
+      } catch (_) {}
+    }
+
+    const list = Array.isArray(registry[y]) ? registry[y] : [];
+    return [...new Set([DEFAULT_PROJECT_NAME].concat(list.map(normalizeProjectName).filter(Boolean)))];
+  }
+  function saveProjectList(list, year) {
+    const y = normalizeProjectYear(year || activeProjectYear());
+    const registry = getProjectRegistry();
+    const uniq = [...new Set([DEFAULT_PROJECT_NAME].concat((list || []).map(normalizeProjectName).filter(Boolean)))];
+    registry[y] = uniq;
+    saveProjectRegistry(registry);
+
+    // 현재연도는 예전 키도 같이 맞춰둬서 구버전 캐시와 충돌하지 않게 합니다.
+    if (y === currentProjectYear()) {
+      try { localStorage.setItem(PROJECT_LIST_KEY, JSON.stringify(uniq)); } catch (_) {}
+    }
     return uniq;
+  }
+  function removeProjectFromList(projectName, year) {
+    const y = normalizeProjectYear(year || activeProjectYear());
+    const name = normalizeProjectName(projectName);
+    const registry = getProjectRegistry();
+    const list = getSavedProjectList(y).filter((p) => p !== name);
+    registry[y] = [...new Set([DEFAULT_PROJECT_NAME].concat(list))];
+    saveProjectRegistry(registry);
+    if (y === currentProjectYear()) {
+      try { localStorage.setItem(PROJECT_LIST_KEY, JSON.stringify(registry[y])); } catch (_) {}
+    }
+    return registry[y];
   }
   function activeProjectName() {
     try { return normalizeProjectName(localStorage.getItem(PROJECT_KEY) || DEFAULT_PROJECT_NAME); } catch (_) { return DEFAULT_PROJECT_NAME; }
@@ -8353,7 +8395,7 @@ function parseEasyInventoryText(text) {
   function setActiveProjectName(name) {
     const next = normalizeProjectName(name);
     try { localStorage.setItem(PROJECT_KEY, next); } catch (_) {}
-    saveProjectList(getProjectNames().concat(next));
+    saveProjectList(getProjectNames().concat(next), activeProjectYear());
     page = 1;
     selected.clear();
     render();
@@ -8365,15 +8407,23 @@ function parseEasyInventoryText(text) {
     return normalizeProjectYear(row.projectYear || row.year || currentProjectYear());
   }
   function getProjectNames() {
-    const fromRows = rows.map(rowProjectName).filter(Boolean);
-    return saveProjectList(fromRows.concat(getSavedProjectList()));
+    const activeYear = activeProjectYear();
+    const fromRows = rows.map(normalizeRow)
+      .filter((r) => rowProjectYear(r) === activeYear)
+      .map(rowProjectName)
+      .filter(Boolean);
+    return saveProjectList(fromRows.concat(getSavedProjectList(activeYear)), activeYear);
   }
   function renderProjectSwitcher() {
     const box = $("subsidy-project-switcher-v63");
     if (!box) return;
-    const active = activeProjectName();
+    let active = activeProjectName();
     const activeYear = activeProjectYear();
-    const names = getProjectNames();
+    let names = getProjectNames();
+    if (!names.includes(active)) {
+      active = DEFAULT_PROJECT_NAME;
+      try { localStorage.setItem(PROJECT_KEY, active); } catch (_) {}
+    }
     const counts = new Map();
     rows.map(normalizeRow).filter((r) => rowProjectYear(r) === activeYear).forEach((r) => counts.set(rowProjectName(r), (counts.get(rowProjectName(r)) || 0) + 1));
     const yearSet = new Set([currentProjectYear(), String(Number(currentProjectYear()) + 1), activeYear]);
@@ -10387,6 +10437,21 @@ function parseEasyInventoryText(text) {
       method: "POST",
       body: JSON.stringify({ projectName, projectYear, password }),
     });
+
+    // 명단이 0명인 테스트 사업도 버튼 자체가 사라지도록 연도별 localStorage 목록에서 제거합니다.
+    try {
+      const byYearKey = "naepo_subsidy_project_list_by_year_v68";
+      const legacyKey = "naepo_subsidy_project_list_v63";
+      const registry = JSON.parse(localStorage.getItem(byYearKey) || "{}") || {};
+      const y = String(projectYear || "").replace(/[^\d]/g, "").slice(0,4);
+      const normalize = (v) => String(v || "").trim();
+      registry[y] = (Array.isArray(registry[y]) ? registry[y] : []).filter((name) => normalize(name) !== normalize(projectName));
+      if (!registry[y].includes("여성농업")) registry[y].unshift("여성농업");
+      localStorage.setItem(byYearKey, JSON.stringify(registry));
+      if (y === String(new Date().getFullYear())) localStorage.setItem(legacyKey, JSON.stringify(registry[y]));
+      localStorage.setItem(PROJECT_KEY, "여성농업");
+    } catch (_) {}
+
     alert(`${projectYear}년 ${projectName} 사업 삭제 완료\n삭제된 명단: ${result.deleted || 0}명`);
     location.reload();
   }
