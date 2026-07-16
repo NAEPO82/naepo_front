@@ -172,10 +172,11 @@
       naepo_orders: "orderLog",
       naepo_repair_log: "repairLog",
       naepo_subsidy_projects: "subsidyProjects",
+      naepo_subsidy_project_registry: "subsidyProjectRegistry",
       naepo_daily_settlements: "dailySettlements",
       naepo_restore_history: "restoreHistory",
     };
-    const parsed = { records: [], customers: [], groups: [], parts: [], inventoryLog: [], printLog: [], orderLog: [], repairLog: [], subsidyProjects: [], dailySettlements: [], restoreHistory: [] };
+    const parsed = { records: [], customers: [], groups: [], parts: [], inventoryLog: [], printLog: [], orderLog: [], repairLog: [], subsidyProjects: [], subsidyProjectRegistry: [], dailySettlements: [], restoreHistory: [] };
     const lines = String(sqlText || "").split(/\r?\n/);
     for (const line of lines) {
       const m = line.match(/^\s*INSERT\s+INTO\s+(naepo_[a-z_]+)\s*\(([^)]*)\)\s*VALUES\s*\((.*)\)\s*;\s*$/i);
@@ -192,7 +193,7 @@
         if (row && typeof row === "object") parsed[key].push(row);
       } catch (_) {}
     }
-    if (!parsed.records.length && !parsed.parts.length && !parsed.customers.length && !parsed.orderLog.length && !parsed.repairLog.length && !parsed.subsidyProjects.length && !parsed.dailySettlements.length && !parsed.restoreHistory.length) {
+    if (!parsed.records.length && !parsed.parts.length && !parsed.customers.length && !parsed.orderLog.length && !parsed.repairLog.length && !parsed.subsidyProjects.length && !parsed.subsidyProjectRegistry.length && !parsed.dailySettlements.length && !parsed.restoreHistory.length) {
       throw new Error("복원 가능한 내포농기계 SQL 백업 데이터를 찾지 못했습니다.");
     }
     return parsed;
@@ -2685,7 +2686,7 @@
       }
       const records = data.records || data;
       if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 또는 내포농기계 SQL 백업 파일이 필요합니다.");
-      const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0) + (Array.isArray(data.repairLog) ? data.repairLog.length : 0) + (Array.isArray(data.subsidyProjects) ? data.subsidyProjects.length : 0) + (Array.isArray(data.dailySettlements) ? data.dailySettlements.length : 0) + (Array.isArray(data.restoreHistory) ? data.restoreHistory.length : 0);
+      const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0) + (Array.isArray(data.repairLog) ? data.repairLog.length : 0) + (Array.isArray(data.subsidyProjects) ? data.subsidyProjects.length : 0) + (Array.isArray(data.subsidyProjectRegistry) ? data.subsidyProjectRegistry.length : 0) + (Array.isArray(data.dailySettlements) ? data.dailySettlements.length : 0) + (Array.isArray(data.restoreHistory) ? data.restoreHistory.length : 0);
       S("백업파일 복원", `${file.name}에서 ${totalCount}건의 데이터를 병합 복원합니다. 계속할까요?`, async () => {
         try {
           const result = await w("/api/restore", {
@@ -2701,6 +2702,7 @@
               printLog: data.printLog,
               repairLog: data.repairLog,
               subsidyProjects: data.subsidyProjects,
+              subsidyProjectRegistry: data.subsidyProjectRegistry,
               dailySettlements: data.dailySettlements,
               restoreHistory: data.restoreHistory,
               mode: "merge",
@@ -6112,6 +6114,7 @@ function parseEasyInventoryText(text) {
           printLog: data.printLog,
           repairLog: data.repairLog,
           subsidyProjects: data.subsidyProjects,
+          subsidyProjectRegistry: data.subsidyProjectRegistry,
           dailySettlements: data.dailySettlements,
           restoreHistory: data.restoreHistory,
           mode: "merge",
@@ -8295,6 +8298,8 @@ function parseEasyInventoryText(text) {
   const API_BASE = "https://naepo-back.onrender.com";
   const TOKEN_KEY = "npo_session_token";
   let rows = [];
+  let projectRegistryRows = [];
+  let projectRegistryAvailable = true;
   let selected = new Set();
   let bound = false;
   let page = 1;
@@ -8309,6 +8314,7 @@ function parseEasyInventoryText(text) {
   const PROJECT_KEY = "naepo_subsidy_active_project_v63";
   const PROJECT_LIST_KEY = "naepo_subsidy_project_list_v63";
   const PROJECT_LIST_BY_YEAR_KEY = "naepo_subsidy_project_list_by_year_v70";
+  const PROJECT_SERVER_MIGRATION_KEY = "naepo_subsidy_project_registry_migrated_v72";
   const DEFAULT_PROJECT_NAME = "여성농업";
   const PROJECT_YEAR_KEY = "naepo_subsidy_active_year_v65";
   function currentProjectYear() {
@@ -8402,11 +8408,18 @@ function parseEasyInventoryText(text) {
   }
   function getProjectNames() {
     const activeYear = activeProjectYear();
+    const fromRegistry = projectRegistryRows
+      .filter((r) => normalizeProjectYear(r.projectYear || r.year) === activeYear)
+      .map((r) => normalizeProjectName(r.projectName || r.projectDisplayName || r.businessName || r.subsidyName))
+      .filter(Boolean);
     const fromRows = rows.map(normalizeRow)
       .filter((r) => rowProjectYear(r) === activeYear)
       .map(rowProjectName)
       .filter(Boolean);
-    return saveProjectList(fromRows.concat(getSavedProjectList(activeYear)), activeYear);
+    const localFallback = projectRegistryAvailable ? [] : getSavedProjectList(activeYear);
+    const serverNames = [...new Set([DEFAULT_PROJECT_NAME].concat(fromRegistry, fromRows, localFallback))];
+    saveProjectList(serverNames, activeYear);
+    return serverNames;
   }
   function renderProjectSwitcher() {
     const box = $("subsidy-project-switcher-v63");
@@ -8422,6 +8435,7 @@ function parseEasyInventoryText(text) {
     rows.map(normalizeRow).filter((r) => rowProjectYear(r) === activeYear).forEach((r) => counts.set(rowProjectName(r), (counts.get(rowProjectName(r)) || 0) + 1));
     const yearSet = new Set([currentProjectYear(), String(Number(currentProjectYear()) + 1), activeYear]);
     rows.map(normalizeRow).forEach((r) => yearSet.add(rowProjectYear(r)));
+    projectRegistryRows.forEach((r) => yearSet.add(normalizeProjectYear(r.projectYear || r.year)));
     const years = [...yearSet].filter(Boolean).sort();
     box.innerHTML = `
       <div class="subsidy-project-switcher-head">
@@ -8549,17 +8563,23 @@ function parseEasyInventoryText(text) {
   }
 
   function normalizeRow(row) {
+    // v73: statuses에 명시된 false도 최종값으로 인정한다.
+    // 이전에는 photoStatus 같은 구형 문자열 필드가 false를 다시 true로 덮어써서
+    // 완료 상태를 되돌려도 화면에서 계속 완료로 보이는 문제가 있었다.
+    const rawStatuses = row && row.statuses && typeof row.statuses === "object" ? row.statuses : {};
+    const hasStatus = (key) => Object.prototype.hasOwnProperty.call(rawStatuses, key);
     const st = Object.assign({
       quote:false, contact:"미연락", machineNo:false, photo:false, document:false, payment:false, receipt:false, officeSubmit:false, complete:false,
-    }, row.statuses || {});
-    if (row.quoteStatus === "견적서 발행완료") st.quote = true;
-    if (row.contactStatus) st.contact = row.contactStatus;
-    if (row.machineNo) st.machineNo = true;
-    if (row.photoStatus === "사진촬영 완료") st.photo = true;
-    if (row.documentStatus === "서류완료") st.document = true;
-    if (row.paymentStatus === "입금확인") st.payment = true;
-    if (row.receiptStatus === "영수증 첨부완료") st.receipt = true;
-    if (row.done) st.complete = true;
+    }, rawStatuses);
+    if (!hasStatus("quote") && row.quoteStatus === "견적서 발행완료") st.quote = true;
+    if (!hasStatus("contact") && row.contactStatus) st.contact = row.contactStatus;
+    if (!hasStatus("machineNo") && row.machineNo) st.machineNo = true;
+    if (!hasStatus("photo") && row.photoStatus === "사진촬영 완료") st.photo = true;
+    if (!hasStatus("document") && row.documentStatus === "서류완료") st.document = true;
+    if (!hasStatus("officeSubmit") && row.officeSubmitStatus === "서류제출 완료") st.officeSubmit = true;
+    if (!hasStatus("payment") && row.paymentStatus === "입금확인") st.payment = true;
+    if (!hasStatus("receipt") && row.receiptStatus === "영수증 첨부완료") st.receipt = true;
+    if (!hasStatus("complete") && (row.done || String(row.currentStatus || "") === "완료")) st.complete = true;
     return Object.assign({}, row, {
       year: row.year || row.projectYear || "",
       projectYear: row.projectYear || row.year || "",
@@ -8726,10 +8746,61 @@ function parseEasyInventoryText(text) {
     renderPagination(all);
   }
 
+  async function migrateLocalProjectRegistryToServer() {
+    try { if (localStorage.getItem(PROJECT_SERVER_MIGRATION_KEY) === "1") return 0; } catch (_) {}
+    const localRegistry = getProjectRegistry();
+    const existing = new Set(projectRegistryRows.map((r) => `${normalizeProjectYear(r.projectYear || r.year)}|${normalizeProjectName(r.projectName || r.projectDisplayName || r.businessName || r.subsidyName).replace(/\s+/g, "").toLowerCase()}`));
+    let created = 0;
+    let failed = 0;
+    for (const [year, names] of Object.entries(localRegistry || {})) {
+      if (!Array.isArray(names)) continue;
+      for (const rawName of names) {
+        const projectName = normalizeProjectName(rawName);
+        const projectYear = normalizeProjectYear(year);
+        if (!projectName || projectName === DEFAULT_PROJECT_NAME) continue;
+        const key = `${projectYear}|${projectName.replace(/\s+/g, "").toLowerCase()}`;
+        if (existing.has(key)) continue;
+        try {
+          const result = await api("/api/subsidy-project-registry", { method: "POST", body: JSON.stringify({ projectName, projectYear }) });
+          if (result && result.project) projectRegistryRows.push(result.project);
+          existing.add(key);
+          created += result && result.created ? 1 : 0;
+        } catch (_) { failed += 1; }
+      }
+    }
+    if (!failed) { try { localStorage.setItem(PROJECT_SERVER_MIGRATION_KEY, "1"); } catch (_) {} }
+    return created;
+  }
+
+  async function createProjectOnServer(projectName, projectYear) {
+    const name = normalizeProjectName(projectName);
+    const year = normalizeProjectYear(projectYear || activeProjectYear());
+    const result = await api("/api/subsidy-project-registry", { method: "POST", body: JSON.stringify({ projectName: name, projectYear: year }) });
+    if (result && result.project) {
+      const key = `${year}|${name.replace(/\s+/g, "").toLowerCase()}`;
+      projectRegistryRows = projectRegistryRows.filter((r) => `${normalizeProjectYear(r.projectYear || r.year)}|${normalizeProjectName(r.projectName).replace(/\s+/g, "").toLowerCase()}` !== key);
+      projectRegistryRows.push(result.project);
+    }
+    saveProjectList([name], year);
+    setActiveProjectName(name);
+    await load();
+    return result;
+  }
+
   async function load() {
     if (!$("page-subsidy") || !token()) return;
-    const payload = await api("/api/subsidy-projects");
+    const [payload, registryPayload] = await Promise.all([
+      api("/api/subsidy-projects"),
+      api("/api/subsidy-project-registry")
+        .then((value) => { projectRegistryAvailable = true; return value; })
+        .catch(() => { projectRegistryAvailable = false; return []; }),
+    ]);
     rows = asArray(payload).map(normalizeRow);
+    projectRegistryRows = asArray(registryPayload);
+    const migrated = projectRegistryAvailable ? await migrateLocalProjectRegistryToServer() : 0;
+    if (migrated) {
+      projectRegistryRows = asArray(await api("/api/subsidy-project-registry").catch(() => projectRegistryRows));
+    }
     render();
   }
 
@@ -9044,7 +9115,7 @@ function parseEasyInventoryText(text) {
     $("subsidy-selected-delete")?.addEventListener("click", bulkDeleteSelected);
     $("subsidy-report-btn")?.addEventListener("click", openReport);
 
-    document.addEventListener("click", (ev) => {
+    document.addEventListener("click", async (ev) => {
       const projectBtn = ev.target.closest("[data-subsidy-project]");
       if (projectBtn) {
         ev.preventDefault();
@@ -9056,7 +9127,13 @@ function parseEasyInventoryText(text) {
         ev.preventDefault();
         const name = prompt("추가할 보조사업 이름을 입력해줘.\\n예: 청년농업, 고령농업, 자체지원사업");
         if (!name || !name.trim()) return;
-        setActiveProjectName(name.trim());
+        try {
+          const year = activeProjectYear();
+          const result = await createProjectOnServer(name.trim(), year);
+          alert(result && result.created ? `${year}년 ${normalizeProjectName(name)} 사업을 서버에 추가했어.` : "이미 등록된 사업이야.");
+        } catch (e) {
+          alert(e.message || "사업 추가 저장에 실패했어.");
+        }
       }
     });
 
@@ -9172,7 +9249,7 @@ function parseEasyInventoryText(text) {
 
   window.NaepoSubsidyV49 = { load, render, clearFilters };
   window.NaepoSubsidyV52 = { load, render, clearFilters };
-  window.NaepoSubsidyV53 = { load, render, clearFilters, openReport };
+  window.NaepoSubsidyV53 = { load, render, clearFilters, openReport, createProjectOnServer };
 })();
 
 
@@ -10416,10 +10493,15 @@ function parseEasyInventoryText(text) {
   function rowProj(r){return pname(r.projectName||r.projectDisplayName||r.businessName||r.subsidyName||DEFAULT)}
   async function rebuild(year){
     const yy=y(year);
-    localStorage.setItem(YEAR_KEY,yy); localStorage.setItem(PROJECT_KEY,DEFAULT);
-    try{const rows=arr(await api("/api/subsidy-projects"));setList(yy,rows.filter(r=>rowYear(r)===yy).map(rowProj))}
-    catch(_){setList(yy,[DEFAULT])}
-    if(window.NaepoSubsidyV53&&window.NaepoSubsidyV53.load) await window.NaepoSubsidyV53.load();
+    localStorage.setItem(YEAR_KEY,yy);
+    if(window.NaepoSubsidyV53&&window.NaepoSubsidyV53.load){
+      await window.NaepoSubsidyV53.load();
+      return;
+    }
+    try{
+      const [rows,registry]=await Promise.all([api("/api/subsidy-projects"),api("/api/subsidy-project-registry").catch(()=>[])]);
+      setList(yy,arr(rows).filter(r=>rowYear(r)===yy).map(rowProj).concat(arr(registry).filter(r=>y(r.projectYear||r.year)===yy).map(r=>pname(r.projectName))));
+    }catch(_){setList(yy,[DEFAULT])}
   }
   async function deleteProject(){
     const yy=y($("subsidy-project-year-v65")?.value||localStorage.getItem(YEAR_KEY));
@@ -10429,7 +10511,7 @@ function parseEasyInventoryText(text) {
     if(!password)return;
     const res=await api("/api/subsidy-projects/delete-project",{method:"POST",body:JSON.stringify({projectName:proj,projectYear:yy,password})});
     removeName(yy,proj); localStorage.setItem(PROJECT_KEY,DEFAULT); localStorage.setItem(YEAR_KEY,yy);
-    alert(`${yy}년 ${proj} 사업 삭제 완료\n삭제된 명단: ${res.deleted||0}명`);
+    alert(`${yy}년 ${proj} 사업 삭제 완료\n삭제된 명단: ${res.deleted||0}명\n사업목록 삭제: ${res.registryDeleted||0}건`);
     await rebuild(yy);
   }
   function ensureUncat(){
