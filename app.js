@@ -8362,7 +8362,7 @@ function parseEasyInventoryText(text) {
     return normalizeProjectName(row.projectDisplayName || row.projectTitle || row.projectName || row.businessName || row.subsidyName || DEFAULT_PROJECT_NAME);
   }
   function rowProjectYear(row) {
-    return normalizeProjectYear(row.projectYear || row.year || activeProjectYear());
+    return normalizeProjectYear(row.projectYear || row.year || currentProjectYear());
   }
   function getProjectNames() {
     const fromRows = rows.map(rowProjectName).filter(Boolean);
@@ -10331,6 +10331,217 @@ function parseEasyInventoryText(text) {
       ev.preventDefault();
       $("inventory-monthly-report-modal-v65")?.classList.remove("show");
       return;
+    }
+  }, true);
+})();
+
+
+/* ===== v67-subsidy-year-delete-uncategorized-group-20260715 =====
+   사업삭제 버튼 직접 처리 + 연도별 표시 보정 + 거래품목목록 미분류 선택 추가
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const PROJECT_KEY = "naepo_subsidy_active_project_v63";
+  const PROJECT_YEAR_KEY = "naepo_subsidy_active_year_v65";
+  const DEFAULT_PROJECT_NAME = "여성농업";
+  const UNCAT_VALUE = "__uncategorized_parts__";
+  const $ = (id) => document.getElementById(id);
+  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
+  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
+  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+
+  function currentYear() {
+    return String(new Date().getFullYear());
+  }
+  function activeProjectName() {
+    const on = document.querySelector(".subsidy-project-btn.on");
+    const fromBtn = on ? String(on.getAttribute("data-subsidy-project") || on.childNodes[0]?.textContent || "").trim() : "";
+    const fromStore = (() => { try { return localStorage.getItem(PROJECT_KEY) || ""; } catch (_) { return ""; } })();
+    return fromBtn || fromStore || DEFAULT_PROJECT_NAME;
+  }
+  function activeProjectYear() {
+    const sel = $("subsidy-project-year-v65");
+    const fromSel = sel ? sel.value : "";
+    const fromStore = (() => { try { return localStorage.getItem(PROJECT_YEAR_KEY) || ""; } catch (_) { return ""; } })();
+    return String(fromSel || fromStore || currentYear()).replace(/[^\d]/g, "").slice(0,4) || currentYear();
+  }
+  async function api(path, options = {}) {
+    const headers = Object.assign({ "Content-Type": "application/json" }, options.headers || {});
+    const t = token();
+    if (t) headers.Authorization = "Bearer " + t;
+    const res = await fetch(API_BASE + path, Object.assign({}, options, { headers }));
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
+    return data;
+  }
+
+  async function deleteProject() {
+    const projectName = activeProjectName();
+    const projectYear = activeProjectYear();
+    if (!confirm(`${projectYear}년 ${projectName} 사업을 삭제할까요?\n해당 연도/사업의 명단만 삭제됩니다.`)) return;
+    const password = prompt("삭제하려면 로그인 비밀번호를 입력해주세요.");
+    if (!password) return;
+    const result = await api("/api/subsidy-projects/delete-project", {
+      method: "POST",
+      body: JSON.stringify({ projectName, projectYear, password }),
+    });
+    alert(`${projectYear}년 ${projectName} 사업 삭제 완료\n삭제된 명단: ${result.deleted || 0}명`);
+    location.reload();
+  }
+
+  function ensureUncategorizedOption() {
+    const sel = $("group-apply-select");
+    if (!sel) return;
+    if (![...sel.options].some((o) => o.value === UNCAT_VALUE)) {
+      const opt = document.createElement("option");
+      opt.value = UNCAT_VALUE;
+      opt.textContent = "미분류";
+      sel.appendChild(opt);
+    }
+  }
+
+  async function getUngroupedParts() {
+    const [partsPayload, groupsPayload] = await Promise.all([api("/api/parts"), api("/api/groups")]);
+    const parts = asArray(partsPayload);
+    const groups = asArray(groupsPayload);
+    const used = new Set();
+    groups.forEach((g) => (g.partIds || []).forEach((pid) => used.add(String(pid))));
+    return parts.filter((p) => !used.has(String(p.id)));
+  }
+
+  function addPartToInvoice(part) {
+    const addBtn = $("btn-add-item-row");
+    if (!addBtn) return alert("품목 추가 버튼을 찾지 못했어.");
+    addBtn.click();
+    const rows = document.querySelectorAll("#items-builder-root .item-row-card");
+    const row = rows[rows.length - 1];
+    if (!row) return;
+    row.dataset.partId = part.id || "";
+    const set = (selector, value) => {
+      const el = row.querySelector(selector);
+      if (!el) return;
+      el.value = value == null ? "" : String(value);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    set(".p-item", part.name || "");
+    set(".p-spec", part.spec || "");
+    set(".p-qty", "1");
+    set(".p-price", Number(part.unitPrice || 0));
+    set(".p-amount", Number(part.unitPrice || 0));
+    set(".p-tax", "0");
+  }
+
+  async function openUncategorizedModal() {
+    const parts = await getUngroupedParts();
+    if (!parts.length) return alert("미분류 품목이 없습니다.");
+    document.querySelectorAll(".v67-uncat-modal-overlay").forEach((el) => el.remove());
+    const overlay = document.createElement("div");
+    overlay.className = "v67-uncat-modal-overlay";
+    overlay.innerHTML = `
+      <div class="v67-uncat-modal">
+        <div class="v67-uncat-head">
+          <div>
+            <h3><i class="fa-solid fa-box-open"></i> 미분류 품목 선택</h3>
+            <p>아직 어떤 그룹에도 들어가지 않은 재고 품목입니다.</p>
+          </div>
+          <button type="button" class="v67-uncat-x"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="v67-uncat-tools">
+          <input type="text" class="v67-uncat-search" placeholder="품목명 / 규격 / 위치 검색" />
+          <button type="button" class="btn btn-o btn-sm v67-uncat-all">전체선택</button>
+          <button type="button" class="btn btn-o btn-sm v67-uncat-none">전체해제</button>
+          <span class="v67-uncat-count"></span>
+        </div>
+        <div class="v67-uncat-list">
+          ${parts.map((p) => `
+            <label class="v67-uncat-item" data-key="${safe(`${p.name||""} ${p.spec||""} ${p.storageLocation||""}`.toLowerCase())}">
+              <input type="checkbox" class="v67-uncat-check" data-pid="${safe(p.id)}" />
+              <span class="v67-uncat-main">
+                <strong>${safe(p.name || "")}</strong>
+                <small>${safe(p.spec || "규격 없음")} · ${safe(p.storageLocation || "위치 -")}</small>
+              </span>
+              <em>재고 ${money(p.stock)} · ${money(p.unitPrice)}원</em>
+            </label>`).join("")}
+        </div>
+        <div class="v67-uncat-foot">
+          <button type="button" class="btn btn-o btn-sm v67-uncat-cancel">취소</button>
+          <button type="button" class="btn btn-p btn-sm v67-uncat-add"><i class="fa-solid fa-plus"></i> 선택 품목 추가</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const renderCount = () => {
+      const total = overlay.querySelectorAll(".v67-uncat-check").length;
+      const checked = overlay.querySelectorAll(".v67-uncat-check:checked").length;
+      overlay.querySelector(".v67-uncat-count").textContent = `${checked}/${total} 선택`;
+    };
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target.closest(".v67-uncat-x,.v67-uncat-cancel")) overlay.remove();
+      if (ev.target.closest(".v67-uncat-all")) {
+        overlay.querySelectorAll(".v67-uncat-check").forEach((c) => c.checked = true);
+        renderCount();
+      }
+      if (ev.target.closest(".v67-uncat-none")) {
+        overlay.querySelectorAll(".v67-uncat-check").forEach((c) => c.checked = false);
+        renderCount();
+      }
+      if (ev.target.closest(".v67-uncat-add")) {
+        const ids = [...overlay.querySelectorAll(".v67-uncat-check:checked")].map((c) => c.dataset.pid);
+        if (!ids.length) return alert("추가할 품목을 선택해줘.");
+        ids.forEach((id) => {
+          const part = parts.find((p) => String(p.id) === String(id));
+          if (part) addPartToInvoice(part);
+        });
+        overlay.remove();
+      }
+    });
+    overlay.addEventListener("input", (ev) => {
+      if (!ev.target.closest(".v67-uncat-search")) return;
+      const q = ev.target.value.trim().toLowerCase();
+      overlay.querySelectorAll(".v67-uncat-item").forEach((item) => {
+        item.style.display = !q || String(item.dataset.key || "").includes(q) ? "" : "none";
+      });
+    });
+    overlay.addEventListener("change", renderCount);
+    renderCount();
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    ensureUncategorizedOption();
+    const sel = $("group-apply-select");
+    if (sel && window.MutationObserver) new MutationObserver(ensureUncategorizedOption).observe(sel, { childList: true });
+    setInterval(ensureUncategorizedOption, 1500);
+  });
+
+  window.addEventListener("click", (ev) => {
+    const delBtn = ev.target.closest && ev.target.closest("#subsidy-project-delete-v65");
+    if (delBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      deleteProject().catch((e) => alert(e.message || "사업 삭제 실패"));
+      return;
+    }
+    const applyBtn = ev.target.closest && ev.target.closest("#btn-apply-group");
+    if (applyBtn && $("group-apply-select")?.value === UNCAT_VALUE) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      openUncategorizedModal().catch((e) => alert(e.message || "미분류 품목 불러오기 실패"));
+      return;
+    }
+  }, true);
+
+  window.addEventListener("change", (ev) => {
+    const sel = ev.target.closest && ev.target.closest("#group-apply-select");
+    if (sel && sel.value === UNCAT_VALUE) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
+      openUncategorizedModal().catch((e) => alert(e.message || "미분류 품목 불러오기 실패"));
+      setTimeout(() => { sel.value = ""; ensureUncategorizedOption(); }, 100);
     }
   }, true);
 })();
