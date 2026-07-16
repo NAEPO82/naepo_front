@@ -8457,7 +8457,7 @@ function parseEasyInventoryText(text) {
     const title = $("subsidy-current-title");
     if (title) title.textContent = `${activeYear}년 ${active} 보조사업 관리`;
     const desc = $("subsidy-current-desc");
-    if (desc) desc.textContent = `${activeYear}년 ${active} 명단 엑셀을 가져오고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.`;
+    if (desc) desc.textContent = `${activeYear}년 ${active} 명단을 엑셀 또는 직접 입력하고, 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.`;
   }
 
   async function api(path, options = {}) {
@@ -8883,11 +8883,13 @@ function parseEasyInventoryText(text) {
       <div class="subsidy-edit-backdrop" data-v53-edit-close="1"></div>
       <div class="subsidy-edit-box">
         <div class="subsidy-edit-head">
-          <strong><i class="fa-solid fa-pen-to-square"></i> 보조사업 대상자 수정</strong>
+          <strong id="subsidy-edit-title-v74"><i class="fa-solid fa-pen-to-square"></i> 보조사업 대상자 수정</strong>
           <button type="button" data-v53-edit-close="1"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="subsidy-edit-grid">
-          <label>연번<input id="se-seq" /></label>
+          <label>사업연도<input id="se-project-year" readonly /></label>
+          <label>사업명<input id="se-project-name" readonly /></label>
+          <label>원본 연번(선택)<input id="se-seq" /></label>
           <label>읍면동<input id="se-town" /></label>
           <label>성명<input id="se-name" /></label>
           <label>연락처<input id="se-phone" /></label>
@@ -8897,7 +8899,9 @@ function parseEasyInventoryText(text) {
           <label>제조회사<input id="se-maker" /></label>
           <label>형식명<input id="se-model" /></label>
           <label>총사업비<input id="se-total" type="number" /></label>
-          <label>보조금<input id="se-support" type="number" /></label>
+          <label>도비<input id="se-provincial" type="number" /></label>
+          <label>군비<input id="se-county" type="number" /></label>
+          <label>보조금 합계<input id="se-support" type="number" /></label>
           <label>자부담<input id="se-self" type="number" /></label>
           <label class="wide">비고/메모<input id="se-note" /></label>
         </div>
@@ -8910,10 +8914,10 @@ function parseEasyInventoryText(text) {
     return modal;
   }
 
-  function openEdit(row) {
-    const modal = ensureEditModal();
-    modal.dataset.id = row.id;
-    const set = (id, v) => { const el = $(id); if (el) el.value = v || ""; };
+  function setEditModalValues(row = {}) {
+    const set = (id, v) => { const el = $(id); if (el) el.value = v == null ? "" : v; };
+    set("se-project-year", row.projectYear || row.year || activeProjectYear());
+    set("se-project-name", row.projectName || row.projectDisplayName || activeProjectName());
     set("se-seq", row.seq);
     set("se-town", row.town);
     set("se-name", row.name);
@@ -8924,19 +8928,86 @@ function parseEasyInventoryText(text) {
     set("se-maker", row.maker);
     set("se-model", row.model || row.modelName);
     set("se-total", row.totalCost);
+    set("se-provincial", row.provincialAid || row.provincialSupport);
+    set("se-county", row.countyAid || row.countySupport);
     set("se-support", row.supportTotal);
     set("se-self", row.selfPay);
     set("se-note", row.note || row.memo);
+  }
+
+  function openAdd() {
+    const modal = ensureEditModal();
+    modal.dataset.mode = "add";
+    delete modal.dataset.id;
+    const title = $("subsidy-edit-title-v74");
+    if (title) title.innerHTML = '<i class="fa-solid fa-user-plus"></i> 보조사업 대상자 직접 추가';
+    setEditModalValues({ projectYear: activeProjectYear(), projectName: activeProjectName() });
+    modal.classList.add("show");
+    setTimeout(() => $("se-name")?.focus(), 50);
+  }
+
+  function openEdit(row) {
+    const modal = ensureEditModal();
+    modal.dataset.mode = "edit";
+    modal.dataset.id = row.id;
+    const title = $("subsidy-edit-title-v74");
+    if (title) title.innerHTML = '<i class="fa-solid fa-pen-to-square"></i> 보조사업 대상자 수정';
+    setEditModalValues(row);
     modal.classList.add("show");
   }
 
   async function saveEdit() {
     const modal = $("subsidy-edit-modal-v53");
-    if (!modal || !modal.dataset.id) return;
-    const old = rows.map(normalizeRow).find((r) => String(r.id) === String(modal.dataset.id));
-    if (!old) return;
+    if (!modal) return;
+    const mode = modal.dataset.mode === "add" ? "add" : "edit";
     const val = (id) => ($(id)?.value || "").trim();
-    const payload = Object.assign({}, old, {
+    if (!val("se-name")) {
+      alert("성명을 입력해줘.");
+      $("se-name")?.focus();
+      return;
+    }
+
+    const provincialAid = num(val("se-provincial"));
+    const countyAid = num(val("se-county"));
+    const enteredSupport = num(val("se-support"));
+    const supportTotal = enteredSupport || provincialAid + countyAid;
+    const totalCost = num(val("se-total"));
+    const enteredSelfPay = num(val("se-self"));
+    const selfPay = enteredSelfPay || Math.max(0, totalCost - supportTotal);
+
+    let payload;
+    let endpoint;
+    let method;
+    if (mode === "add") {
+      payload = {
+        projectYear: activeProjectYear(),
+        year: activeProjectYear(),
+        projectName: activeProjectName(),
+        projectDisplayName: activeProjectName(),
+        statuses: {
+          quote: false,
+          contact: "미연락",
+          machineNo: false,
+          photo: false,
+          document: false,
+          officeSubmit: false,
+          payment: false,
+          receipt: false,
+          complete: false,
+        },
+      };
+      endpoint = "/api/subsidy-projects";
+      method = "POST";
+    } else {
+      if (!modal.dataset.id) return;
+      const old = rows.map(normalizeRow).find((r) => String(r.id) === String(modal.dataset.id));
+      if (!old) return alert("수정할 대상자를 찾지 못했어. 새로고침 후 다시 시도해줘.");
+      payload = Object.assign({}, old);
+      endpoint = `/api/subsidy-projects/${encodeURIComponent(old.id)}`;
+      method = "PUT";
+    }
+
+    Object.assign(payload, {
       seq: val("se-seq"),
       town: val("se-town"),
       name: val("se-name"),
@@ -8948,17 +9019,29 @@ function parseEasyInventoryText(text) {
       maker: val("se-maker"),
       model: val("se-model"),
       modelName: val("se-model"),
-      totalCost: num(val("se-total")),
-      supportTotal: num(val("se-support")),
-      selfPay: num(val("se-self")),
+      totalCost,
+      provincialAid,
+      provincialSupport: provincialAid,
+      countyAid,
+      countySupport: countyAid,
+      supportTotal,
+      selfPay,
       note: val("se-note"),
       memo: val("se-note"),
     });
-    const updated = await api(`/api/subsidy-projects/${encodeURIComponent(old.id)}`, { method: "PUT", body: JSON.stringify(payload) });
-    const idx = rows.findIndex((r) => String(r.id) === String(old.id));
-    if (idx >= 0) rows[idx] = normalizeRow(updated);
-    modal.classList.remove("show");
-    render();
+
+    const saveBtn = $("subsidy-edit-save-v53");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "저장중"; }
+    try {
+      const updated = await api(endpoint, { method, body: JSON.stringify(payload) });
+      modal.classList.remove("show");
+      selected.clear();
+      page = 1;
+      await load();
+      if (mode === "add") alert(`${updated.name || payload.name} 대상자를 직접 추가했어.`);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "저장"; }
+    }
   }
 
   async function bulkDeleteSelected() {
@@ -9081,9 +9164,9 @@ function parseEasyInventoryText(text) {
   function exportCsv() {
     const list = filteredRows();
     const headers = ["연번","읍면동","성명","연락처","생년월일","주소","신청기종","제조회사","형식명","총사업비","보조금","자부담","비고","견적서","연락","기대번호","사진","서류","서류제출","입금","영수증","완료"];
-    const lines = [headers.join(",")].concat(list.map((r) => {
+    const lines = [headers.join(",")].concat(list.map((r, idx) => {
       const st = r.statuses || {};
-      const vals = [r.seq,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,r.note,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.officeSubmit?"제출완료":"제출전",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중"];
+      const vals = [idx + 1,r.town,r.name,r.phone,r.birthDate,r.address,r.itemName,r.maker,r.model,r.totalCost,r.supportTotal,r.selfPay,r.note,st.quote?"완료":"미발행",st.contact,r.machineNo,st.photo?"완료":"미촬영",st.document?"완료":"미완료",st.officeSubmit?"제출완료":"제출전",st.payment?"확인":"대기",st.receipt?"첨부":"미첨부",st.complete?"완료":"진행중"];
       return vals.map((v) => `"${String(v == null ? "" : v).replace(/"/g,'""')}"`).join(",");
     }));
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
@@ -9106,6 +9189,7 @@ function parseEasyInventoryText(text) {
   function bind() {
     if (bound) return;
     bound = true;
+    $("subsidy-add-manual")?.addEventListener("click", openAdd);
     $("subsidy-import-file")?.addEventListener("change", (ev) => {
       importFile(ev.target.files && ev.target.files[0]).catch((e) => alert(e.message)).finally(() => { ev.target.value = ""; });
     });

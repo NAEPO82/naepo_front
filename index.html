@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v73-subsidy-status-revert-fix-20260716" />
+    <link rel="stylesheet" href="styles.css?v=v74-direct-entry-durable-all-backup-20260716" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -1629,10 +1629,11 @@
               <div>
                 <div class="daily-eyebrow"><i class="fa-solid fa-seedling"></i> Subsidy Project</div>
                 <h2 id="subsidy-current-title">여성농업 보조사업 관리</h2>
-                <p id="subsidy-current-desc">보조사업을 선택하고, 명단 엑셀/견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.</p>
+                <p id="subsidy-current-desc">보조사업을 선택하고, 명단을 엑셀 또는 직접 입력한 뒤 견적서/연락/기대번호/사진/서류/입금/영수증 상태를 관리합니다.</p>
               </div>
               <div class="subsidy-actions">
-                <label class="btn btn-p btn-sm subsidy-import-label">
+                <button type="button" class="btn btn-p btn-sm" id="subsidy-add-manual"><i class="fa-solid fa-user-plus"></i> 명단 직접 추가</button>
+                <label class="btn btn-o btn-sm subsidy-import-label">
                   <i class="fa-solid fa-file-excel"></i> 엑셀 명단 가져오기
                   <input type="file" id="subsidy-import-file" accept=".xlsx,.xls,.csv" hidden />
                 </label>
@@ -2160,6 +2161,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v73-subsidy-status-revert-fix-20260716"></script>
+    <script src="app.js?v=v74-direct-entry-durable-all-backup-20260716"></script>
   </body>
 </html>

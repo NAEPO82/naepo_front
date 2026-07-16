@@ -15991,3 +15991,20 @@ tr:hover td{background:#F8FAFC !important;}
 .v70-item input{width:16px;height:16px;accent-color:#0f766e}.v70-item span{min-width:0;flex:1}.v70-item b{display:block;color:#0f172a;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v70-item small{display:block;color:#64748b;font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.v70-item em{font-style:normal;color:#0f766e;font-size:11px;font-weight:900;white-space:nowrap}
 .v70-foot{display:flex;justify-content:flex-end;gap:8px;padding-top:12px;margin-top:12px;border-top:1px solid #e2e8f0}
 @media(max-width:900px){.v70-list{grid-template-columns:1fr}}
+
+/* ===== v74-subsidy-direct-entry-durable-save-20260716 ===== */
+.subsidy-edit-grid input[readonly]{
+  background:#f1f5f9;
+  color:#475569;
+  cursor:not-allowed;
+}
+.subsidy-actions{
+  flex-wrap:wrap;
+}
+@media(max-width:720px){
+  #subsidy-add-manual,
+  .subsidy-import-label{
+    width:100%;
+    justify-content:center;
+  }
+}
