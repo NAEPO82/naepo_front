@@ -8352,7 +8352,8 @@ function parseEasyInventoryText(text) {
   function saveProjectList(list, year) {
     const y = normalizeProjectYear(year || activeProjectYear());
     const registry = getProjectRegistry();
-    const uniq = [...new Set([DEFAULT_PROJECT_NAME].concat((list || []).map(normalizeProjectName).filter(Boolean)))];
+    const existing = Array.isArray(registry[y]) ? registry[y] : [];
+    const uniq = [...new Set([DEFAULT_PROJECT_NAME].concat(existing.map(normalizeProjectName).filter(Boolean)).concat((list || []).map(normalizeProjectName).filter(Boolean)))];
     registry[y] = uniq;
     saveProjectRegistry(registry);
 
@@ -8379,7 +8380,15 @@ function parseEasyInventoryText(text) {
   }
   function setActiveProjectName(name) {
     const next = normalizeProjectName(name);
-    try { localStorage.setItem(PROJECT_KEY, next); } catch (_) {}
+    try {
+      const yy = activeProjectYear();
+      const k = `naepo_subsidy_removed_projects_${yy}_v71`;
+      const arr = JSON.parse(localStorage.getItem(k) || "[]").filter((x) => normalizeProjectName(x) !== next);
+      localStorage.setItem(k, JSON.stringify(arr));
+      localStorage.setItem(PROJECT_KEY, next);
+    } catch (_) {
+      try { localStorage.setItem(PROJECT_KEY, next); } catch (_) {}
+    }
     saveProjectList(getProjectNames().concat(next), activeProjectYear());
     page = 1;
     selected.clear();
@@ -8670,10 +8679,12 @@ function parseEasyInventoryText(text) {
     selected = new Set([...selected].filter((id) => rows.some((r) => String(r.id) === String(id))));
     const body = $("subsidy-body");
     if (!body) return;
-    body.innerHTML = list.length ? list.map((r) => `
+    body.innerHTML = list.length ? list.map((r, idx) => {
+      const displaySeq = (page - 1) * pageSize + idx + 1;
+      return `
       <tr data-id="${safe(r.id)}" data-updated-at="${safe(r.updatedAt || r.createdAt || "")}" class="${selected.has(String(r.id)) ? "subsidy-selected-row" : ""}">
         <td class="subsidy-check-cell"><input type="checkbox" class="subsidy-row-check" data-v53-check="${safe(r.id)}" ${selected.has(String(r.id)) ? "checked" : ""} /></td>
-        <td class="subsidy-col-no">${safe(r.seq || "")}</td>
+        <td class="subsidy-col-no">${displaySeq}</td>
         <td><span class="subsidy-town">${safe(r.town || "")}</span></td>
         <td class="subsidy-person-cell">
           <strong>${safe(r.name || "")}</strong>
@@ -8705,7 +8716,7 @@ function parseEasyInventoryText(text) {
           <button type="button" class="btn btn-o btn-sm subsidy-edit" data-v53-edit="${safe(r.id)}"><i class="fa-solid fa-pen"></i> 수정</button>
           <button type="button" class="btn btn-o btn-sm d subsidy-delete" data-v53-delete="${safe(r.id)}"><i class="fa-solid fa-trash"></i> 삭제</button>
         </div></td>
-      </tr>`).join("") : `<tr><td colspan="12" class="empty-td">조건에 맞는 대상자가 없습니다.</td></tr>`;
+      </tr>`; }).join("") : `<tr><td colspan="12" class="empty-td">조건에 맞는 대상자가 없습니다.</td></tr>`;
     const allCheck = $("subsidy-check-all");
     if (allCheck) {
       const ids = list.map((r) => String(r.id));
@@ -10395,8 +10406,11 @@ function parseEasyInventoryText(text) {
   }
   function reg(){try{const o=JSON.parse(localStorage.getItem(REG_KEY)||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{}}catch(_){return{}}}
   function saveReg(o){try{localStorage.setItem(REG_KEY,JSON.stringify(o||{}))}catch(_){}}
-  function setList(year,names){const yy=y(year), o=reg();o[yy]=[...new Set([DEFAULT].concat((names||[]).map(pname).filter(Boolean)))];saveReg(o);return o[yy]}
-  function removeName(year,name){const yy=y(year), o=reg(), n=pname(name);const list=Array.isArray(o[yy])?o[yy]:[DEFAULT];o[yy]=[DEFAULT].concat(list.filter(x=>pname(x)!==DEFAULT&&pname(x)!==n));saveReg(o)}
+  function removedKey(year){return `naepo_subsidy_removed_projects_${y(year)}_v71`}
+  function removedSet(year){try{return new Set(JSON.parse(localStorage.getItem(removedKey(year))||"[]").map(pname))}catch(_){return new Set()}}
+  function saveRemoved(year,set){try{localStorage.setItem(removedKey(year),JSON.stringify([...set]))}catch(_){}}
+  function setList(year,names){const yy=y(year), o=reg(), removed=removedSet(yy);const existing=Array.isArray(o[yy])?o[yy]:[];o[yy]=[...new Set([DEFAULT].concat(existing.map(pname).filter(Boolean)).concat((names||[]).map(pname).filter(Boolean)))].filter(n=>n===DEFAULT||!removed.has(pname(n)));saveReg(o);return o[yy]}
+  function removeName(year,name){const yy=y(year), o=reg(), n=pname(name);const rm=removedSet(yy);rm.add(n);saveRemoved(yy,rm);const list=Array.isArray(o[yy])?o[yy]:[DEFAULT];o[yy]=[DEFAULT].concat(list.filter(x=>pname(x)!==DEFAULT&&pname(x)!==n));saveReg(o)}
   function clearOldOnce(){const flag="naepo_subsidy_v70_old_keys_cleared";if(localStorage.getItem(flag)==="1")return;["naepo_subsidy_project_list_v63","naepo_subsidy_project_list_by_year_v68","naepo_subsidy_project_list_by_year_v69"].forEach(k=>localStorage.removeItem(k));localStorage.setItem(flag,"1")}
   function rowYear(r){return y(r.projectYear||r.year||nowYear())}
   function rowProj(r){return pname(r.projectName||r.projectDisplayName||r.businessName||r.subsidyName||DEFAULT)}
