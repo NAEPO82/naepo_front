@@ -118,7 +118,7 @@
       });
     } catch (error) {
       if (error && error.status === 404) {
-        throw new Error("관리자 인증 API가 없습니다. Render 백엔드가 이전 버전입니다. v77.2 백엔드를 다시 배포해주세요.");
+        throw new Error("관리자 인증 API가 없습니다. Render 백엔드가 이전 버전입니다. v77.4 백엔드를 다시 배포해주세요.");
       }
       throw error;
     }
