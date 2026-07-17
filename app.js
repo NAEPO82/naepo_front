@@ -577,7 +577,6 @@
       tax: h,
       items: m,
     };
-    if (!r && window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.save();
     try {
       if (r) {
         await w("/api/records/" + encodeURIComponent(r), {
@@ -596,15 +595,13 @@
             "저장 완료",
             "거래 명세 내역이 서버에 저장되고, 작성 화면이 초기화되었습니다.",
             () => {
-              if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
               (q(), (y = 1), C());
             },
           ));
     } catch (t) {
-      if (!r && window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.save();
       return void I(
         "저장 실패",
-        (t.message || "서버에 저장하는 중 오류가 발생했습니다.") + "\n\n작성한 내용은 화면과 이 브라우저의 임시작성에 그대로 보관됩니다. 새로고침해도 다시 불러올 수 있습니다.",
+        t.message || "서버에 저장하는 중 오류가 발생했습니다.",
       );
     }
   }
@@ -2127,14 +2124,7 @@
     }),
     document
       .getElementById("tab-form")
-      .addEventListener("click", () => {
-        const hasDraft = window.NaepoInvoiceDraft && window.NaepoInvoiceDraft.has();
-        q();
-        J("form");
-        if (hasDraft) setTimeout(() => {
-          if (window.NaepoInvoiceDraft && window.NaepoInvoiceDraft.restore()) M("저장 실패 때 보관된 작성 내용을 다시 불러왔습니다.", "ok");
-        }, 80);
-      }),
+      .addEventListener("click", () => { q(); J("form"); }),
     document
       .getElementById("tab-list")
       .addEventListener("click", () => J("list")),
@@ -2555,7 +2545,6 @@
           "수정 취소 확인",
           "수정 작업을 취소하고 이전 페이지로 돌아가시겠습니까?",
           () => {
-            if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
             q();
             J(editReturnTab || "list");
           },
@@ -2567,7 +2556,6 @@
         "양식 초기화 확인",
         "현재 작성 중인 거래명세서 폼 데이터 전체가 리셋됩니다. 진행하시겠습니까?",
         () => {
-          if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
           q();
         },
         () => {},
@@ -2777,10 +2765,7 @@
       const records = data.records || data;
       if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 또는 내포농기계 SQL 백업 파일이 필요합니다.");
       const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0) + (Array.isArray(data.repairLog) ? data.repairLog.length : 0) + (Array.isArray(data.subsidyProjects) ? data.subsidyProjects.length : 0) + (Array.isArray(data.subsidyProjectRegistry) ? data.subsidyProjectRegistry.length : 0) + (Array.isArray(data.dailySettlements) ? data.dailySettlements.length : 0) + (Array.isArray(data.restoreHistory) ? data.restoreHistory.length : 0);
-      const verifiedReplace = Boolean(data.backupIntegrity);
-      S("백업파일 복원", verifiedReplace
-        ? `${file.name}의 검증된 전체백업 ${totalCount}건으로 현재 업무 데이터를 백업 시점 상태로 교체 복원합니다. 복원 직전 자동 안전백업도 생성됩니다. 계속할까요?`
-        : `${file.name}에서 ${totalCount}건의 구형 백업 데이터를 병합 복원합니다. 계속할까요?`, async () => {
+      S("백업파일 복원", `${file.name}에서 ${totalCount}건의 데이터를 병합 복원합니다. 계속할까요?`, async () => {
         try {
           const result = await adminJson("/api/restore", {
             method: "POST",
@@ -2797,13 +2782,12 @@
               subsidyProjectRegistry: data.subsidyProjectRegistry,
               dailySettlements: data.dailySettlements,
               restoreHistory: data.restoreHistory,
-              backupIntegrity: data.backupIntegrity,
-              mode: data.backupIntegrity ? "replace" : "merge",
+              mode: "merge",
             }),
           });
           await k();
           C();
-          I("복원 완료", `${result.restored}건의 거래내역을 포함한 백업 복원이 완료됐습니다. 전체 거래내역 ${result.total}건입니다.${result.verified ? "\n백업 해시와 복원 후 데이터가 일치하는 것도 확인했습니다." : ""}`);
+          I("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 전체 거래내역 ${result.total}건입니다.`);
         } catch (error) { I("복원 실패", error.message); }
       }, () => {});
     }),
@@ -2826,14 +2810,6 @@
           await loadAdminActionLog();
         } catch (error) { I("현재 데이터 전체저장 실패", error.message); }
       }, () => {});
-    }),
-    document.getElementById("admin-btn-backup-self-test") && document.getElementById("admin-btn-backup-self-test").addEventListener("click", async () => {
-      try {
-        const result = await adminJson("/api/admin/backup/self-test", { method: "POST", body: JSON.stringify({}) });
-        const datasets = result.datasets || {};
-        const total = Object.values(datasets).reduce((sum, item) => sum + Number(item.actual?.count || 0), 0);
-        I("백업 자체검증 완료", `JSON 직렬화·해시·SQL 포함 여부를 확인했습니다.\n검증 데이터 ${total}건\n통합 SHA-256: ${result.combinedSha256 || "-"}`);
-      } catch (error) { I("백업 자체검증 실패", error.message); }
     }),
     document.getElementById("admin-btn-integrity-check") && document.getElementById("admin-btn-integrity-check").addEventListener("click", async () => {
       const box = document.getElementById("admin-integrity-result");
@@ -6226,12 +6202,11 @@ function parseEasyInventoryText(text) {
           subsidyProjectRegistry: data.subsidyProjectRegistry,
           dailySettlements: data.dailySettlements,
           restoreHistory: data.restoreHistory,
-          backupIntegrity: data.backupIntegrity,
-          mode: data.backupIntegrity ? "replace" : "merge",
+          mode: "merge",
         }),
       });
       closeEasyImport();
-      importNotify("복원 완료", `${result.restored || records.length}건의 거래내역 복원이 완료됐습니다.${result.verified ? " 백업 해시와 복원 후 데이터가 일치합니다." : ""} 화면을 새로고침합니다.`);
+      importNotify("복원 완료", `${result.restored || records.length}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 화면을 새로고침합니다.`);
       setTimeout(() => location.reload(), 200);
     } catch (error) {
       importNotify("복원 실패", error.message);

@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v77-3-data-safety-verified-backup-20260717" />
+    <link rel="stylesheet" href="styles.css?v=v77-2-admin-item-integrity-20260717" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -2091,7 +2091,6 @@
               <button class="admin-tool-btn" id="admin-btn-email-backup"><i class="fa-solid fa-envelope-circle-check"></i><span>수동 이메일 백업</span><small>백업 메일 즉시 전송</small></button>
               <button class="admin-tool-btn" id="admin-btn-save-current"><i class="fa-solid fa-floppy-disk"></i><span>현재 데이터 전체저장</span><small>삭제/수정된 현재 상태를 JSON + PostgreSQL에 강제 반영</small></button>
               <button class="admin-tool-btn" id="admin-btn-integrity-check"><i class="fa-solid fa-shield-halved"></i><span>데이터 점검</span><small>중복·음수재고·끊어진 재고 연결을 검사</small></button>
-              <button class="admin-tool-btn" id="admin-btn-backup-self-test"><i class="fa-solid fa-file-shield"></i><span>백업 자체검증</span><small>JSON 해시·SQL 포함 여부를 데이터 변경 없이 검사</small></button>
             </div>
             <div id="admin-integrity-result" style="display:none;margin-top:12px;"></div>
             <input type="file" id="admin-restore-file-input" accept=".json,.sql,application/json,text/plain,application/sql" style="display:none" />
@@ -2164,8 +2163,7 @@
       </div>
     </div>
 
-    <script src="modules/invoice-item-link.js?v=v77-3-data-safety-verified-backup-20260717"></script>
-    <script src="modules/invoice-draft.js?v=v77-3-data-safety-verified-backup-20260717"></script>
-    <script src="app.js?v=v77-3-data-safety-verified-backup-20260717"></script>
+    <script src="modules/invoice-item-link.js?v=v77-2-admin-item-integrity-20260717"></script>
+    <script src="app.js?v=v77-2-admin-item-integrity-20260717"></script>
   </body>
 </html>
