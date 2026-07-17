@@ -78,12 +78,18 @@
     try {
       s = await o.json();
     } catch (t) {}
-    if (401 === o.status)
-      throw new Error((s && s.error) || "인증이 만료되었습니다.");
-    if (!o.ok)
-      throw new Error(
+    if (401 === o.status) {
+      const error = new Error((s && s.error) || "인증이 만료되었습니다.");
+      error.status = o.status;
+      throw error;
+    }
+    if (!o.ok) {
+      const error = new Error(
         (s && s.error) || "서버 오류가 발생했습니다. (" + o.status + ")",
       );
+      error.status = o.status;
+      throw error;
+    }
     return s;
   }
 
@@ -104,10 +110,18 @@
     if (!forceRefresh && adminTokenCache) return adminTokenCache;
     const candidate = String(password || getAdminPassword() || "").trim();
     if (!candidate) throw new Error("관리자 비밀번호를 입력해주세요.");
-    const result = await w("/api/admin/login", {
-      method: "POST",
-      body: JSON.stringify({ password: candidate }),
-    });
+    let result;
+    try {
+      result = await w("/api/admin/login", {
+        method: "POST",
+        body: JSON.stringify({ password: candidate }),
+      });
+    } catch (error) {
+      if (error && error.status === 404) {
+        throw new Error("관리자 인증 API가 없습니다. Render 백엔드가 이전 버전입니다. v77.2 백엔드를 다시 배포해주세요.");
+      }
+      throw error;
+    }
     if (!result || !result.adminToken) throw new Error("관리자 토큰 발급에 실패했습니다.");
     adminTokenCache = result.adminToken;
     sessionStorage.setItem(ADMIN_TOKEN_KEY, adminTokenCache);
@@ -350,23 +364,39 @@
           },
           itemInput = t.querySelector(".p-item"),
           syncPartFromInput = () => {
+            if (window.NaepoInvoiceItemLink) {
+              window.NaepoInvoiceItemLink.syncRow(t, nt, stripInvoiceGroupPrefix);
+              return;
+            }
             const raw = String(itemInput.value || "").trim();
             const base = stripInvoiceGroupPrefix(raw);
             const part = nt.find((p) => String(p.name || "").trim() === raw) || nt.find((p) => String(p.name || "").trim() === base);
             if (!part) {
-              delete t.dataset.partId;
+              if (t.dataset.partId) {
+                delete t.dataset.partId;
+                const specInput = t.querySelector(".p-spec");
+                const priceInput = t.querySelector(".p-price");
+                if (specInput) specInput.value = "";
+                if (priceInput) {
+                  priceInput.value = 0;
+                  priceInput.dispatchEvent(new Event("input"));
+                }
+              }
               return;
             }
+            const changed = String(t.dataset.partId || "") !== String(part.id || "");
             t.dataset.partId = part.id || "";
+            if (!changed) return;
             const specInput = t.querySelector(".p-spec");
             const priceInput = t.querySelector(".p-price");
-            if (specInput && !specInput.value) specInput.value = part.spec || "";
-            if (priceInput && (!parseFloat(priceInput.value) || Number(priceInput.value) === 0)) {
+            if (specInput) specInput.value = part.spec || "";
+            if (priceInput) {
               priceInput.value = Number(part.unitPrice || 0);
               priceInput.dispatchEvent(new Event("input"));
             }
           };
-        (itemInput.addEventListener("change", syncPartFromInput),
+        (itemInput.addEventListener("input", syncPartFromInput),
+          itemInput.addEventListener("change", syncPartFromInput),
           itemInput.addEventListener("blur", syncPartFromInput),
           e.addEventListener("input", l),
           n.addEventListener("input", l),
@@ -488,7 +518,14 @@
           (() => {
             const baseName = stripInvoiceGroupPrefix(e);
             const matchedPart = nt.find((part) => String(part.name || "").trim() === e) || nt.find((part) => String(part.name || "").trim() === baseName);
-            if (matchedPart && matchedPart.id) t.dataset.partId = matchedPart.id;
+            if (matchedPart && matchedPart.id) {
+              t.dataset.partId = matchedPart.id;
+              t.dataset.linkedPartId = matchedPart.id;
+              t.dataset.linkedItemValue = e;
+            } else if (!t.dataset.linkedItemValue || String(t.dataset.linkedItemValue) !== e) {
+              delete t.dataset.partId;
+              delete t.dataset.linkedPartId;
+            }
           })(),
           m.push({
             item: e,
@@ -540,6 +577,7 @@
       tax: h,
       items: m,
     };
+    if (!r && window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.save();
     try {
       if (r) {
         await w("/api/records/" + encodeURIComponent(r), {
@@ -558,13 +596,15 @@
             "저장 완료",
             "거래 명세 내역이 서버에 저장되고, 작성 화면이 초기화되었습니다.",
             () => {
+              if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
               (q(), (y = 1), C());
             },
           ));
     } catch (t) {
+      if (!r && window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.save();
       return void I(
         "저장 실패",
-        t.message || "서버에 저장하는 중 오류가 발생했습니다.",
+        (t.message || "서버에 저장하는 중 오류가 발생했습니다.") + "\n\n작성한 내용은 화면과 이 브라우저의 임시작성에 그대로 보관됩니다. 새로고침해도 다시 불러올 수 있습니다.",
       );
     }
   }
@@ -950,6 +990,7 @@
                     a = n[n.length - 1];
                   if (!t.item) return;
                   ((a.querySelector(".p-item").value = t.item || ""),
+                    window.NaepoInvoiceItemLink && window.NaepoInvoiceItemLink.markExistingLink(a, t.partId || "", t.item || ""),
                     (a.querySelector(".p-spec").value =
                       t.spec && "-" !== t.spec ? t.spec : ""),
                     (a.querySelector(".p-qty").value =
@@ -2086,7 +2127,14 @@
     }),
     document
       .getElementById("tab-form")
-      .addEventListener("click", () => { q(); J("form"); }),
+      .addEventListener("click", () => {
+        const hasDraft = window.NaepoInvoiceDraft && window.NaepoInvoiceDraft.has();
+        q();
+        J("form");
+        if (hasDraft) setTimeout(() => {
+          if (window.NaepoInvoiceDraft && window.NaepoInvoiceDraft.restore()) M("저장 실패 때 보관된 작성 내용을 다시 불러왔습니다.", "ok");
+        }, 80);
+      }),
     document
       .getElementById("tab-list")
       .addEventListener("click", () => J("list")),
@@ -2507,6 +2555,7 @@
           "수정 취소 확인",
           "수정 작업을 취소하고 이전 페이지로 돌아가시겠습니까?",
           () => {
+            if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
             q();
             J(editReturnTab || "list");
           },
@@ -2518,6 +2567,7 @@
         "양식 초기화 확인",
         "현재 작성 중인 거래명세서 폼 데이터 전체가 리셋됩니다. 진행하시겠습니까?",
         () => {
+          if (window.NaepoInvoiceDraft) window.NaepoInvoiceDraft.clear();
           q();
         },
         () => {},
@@ -2727,7 +2777,10 @@
       const records = data.records || data;
       if (!Array.isArray(records)) return I("파일 오류", "records 배열이 있는 JSON 백업 또는 내포농기계 SQL 백업 파일이 필요합니다.");
       const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0) + (Array.isArray(data.repairLog) ? data.repairLog.length : 0) + (Array.isArray(data.subsidyProjects) ? data.subsidyProjects.length : 0) + (Array.isArray(data.subsidyProjectRegistry) ? data.subsidyProjectRegistry.length : 0) + (Array.isArray(data.dailySettlements) ? data.dailySettlements.length : 0) + (Array.isArray(data.restoreHistory) ? data.restoreHistory.length : 0);
-      S("백업파일 복원", `${file.name}에서 ${totalCount}건의 데이터를 병합 복원합니다. 계속할까요?`, async () => {
+      const verifiedReplace = Boolean(data.backupIntegrity);
+      S("백업파일 복원", verifiedReplace
+        ? `${file.name}의 검증된 전체백업 ${totalCount}건으로 현재 업무 데이터를 백업 시점 상태로 교체 복원합니다. 복원 직전 자동 안전백업도 생성됩니다. 계속할까요?`
+        : `${file.name}에서 ${totalCount}건의 구형 백업 데이터를 병합 복원합니다. 계속할까요?`, async () => {
         try {
           const result = await adminJson("/api/restore", {
             method: "POST",
@@ -2744,12 +2797,13 @@
               subsidyProjectRegistry: data.subsidyProjectRegistry,
               dailySettlements: data.dailySettlements,
               restoreHistory: data.restoreHistory,
-              mode: "merge",
+              backupIntegrity: data.backupIntegrity,
+              mode: data.backupIntegrity ? "replace" : "merge",
             }),
           });
           await k();
           C();
-          I("복원 완료", `${result.restored}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 전체 거래내역 ${result.total}건입니다.`);
+          I("복원 완료", `${result.restored}건의 거래내역을 포함한 백업 복원이 완료됐습니다. 전체 거래내역 ${result.total}건입니다.${result.verified ? "\n백업 해시와 복원 후 데이터가 일치하는 것도 확인했습니다." : ""}`);
         } catch (error) { I("복원 실패", error.message); }
       }, () => {});
     }),
@@ -2772,6 +2826,39 @@
           await loadAdminActionLog();
         } catch (error) { I("현재 데이터 전체저장 실패", error.message); }
       }, () => {});
+    }),
+    document.getElementById("admin-btn-backup-self-test") && document.getElementById("admin-btn-backup-self-test").addEventListener("click", async () => {
+      try {
+        const result = await adminJson("/api/admin/backup/self-test", { method: "POST", body: JSON.stringify({}) });
+        const datasets = result.datasets || {};
+        const total = Object.values(datasets).reduce((sum, item) => sum + Number(item.actual?.count || 0), 0);
+        I("백업 자체검증 완료", `JSON 직렬화·해시·SQL 포함 여부를 확인했습니다.\n검증 데이터 ${total}건\n통합 SHA-256: ${result.combinedSha256 || "-"}`);
+      } catch (error) { I("백업 자체검증 실패", error.message); }
+    }),
+    document.getElementById("admin-btn-integrity-check") && document.getElementById("admin-btn-integrity-check").addEventListener("click", async () => {
+      const box = document.getElementById("admin-integrity-result");
+      try {
+        if (box) {
+          box.style.display = "block";
+          box.innerHTML = '<div style="padding:12px;color:#64748b;">데이터를 점검하는 중입니다...</div>';
+        }
+        const report = await adminJson("/api/admin/data-integrity");
+        const summary = report.summary || {};
+        const issues = Array.isArray(report.issues) ? report.issues : [];
+        const headColor = Number(summary.errors || 0) > 0 ? "#dc2626" : Number(summary.warnings || 0) > 0 ? "#d97706" : "#047857";
+        if (box) {
+          box.innerHTML = `
+            <div style="padding:14px;border:1px solid #dbe4ef;border-radius:12px;background:#f8fafc;">
+              <div style="font-weight:800;color:${headColor};margin-bottom:8px;">오류 ${Number(summary.errors || 0)}건 · 경고 ${Number(summary.warnings || 0)}건</div>
+              <div style="font-size:12px;color:#475569;margin-bottom:10px;">거래 ${Number(summary.records || 0)}건 · 재고 ${Number(summary.parts || 0)}건 · 입출고 ${Number(summary.inventoryLogs || 0)}건 · 보조사업 ${Number(summary.subsidies || 0)}건</div>
+              ${issues.length ? `<div style="max-height:220px;overflow:auto;display:grid;gap:6px;">${issues.slice(0, 50).map((issue) => `<div style="padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;"><b>${n(issue.severity === "error" ? "오류" : "경고")}</b> · ${n(issue.message || "")} ${issue.reference ? `<small style="color:#64748b;">(${n(issue.reference)})</small>` : ""}</div>`).join("")}</div>` : '<div style="font-size:13px;color:#047857;font-weight:700;">점검 항목에서 이상이 발견되지 않았습니다.</div>'}
+              ${issues.length > 50 ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">앞의 50건만 표시했습니다. 전체 ${issues.length}건</div>` : ""}
+            </div>`;
+        }
+      } catch (error) {
+        if (box) box.innerHTML = `<div style="padding:12px;color:#dc2626;">${n(error.message || "데이터 점검 실패")}</div>`;
+        I("데이터 점검 실패", error.message);
+      }
     }),
     document.getElementById("admin-btn-log-refresh") && document.getElementById("admin-btn-log-refresh").addEventListener("click", loadAdminActionLog),
     document.getElementById("admin-btn-log-csv") && document.getElementById("admin-btn-log-csv").addEventListener("click", async () => {
@@ -4436,16 +4523,11 @@
       .getElementById("items-builder-root")
       .addEventListener("change", (t) => {
         if (!t.target.classList.contains("p-item")) return;
-        const e = t.target.closest(".item-row-card");
-        if (!e) return;
-        const n = nt.find((e) => e.name === t.target.value.trim());
-        if (!n) return;
-        const a = e.querySelector(".p-spec"),
-          o = e.querySelector(".p-price");
-        (a && !a.value && (a.value = n.spec || ""),
-          o &&
-            ((o.value = n.unitPrice || 0),
-            o.dispatchEvent(new Event("input"))));
+        const row = t.target.closest(".item-row-card");
+        if (!row) return;
+        if (window.NaepoInvoiceItemLink) {
+          window.NaepoInvoiceItemLink.syncRow(row, nt, stripInvoiceGroupPrefix);
+        }
       }),
     window.addEventListener("keydown", (t) => {
       t.ctrlKey &&
@@ -5506,17 +5588,6 @@
     return data;
   }
 
-  function importAdminPassword() {
-    const input = document.getElementById("admin-pw");
-    const v = input && input.value ? input.value.trim() : "";
-    if (v) return v;
-    try {
-      return sessionStorage.getItem("naepo_admin_password") || "";
-    } catch (_) {
-      return "";
-    }
-  }
-
   function importMoney(value) {
     const n = Number(String(value == null ? 0 : value).replace(/[,원\s]/g, ""));
     return (Number.isFinite(n) ? n : 0).toLocaleString("ko-KR");
@@ -6140,9 +6211,8 @@ function parseEasyInventoryText(text) {
     const records = Array.isArray(data.records) ? data.records : Array.isArray(data) ? data : [];
     if (!Array.isArray(records)) return importNotify("복원 실패", "records 배열이 있는 JSON/SQL 백업만 복원할 수 있습니다.");
     try {
-      const result = await importApi("/api/restore", {
+      const result = await adminJson("/api/restore", {
         method: "POST",
-        headers: { "X-Admin-Password": importAdminPassword() },
         body: JSON.stringify({
           records,
           parts: data.parts,
@@ -6156,11 +6226,12 @@ function parseEasyInventoryText(text) {
           subsidyProjectRegistry: data.subsidyProjectRegistry,
           dailySettlements: data.dailySettlements,
           restoreHistory: data.restoreHistory,
-          mode: "merge",
+          backupIntegrity: data.backupIntegrity,
+          mode: data.backupIntegrity ? "replace" : "merge",
         }),
       });
       closeEasyImport();
-      importNotify("복원 완료", `${result.restored || records.length}건의 거래내역을 포함해 백업 데이터를 병합했습니다. 화면을 새로고침합니다.`);
+      importNotify("복원 완료", `${result.restored || records.length}건의 거래내역 복원이 완료됐습니다.${result.verified ? " 백업 해시와 복원 후 데이터가 일치합니다." : ""} 화면을 새로고침합니다.`);
       setTimeout(() => location.reload(), 200);
     } catch (error) {
       importNotify("복원 실패", error.message);
