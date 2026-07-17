@@ -22,6 +22,7 @@
     c = "자체구매",
     d = "",
     r = null,
+    pendingRecordId = null,
     p = !1,
     m = "detail",
     u = null;
@@ -86,16 +87,41 @@
     return s;
   }
 
+  const ADMIN_TOKEN_KEY = "npo_admin_session_token";
   let adminPasswordCache = "";
+  let adminTokenCache = sessionStorage.getItem(ADMIN_TOKEN_KEY) || "";
   function getAdminPassword() {
     const input = document.getElementById("admin-pw");
     const inputValue = input ? input.value.trim() : "";
     return inputValue || adminPasswordCache;
   }
+  function clearAdminSession() {
+    adminPasswordCache = "";
+    adminTokenCache = "";
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  }
+  async function ensureAdminToken(password, forceRefresh) {
+    if (!forceRefresh && adminTokenCache) return adminTokenCache;
+    const candidate = String(password || getAdminPassword() || "").trim();
+    if (!candidate) throw new Error("관리자 비밀번호를 입력해주세요.");
+    const result = await w("/api/admin/login", {
+      method: "POST",
+      body: JSON.stringify({ password: candidate }),
+    });
+    if (!result || !result.adminToken) throw new Error("관리자 토큰 발급에 실패했습니다.");
+    adminTokenCache = result.adminToken;
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, adminTokenCache);
+    adminPasswordCache = candidate;
+    return adminTokenCache;
+  }
   async function downloadWithAuth(path, fallbackName, extraHeaders) {
     const headers = Object.assign({}, extraHeaders || {});
     const token = E();
     if (token) headers.Authorization = "Bearer " + token;
+    if (path.startsWith("/api/admin/") || path.startsWith("/api/__sys/")) {
+      headers["X-Admin-Token"] = await ensureAdminToken();
+      delete headers["X-Admin-Password"];
+    }
     const response = await fetch(b + path, { headers });
     if (!response.ok) {
       let message = "다운로드 실패 (" + response.status + ")";
@@ -103,6 +129,7 @@
         const data = await response.json();
         message = data && data.error ? data.error : message;
       } catch (_) {}
+      if (response.status === 401 || response.status === 403) clearAdminSession();
       throw new Error(message);
     }
     const blob = await response.blob();
@@ -119,11 +146,15 @@
     URL.revokeObjectURL(url);
   }
   async function adminJson(path, options) {
-    const adminPassword = getAdminPassword();
-    if (!adminPassword) throw new Error("관리자 비밀번호를 입력해주세요.");
-    return await w(path, Object.assign({}, options || {}, {
-      headers: Object.assign({}, (options && options.headers) || {}, { "X-Admin-Password": adminPassword }),
-    }));
+    const adminToken = await ensureAdminToken();
+    try {
+      return await w(path, Object.assign({}, options || {}, {
+        headers: Object.assign({}, (options && options.headers) || {}, { "X-Admin-Token": adminToken }),
+      }));
+    } catch (error) {
+      if (/관리자|토큰|인증/.test(String(error && error.message || ""))) clearAdminSession();
+      throw error;
+    }
   }
 
   function splitSqlValues(valueText) {
@@ -401,7 +432,8 @@
       document
         .querySelectorAll("#jache-pills .pill")
         .forEach((t, e) => t.classList.toggle("g", 0 === e)),
-      (r = null));
+      (r = null),
+      (pendingRecordId = null));
     const a = document.getElementById("save-btn");
     ((a.innerHTML = '<i class="fa-solid fa-download"></i> 내역 데이터 저장'),
       (a.style.background = ""));
@@ -453,6 +485,11 @@
         (e
           ? t.querySelector(".p-item").classList.remove("bad")
           : (t.querySelector(".p-item").classList.add("bad"), (b = !1)),
+          (() => {
+            const baseName = stripInvoiceGroupPrefix(e);
+            const matchedPart = nt.find((part) => String(part.name || "").trim() === e) || nt.find((part) => String(part.name || "").trim() === baseName);
+            if (matchedPart && matchedPart.id) t.dataset.partId = matchedPart.id;
+          })(),
           m.push({
             item: e,
             partId: t.dataset.partId || "",
@@ -481,10 +518,12 @@
     const E = {
       id:
         r ||
-        "rec_" +
+        pendingRecordId ||
+        (pendingRecordId =
+          "rec_" +
           Date.now().toString(36) +
           "_" +
-          Math.random().toString(36).slice(2, 9),
+          Math.random().toString(36).slice(2, 9)),
       date: e.value,
       author: document.getElementById("f-author").value.trim() || "현장기사",
       supplier: u,
@@ -2615,7 +2654,7 @@
         "로그아웃 확인",
         "보안 세션을 종료하고 안전하게 로그아웃 하시겠습니까?",
         () => {
-          (sessionStorage.clear(), location.reload());
+          (clearAdminSession(), sessionStorage.clear(), location.reload());
         },
         () => {},
       );
@@ -2640,29 +2679,30 @@
       const pwInput = document.getElementById("admin-pw");
       const candidate = pwInput ? pwInput.value.trim() : "";
       try {
-        adminPasswordCache = "";
+        clearAdminSession();
         if (!candidate) throw new Error("관리자 비밀번호를 입력해주세요.");
-        await w("/api/admin/status", { headers: { "X-Admin-Password": candidate } });
+        const adminToken = await ensureAdminToken(candidate, true);
+        await w("/api/admin/status", { headers: { "X-Admin-Token": adminToken } });
         adminPasswordCache = candidate;
         err.textContent = "";
         document.getElementById("admin-login-box").style.display = "none";
         document.getElementById("admin-panel").style.display = "block";
         await loadAdminActionLog();
       } catch (error) {
-        adminPasswordCache = "";
+        clearAdminSession();
         err.textContent = error.message || "관리자 인증 실패";
         pwInput && pwInput.focus();
       }
     }),
     document.getElementById("admin-btn-csv-backup") && document.getElementById("admin-btn-csv-backup").addEventListener("click", async () => {
       try {
-        await downloadWithAuth("/api/admin/backup/csv.zip", "naepo-csv-backup.zip", { "X-Admin-Password": getAdminPassword() });
+        await downloadWithAuth("/api/admin/backup/csv.zip", "naepo-csv-backup.zip");
         M("CSV 백업 ZIP을 다운로드했습니다.", "ok");
       } catch (error) { I("CSV 백업 실패", error.message); }
     }),
     document.getElementById("admin-btn-full-backup") && document.getElementById("admin-btn-full-backup").addEventListener("click", async () => {
       try {
-        await downloadWithAuth("/api/admin/backup/full.zip", "naepo-full-backup.zip", { "X-Admin-Password": getAdminPassword() });
+        await downloadWithAuth("/api/admin/backup/full.zip", "naepo-full-backup.zip");
         M("전체 백업 ZIP을 다운로드했습니다.", "ok");
       } catch (error) { I("전체 백업 실패", error.message); }
     }),
@@ -2689,9 +2729,8 @@
       const totalCount = records.length + (Array.isArray(data.parts) ? data.parts.length : 0) + (Array.isArray(data.customers) ? data.customers.length : 0) + (Array.isArray(data.orderLog) ? data.orderLog.length : 0) + (Array.isArray(data.repairLog) ? data.repairLog.length : 0) + (Array.isArray(data.subsidyProjects) ? data.subsidyProjects.length : 0) + (Array.isArray(data.subsidyProjectRegistry) ? data.subsidyProjectRegistry.length : 0) + (Array.isArray(data.dailySettlements) ? data.dailySettlements.length : 0) + (Array.isArray(data.restoreHistory) ? data.restoreHistory.length : 0);
       S("백업파일 복원", `${file.name}에서 ${totalCount}건의 데이터를 병합 복원합니다. 계속할까요?`, async () => {
         try {
-          const result = await w("/api/restore", {
+          const result = await adminJson("/api/restore", {
             method: "POST",
-            headers: { "X-Admin-Password": getAdminPassword() },
             body: JSON.stringify({
               records,
               parts: data.parts,
@@ -2736,10 +2775,10 @@
     }),
     document.getElementById("admin-btn-log-refresh") && document.getElementById("admin-btn-log-refresh").addEventListener("click", loadAdminActionLog),
     document.getElementById("admin-btn-log-csv") && document.getElementById("admin-btn-log-csv").addEventListener("click", async () => {
-      try { await downloadWithAuth("/api/admin/action-log/download.csv", "naepo-action-log.csv", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
+      try { await downloadWithAuth("/api/admin/action-log/download.csv", "naepo-action-log.csv"); } catch (error) { I("로그 다운로드 실패", error.message); }
     }),
     document.getElementById("admin-btn-log-json") && document.getElementById("admin-btn-log-json").addEventListener("click", async () => {
-      try { await downloadWithAuth("/api/admin/action-log/download.json", "naepo-action-log.json", { "X-Admin-Password": getAdminPassword() }); } catch (error) { I("로그 다운로드 실패", error.message); }
+      try { await downloadWithAuth("/api/admin/action-log/download.json", "naepo-action-log.json"); } catch (error) { I("로그 다운로드 실패", error.message); }
     }),
     document.addEventListener("keydown", (ev) => {
       const pretty = document.getElementById("pretty-modal-container");
@@ -4421,7 +4460,7 @@
             '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">불러오는 중...</td></tr>'),
             t.classList.add("show"));
           try {
-            const t = await w("/api/__sys/access-log?limit=500");
+            const t = await adminJson("/api/__sys/access-log?limit=500");
             if (!t.length)
               return void (e.innerHTML =
                 '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:16px;">기록이 없습니다.</td></tr>');
@@ -8149,7 +8188,8 @@ function parseEasyInventoryText(text) {
     return pw ? pw.value.trim() : "";
   }
   async function adminApi(path, options = {}) {
-    options.headers = Object.assign({}, options.headers || {}, { "X-Admin-Password": adminPassword() });
+    const token = await ensureAdminToken(adminPassword());
+    options.headers = Object.assign({}, options.headers || {}, { "X-Admin-Token": token });
     return api(path, options);
   }
   function ensureAdminV48() {
