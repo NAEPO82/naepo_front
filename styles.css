@@ -16008,3 +16008,13 @@ tr:hover td{background:#F8FAFC !important;}
     justify-content:center;
   }
 }
+
+
+/* ===== v77.3-daily-manual-delete-20260724 ===== */
+.daily-delete-guide{display:flex;align-items:center;gap:6px;margin-top:8px;color:#64748b;font-size:12px;font-weight:700;line-height:1.45}
+.daily-delete-guide i{color:#0f766e}
+.daily-manage-head,.daily-manage-cell{width:116px;text-align:center;white-space:nowrap}
+.daily-row-delete-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:96px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:9px;background:#f8fafc;color:#334155;font-weight:900;line-height:1;white-space:nowrap;cursor:pointer}
+.daily-row-delete-btn:hover{background:#e2e8f0;border-color:#94a3b8}
+.daily-row-delete-btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:760px){.daily-manage-head,.daily-manage-cell{width:104px}.daily-row-delete-btn{min-width:88px;padding:7px 8px}.daily-row-delete-btn i{margin:0}.daily-row-delete-btn{font-size:11px}}

@@ -6658,7 +6658,7 @@ function parseEasyInventoryText(text) {
 })();
 
 
-/* ===== daily-settlement-report-v35-20260703 ===== */
+/* ===== daily-settlement-report-v77.4-view-only-delete-20260724 ===== */
 (() => {
   const API_BASE = "https://naepo-back.onrender.com";
   const TOKEN_KEY = "npo_session_token";
@@ -6697,6 +6697,7 @@ function parseEasyInventoryText(text) {
     if (payload && Array.isArray(payload.items)) return payload.items;
     return [];
   };
+  const normalizeIds = (value) => [...new Set((Array.isArray(value) ? value : []).map((id) => String(id || "").trim()).filter(Boolean))];
   function getCustomer(row) {
     const company = row.company && row.company !== "-" ? row.company : "";
     const name = row.name && row.name !== "-" ? row.name : "";
@@ -6715,7 +6716,7 @@ function parseEasyInventoryText(text) {
       supply += rowSupply;
       tax += rowTax;
       total += rowTotal;
-      const key = pay.hasOwnProperty(row.payMethod) ? row.payMethod : "미기재";
+      const key = Object.prototype.hasOwnProperty.call(pay, row.payMethod) ? row.payMethod : "미기재";
       pay[key] += rowTotal;
       if (row.payMethod === "외상") {
         if (row.collected) creditPaid += rowTotal;
@@ -6730,15 +6731,144 @@ function parseEasyInventoryText(text) {
     });
     return { supply, tax, total, pay, creditUnpaid, creditPaid, repairTotal, repairUnpaid };
   }
-  let dailyState = { date: today(), records: [], repairs: [], summary: null };
+
+  let dailyState = { date: today(), records: [], repairs: [], settlements: [], summary: null };
+
+  function getSettlement(date) {
+    return dailyState.settlements.find((row) => String(row.date || "") === String(date)) || null;
+  }
+  function getExclusions(date) {
+    const settlement = getSettlement(date) || {};
+    return {
+      recordIds: new Set(normalizeIds(settlement.excludedRecordIds)),
+      repairIds: new Set(normalizeIds(settlement.excludedRepairIds)),
+    };
+  }
+  function getVisibleRows(date) {
+    const exclusions = getExclusions(date);
+    return {
+      records: dailyState.records.filter((row) => String(row.date || "") === String(date) && !exclusions.recordIds.has(String(row.id))),
+      repairs: dailyState.repairs.filter((row) => String(row.date || "") === String(date) && !exclusions.repairIds.has(String(row.id))),
+      excludedRecordIds: [...exclusions.recordIds],
+      excludedRepairIds: [...exclusions.repairIds],
+    };
+  }
+  function replaceSettlement(saved) {
+    const idx = dailyState.settlements.findIndex((row) => String(row.id) === String(saved.id));
+    if (idx >= 0) dailyState.settlements[idx] = saved;
+    else dailyState.settlements.push(saved);
+  }
+  async function saveSettlementPatch(date, patch) {
+    const existing = getSettlement(date) || { id: `daily-${date}`, date };
+    const memoEl = $("daily-report-memo");
+    const payload = {
+      id: existing.id || `daily-${date}`,
+      date,
+      status: existing.status || "정산편집",
+      printedAt: existing.printedAt || null,
+      savedAt: new Date().toISOString(),
+      memo: memoEl ? memoEl.value : (existing.memo || ""),
+      excludedRecordIds: normalizeIds(existing.excludedRecordIds),
+      excludedRepairIds: normalizeIds(existing.excludedRepairIds),
+      ...patch,
+    };
+    const saved = await api("/api/daily-settlements", { method: "POST", body: JSON.stringify(payload) });
+    replaceSettlement(saved);
+    return saved;
+  }
+  function syncMemo(date) {
+    const memoEl = $("daily-report-memo");
+    if (!memoEl) return;
+    const settlement = getSettlement(date);
+    memoEl.value = settlement && settlement.memo ? settlement.memo : "";
+  }
+
+  async function excludeDailyRow(kind, id, button) {
+    const date = $("daily-report-date")?.value || dailyState.date || today();
+    const visible = getVisibleRows(date);
+    const isRecord = kind === "record";
+    const rows = isRecord ? visible.records : visible.repairs;
+    const row = rows.find((item) => String(item.id) === String(id));
+    if (!row) {
+      alert("제외할 내역을 찾지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      return;
+    }
+    const title = isRecord
+      ? `${getCustomer(row)} / ${row.note || (Array.isArray(row.items) && row.items[0] ? row.items[0].item : "거래명세서")}`
+      : `${row.name || "고객"} / ${row.modelName || "수리접수"}`;
+    if (!confirm(`${title}\n\n이 항목을 일일정산서에서만 제외할까요?\n거래명세서와 접수대장 원본 데이터는 삭제되지 않습니다.`)) return;
+
+    const oldHtml = button ? button.innerHTML : "";
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+    try {
+      const settlement = getSettlement(date) || {};
+      const excludedRecordIds = normalizeIds(settlement.excludedRecordIds);
+      const excludedRepairIds = normalizeIds(settlement.excludedRepairIds);
+      const target = isRecord ? excludedRecordIds : excludedRepairIds;
+      if (!target.includes(String(id))) target.push(String(id));
+      await saveSettlementPatch(date, {
+        status: "정산편집",
+        excludedRecordIds,
+        excludedRepairIds,
+      });
+      render();
+      alert("일일정산서에서만 제외했습니다. 거래명세서·접수대장 원본은 그대로 유지됩니다.");
+    } catch (error) {
+      alert("제외 저장 실패: " + (error.message || "서버 오류가 발생했습니다."));
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = oldHtml;
+      }
+    }
+  }
+
+  async function restoreDailyExclusions() {
+    const date = $("daily-report-date")?.value || dailyState.date || today();
+    const settlement = getSettlement(date) || {};
+    const recordCount = normalizeIds(settlement.excludedRecordIds).length;
+    const repairCount = normalizeIds(settlement.excludedRepairIds).length;
+    if (!recordCount && !repairCount) {
+      alert("이 날짜에 일일정산서에서 제외된 내역이 없습니다.");
+      return;
+    }
+    if (!confirm(`${date} 일일정산서에서 제외한 내역을 다시 표시할까요?\n명세서 ${recordCount}건 · 수리접수 ${repairCount}건`)) return;
+    try {
+      await saveSettlementPatch(date, {
+        status: "정산편집",
+        excludedRecordIds: [],
+        excludedRepairIds: [],
+      });
+      render();
+      alert("제외했던 내역을 일일정산서에 다시 표시했습니다.");
+    } catch (error) {
+      alert("복원 실패: " + (error.message || "서버 오류가 발생했습니다."));
+    }
+  }
+
+  function bindDailyDeleteButtons() {
+    const page = $("page-daily-report");
+    if (!page || page.dataset.dailyDeleteBound === "1") return;
+    page.dataset.dailyDeleteBound = "1";
+    page.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-daily-delete-kind][data-daily-delete-id]");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      excludeDailyRow(button.dataset.dailyDeleteKind, button.dataset.dailyDeleteId, button);
+    });
+  }
 
   function render() {
     const dateEl = $("daily-report-date");
     if (!dateEl) return;
     const date = dateEl.value || dailyState.date || today();
     dailyState.date = date;
-    const records = dailyState.records.filter((row) => String(row.date || "") === date);
-    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const visible = getVisibleRows(date);
+    const records = visible.records;
+    const repairs = visible.repairs;
     const sum = summarize(records, repairs);
     dailyState.summary = sum;
 
@@ -6750,62 +6880,64 @@ function parseEasyInventoryText(text) {
     $("daily-credit-breakdown").textContent = `수금완료 ${money(sum.creditPaid)} · 미수 ${money(sum.creditUnpaid)}`;
     $("daily-repair-count").textContent = `${repairs.length}건`;
     $("daily-repair-total").textContent = `수리비 ${money(sum.repairTotal)}원 · 미결제 ${money(sum.repairUnpaid)}원`;
-    $("daily-record-subtitle").textContent = `${date} 거래명세서 ${records.length}건`;
-    $("daily-repair-subtitle").textContent = `${date} 수리접수 ${repairs.length}건`;
+    $("daily-record-subtitle").textContent = `${date} 거래명세서 ${records.length}건${visible.excludedRecordIds.length ? ` · 정산서 제외 ${visible.excludedRecordIds.length}건` : ""}`;
+    $("daily-repair-subtitle").textContent = `${date} 수리접수 ${repairs.length}건${visible.excludedRepairIds.length ? ` · 정산서 제외 ${visible.excludedRepairIds.length}건` : ""}`;
 
     const recordBody = $("daily-record-body");
     recordBody.innerHTML = records.length
-      ? records
-          .map((row) => {
-            const rowTotal = getRecordTotal(row);
-            const creditStatus = row.payMethod === "외상" ? (row.collected ? "수금완료" : "미수") : "-";
-            return `<tr>
-              <td><strong>${safe(getCustomer(row))}</strong>${row.phone ? `<small>${safe(row.phone)}</small>` : ""}</td>
-              <td>${safe(row.part || row.cat || "-")}</td>
-              <td>${safe(row.note || (Array.isArray(row.items) && row.items[0] ? row.items[0].item : "-"))}</td>
-              <td>${safe(row.payMethod || "미기재")}</td>
-              <td class="tr">${money(row.amount)}원</td>
-              <td class="tr">${money(row.tax)}원</td>
-              <td class="tr"><strong>${money(rowTotal)}원</strong></td>
-              <td>${safe(creditStatus)}</td>
-            </tr>`;
-          })
-          .join("")
-      : '<tr><td colspan="8" class="empty-td">해당 날짜의 명세서 내역이 없습니다.</td></tr>';
+      ? records.map((row) => {
+          const rowTotal = getRecordTotal(row);
+          const creditStatus = row.payMethod === "외상" ? (row.collected ? "수금완료" : "미수") : "-";
+          return `<tr>
+            <td><strong>${safe(getCustomer(row))}</strong>${row.phone ? `<small>${safe(row.phone)}</small>` : ""}</td>
+            <td>${safe(row.part || row.cat || "-")}</td>
+            <td>${safe(row.note || (Array.isArray(row.items) && row.items[0] ? row.items[0].item : "-"))}</td>
+            <td>${safe(row.payMethod || "미기재")}</td>
+            <td class="tr">${money(row.amount)}원</td>
+            <td class="tr">${money(row.tax)}원</td>
+            <td class="tr"><strong>${money(rowTotal)}원</strong></td>
+            <td>${safe(creditStatus)}</td>
+            <td class="daily-manage-cell"><button type="button" class="btn btn-sm daily-row-delete-btn" data-daily-delete-kind="record" data-daily-delete-id="${safe(row.id)}" title="일일정산서에서만 제외"><i class="fa-solid fa-eye-slash"></i> 정산서 제외</button></td>
+          </tr>`;
+        }).join("")
+      : '<tr><td colspan="9" class="empty-td">해당 날짜의 명세서 내역이 없습니다.</td></tr>';
 
     const repairBody = $("daily-repair-body");
     repairBody.innerHTML = repairs.length
-      ? repairs
-          .map((row) => `<tr>
-            <td><strong>${safe(row.modelName || "-")}</strong></td>
-            <td>${safe(row.name || "-")}</td>
-            <td>${safe(row.phone || "-")}</td>
-            <td class="daily-detail-cell">${safe(row.repairDetail || "-")}</td>
-            <td class="tr"><strong>${money(row.repairCost)}원</strong></td>
-            <td>${safe(row.contactStatus || "미연락")} / ${row.repairDone ? "수리완료" : "수리미완료"}</td>
-            <td>${row.paid ? "결제완료" : "미결제"}</td>
-          </tr>`)
-          .join("")
-      : '<tr><td colspan="7" class="empty-td">해당 날짜의 접수 내역이 없습니다.</td></tr>';
+      ? repairs.map((row) => `<tr>
+          <td><strong>${safe(row.modelName || "-")}</strong></td>
+          <td>${safe(row.name || "-")}</td>
+          <td>${safe(row.phone || "-")}</td>
+          <td class="daily-detail-cell">${safe(row.repairDetail || "-")}</td>
+          <td class="tr"><strong>${money(row.repairCost)}원</strong></td>
+          <td>${safe(row.contactStatus || "미연락")} / ${row.repairDone ? "수리완료" : "수리미완료"}</td>
+          <td>${row.paid ? "결제완료" : "미결제"}</td>
+          <td class="daily-manage-cell"><button type="button" class="btn btn-sm daily-row-delete-btn" data-daily-delete-kind="repair" data-daily-delete-id="${safe(row.id)}" title="일일정산서에서만 제외"><i class="fa-solid fa-eye-slash"></i> 정산서 제외</button></td>
+        </tr>`).join("")
+      : '<tr><td colspan="8" class="empty-td">해당 날짜의 접수 내역이 없습니다.</td></tr>';
   }
 
   async function load() {
     const dateEl = $("daily-report-date");
     if (!dateEl) return;
     if (!dateEl.value) dateEl.value = dailyState.date || today();
-    const [recordsPayload, repairsPayload] = await Promise.all([
+    const [recordsPayload, repairsPayload, settlementsPayload] = await Promise.all([
       api("/api/records"),
       api("/api/repair-log"),
+      api("/api/daily-settlements?limit=500"),
     ]);
     dailyState.records = asArray(recordsPayload);
     dailyState.repairs = asArray(repairsPayload);
+    dailyState.settlements = asArray(settlementsPayload);
+    syncMemo(dateEl.value || dailyState.date || today());
     render();
   }
 
   function buildPrintHtml() {
     const date = $("daily-report-date").value || dailyState.date || today();
-    const records = dailyState.records.filter((row) => String(row.date || "") === date);
-    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const visible = getVisibleRows(date);
+    const records = visible.records;
+    const repairs = visible.repairs;
     const sum = summarize(records, repairs);
     const memo = $("daily-report-memo") ? $("daily-report-memo").value.trim() : "";
     const rowsRecords = records.length
@@ -6817,115 +6949,84 @@ function parseEasyInventoryText(text) {
 
     return `<!doctype html><html><head><meta charset="utf-8"><title>일일정산서 ${safe(date)}</title><style>
       *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;background:#fff;color:#111827}
-      .sheet{width:190mm;margin:0 auto;padding:10mm 8mm}
-      .head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:10px}
-      h1{font-size:24px;margin:0;letter-spacing:-.04em}.date{font-size:15px;font-weight:900;color:#0f766e}
-      .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:9px 0 10px}
-      .box{border:1px solid #cbd5e1;border-radius:8px;padding:7px 8px}.box span{display:block;font-size:10px;color:#64748b;font-weight:800}.box b{font-size:13px}
-      h2{font-size:14px;margin:12px 0 6px;color:#0f172a}
-      table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}
-      th,td{border:1px solid #cbd5e1;padding:5px 5px;vertical-align:middle;word-break:keep-all}
-      th{background:#f1f5f9;font-weight:900;color:#334155;text-align:center}.num{text-align:right;font-family:Consolas,'Courier New',monospace}.empty{text-align:center;color:#94a3b8;padding:12px}
-      .memo{margin-top:12px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;min-height:24mm;white-space:pre-wrap;font-size:11px}
-      .foot{margin-top:10px;text-align:right;font-size:10px;color:#64748b}
+      .sheet{width:190mm;margin:0 auto;padding:10mm 8mm}.head{display:flex;align-items:flex-end;justify-content:space-between;border-bottom:2px solid #0f766e;padding-bottom:8px;margin-bottom:10px}
+      h1{font-size:24px;margin:0;letter-spacing:-.04em}.date{font-size:15px;font-weight:900;color:#0f766e}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:9px 0 10px}
+      .box{border:1px solid #cbd5e1;border-radius:8px;padding:7px 8px}.box span{display:block;font-size:10px;color:#64748b;font-weight:800}.box b{font-size:13px}h2{font-size:14px;margin:12px 0 6px;color:#0f172a}
+      table{width:100%;border-collapse:collapse;font-size:10.5px;table-layout:fixed}th,td{border:1px solid #cbd5e1;padding:5px 5px;vertical-align:middle;word-break:keep-all}th{background:#f1f5f9;font-weight:900;color:#334155;text-align:center}.num{text-align:right;font-family:Consolas,'Courier New',monospace}.empty{text-align:center;color:#94a3b8;padding:12px}
+      .memo{margin-top:12px;border:1px solid #cbd5e1;border-radius:8px;padding:8px;min-height:24mm;white-space:pre-wrap;font-size:11px}.foot{margin-top:10px;text-align:right;font-size:10px;color:#64748b}
       @media print{@page{size:A4 portrait;margin:7mm}.sheet{width:auto;margin:0;padding:0}table{font-size:9.5px}th,td{padding:4px}}
     </style></head><body><div class="sheet">
       <div class="head"><div><h1>일일정산서</h1><div style="font-size:11px;color:#64748b;margin-top:2px">내포농기계 보고용 정산 자료</div></div><div class="date">${safe(date)}</div></div>
-      <div class="summary">
-        <div class="box"><span>명세서</span><b>${records.length}건 / ${money(sum.total)}원</b></div>
-        <div class="box"><span>현금·카드·계좌</span><b>${money(sum.pay.현금 + sum.pay.카드 + sum.pay.계좌이체)}원</b></div>
-        <div class="box"><span>외상/미수</span><b>${money(sum.pay.외상)}원 / 미수 ${money(sum.creditUnpaid)}원</b></div>
-        <div class="box"><span>수리접수</span><b>${repairs.length}건 / ${money(sum.repairTotal)}원</b></div>
-      </div>
-      <h2>1. 명세서 내역</h2>
-      <table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th>분류</th><th>대표품목</th><th style="width:18mm">결제</th><th style="width:20mm">공급가액</th><th style="width:16mm">세액</th><th style="width:20mm">합계</th></tr></thead><tbody>${rowsRecords}</tbody></table>
-      <h2>2. 수리접수내역</h2>
-      <table><thead><tr><th style="width:7mm">No</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th style="width:19mm">수리비</th><th style="width:18mm">연락</th><th style="width:18mm">결제</th></tr></thead><tbody>${rowsRepairs}</tbody></table>
-      <h2>3. 보고 메모</h2>
-      <div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div>
-      <div class="foot">보고완료 · 정산서 저장 · 출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div>
+      <div class="summary"><div class="box"><span>명세서</span><b>${records.length}건 / ${money(sum.total)}원</b></div><div class="box"><span>현금·카드·계좌</span><b>${money(sum.pay.현금 + sum.pay.카드 + sum.pay.계좌이체)}원</b></div><div class="box"><span>외상/미수</span><b>${money(sum.pay.외상)}원 / 미수 ${money(sum.creditUnpaid)}원</b></div><div class="box"><span>수리접수</span><b>${repairs.length}건 / ${money(sum.repairTotal)}원</b></div></div>
+      <h2>1. 명세서 내역</h2><table><thead><tr><th style="width:7mm">No</th><th>거래처</th><th>분류</th><th>대표품목</th><th style="width:18mm">결제</th><th style="width:20mm">공급가액</th><th style="width:16mm">세액</th><th style="width:20mm">합계</th></tr></thead><tbody>${rowsRecords}</tbody></table>
+      <h2>2. 수리접수내역</h2><table><thead><tr><th style="width:7mm">No</th><th>모델명</th><th>성함</th><th>연락처</th><th>수리내역</th><th style="width:19mm">수리비</th><th style="width:18mm">연락</th><th style="width:18mm">결제</th></tr></thead><tbody>${rowsRepairs}</tbody></table>
+      <h2>3. 보고 메모</h2><div class="memo">${memo ? safe(memo) : "특이사항 없음"}</div><div class="foot">보고완료 · 정산서 저장 · 출력일시: ${safe(new Date().toLocaleString("ko-KR"))}</div>
     </div></body></html>`;
   }
 
   function printReport() {
     const html = buildPrintHtml();
     const frame = document.createElement("iframe");
-    frame.style.position = "fixed";
-    frame.style.right = "0";
-    frame.style.bottom = "0";
-    frame.style.width = "0";
-    frame.style.height = "0";
-    frame.style.border = "0";
+    frame.style.position = "fixed"; frame.style.right = "0"; frame.style.bottom = "0"; frame.style.width = "0"; frame.style.height = "0"; frame.style.border = "0";
     document.body.appendChild(frame);
     const doc = frame.contentWindow.document;
-    doc.open();
-    doc.write(html);
-    doc.close();
-    setTimeout(() => {
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-      setTimeout(() => frame.remove(), 1000);
-    }, 180);
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); setTimeout(() => frame.remove(), 1000); }, 180);
   }
 
   function downloadCsv() {
     const date = $("daily-report-date").value || dailyState.date || today();
-    const records = dailyState.records.filter((row) => String(row.date || "") === date);
-    const repairs = dailyState.repairs.filter((row) => String(row.date || "") === date);
+    const visible = getVisibleRows(date);
+    const records = visible.records;
+    const repairs = visible.repairs;
     const lines = [];
     const escCsv = (v) => `"${String(v == null ? "" : v).replace(/"/g, '""')}"`;
     lines.push("구분,날짜,거래처/성함,연락처,분류/모델명,내용,결제/연락,공급가액/수리비,세액,합계/결제여부");
-    records.forEach((row) => lines.push([
-      "명세서", row.date, getCustomer(row), row.phone || "", row.part || "", row.note || "", row.payMethod || "미기재", row.amount || 0, row.tax || 0, getRecordTotal(row)
-    ].map(escCsv).join(",")));
-    repairs.forEach((row) => lines.push([
-      "수리접수", row.date, row.name || "", row.phone || "", row.modelName || "", row.repairDetail || "", row.contactStatus || "미연락", row.repairCost || 0, "", row.paid ? "결제완료" : "미결제"
-    ].map(escCsv).join(",")));
+    records.forEach((row) => lines.push(["명세서", row.date, getCustomer(row), row.phone || "", row.part || "", row.note || "", row.payMethod || "미기재", row.amount || 0, row.tax || 0, getRecordTotal(row)].map(escCsv).join(",")));
+    repairs.forEach((row) => lines.push(["수리접수", row.date, row.name || "", row.phone || "", row.modelName || "", row.repairDetail || "", row.contactStatus || "미연락", row.repairCost || 0, "", row.paid ? "결제완료" : "미결제"].map(escCsv).join(",")));
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `일일정산서-${date}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = `일일정산서-${date}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
 
   function showDailyPage() {
     document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("on", tab.id === "tab-daily"));
-    document.querySelectorAll("main > div[id^='page-']").forEach((page) => {
-      page.style.display = page.id === "page-daily-report" ? "block" : "none";
-    });
+    document.querySelectorAll("main > div[id^='page-']").forEach((page) => { page.style.display = page.id === "page-daily-report" ? "block" : "none"; });
     history.pushState({ tab: "daily" }, "", "#daily");
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     load().catch((e) => alert(e.message));
   }
 
+  function snapshot(date) {
+    const targetDate = date || $("daily-report-date")?.value || dailyState.date || today();
+    const visible = getVisibleRows(targetDate);
+    return {
+      date: targetDate,
+      records: visible.records,
+      repairs: visible.repairs,
+      excludedRecordIds: visible.excludedRecordIds,
+      excludedRepairIds: visible.excludedRepairIds,
+      memo: $("daily-report-memo") ? $("daily-report-memo").value : ((getSettlement(targetDate) || {}).memo || ""),
+      settlement: getSettlement(targetDate),
+    };
+  }
+
   function init() {
     if (!$("page-daily-report") || !$("tab-daily")) return;
     $("daily-report-date").value = today();
-    $("tab-daily").addEventListener("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      showDailyPage();
-    });
-    $("daily-report-date").addEventListener("change", render);
-    $("daily-report-date").addEventListener("click", () => {
-      const el = $("daily-report-date");
-      try { if (el.showPicker) el.showPicker(); else el.focus(); } catch (_) { el.focus(); }
-    });
-    $("daily-report-today").addEventListener("click", () => {
-      $("daily-report-date").value = today();
-      render();
-    });
+    $("tab-daily").addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); showDailyPage(); });
+    $("daily-report-date").addEventListener("change", () => { dailyState.date = $("daily-report-date").value || today(); syncMemo(dailyState.date); render(); });
+    $("daily-report-date").addEventListener("click", () => { const el = $("daily-report-date"); try { if (el.showPicker) el.showPicker(); else el.focus(); } catch (_) { el.focus(); } });
+    $("daily-report-today").addEventListener("click", () => { $("daily-report-date").value = today(); dailyState.date = today(); syncMemo(dailyState.date); render(); });
     $("daily-report-refresh").addEventListener("click", () => load().catch((e) => alert(e.message)));
+    $("daily-report-restore-excluded")?.addEventListener("click", restoreDailyExclusions);
     $("daily-report-print").addEventListener("click", printReport);
     $("daily-report-csv").addEventListener("click", downloadCsv);
+    bindDailyDeleteButtons();
     if (location.hash === "#daily") setTimeout(showDailyPage, 0);
   }
 
-  window.NaepoDailyReport = { render, load, show: showDailyPage };
+  window.NaepoDailyReport = { render, load, show: showDailyPage, excludeRow: excludeDailyRow, restoreExcluded: restoreDailyExclusions, snapshot };
   document.addEventListener("DOMContentLoaded", init);
 })();
 
@@ -7253,10 +7354,22 @@ function parseEasyInventoryText(text) {
   }
   async function printEnhancedDailyReport() {
     const date = $("daily-report-date") && $("daily-report-date").value ? $("daily-report-date").value : today();
-    const memo = $("daily-report-memo") ? $("daily-report-memo").value.trim() : "";
-    const [recordsPayload, repairsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log")]);
-    const records = asArray(recordsPayload).filter((row) => String(row.date || "") === date);
-    const repairs = asArray(repairsPayload).filter((row) => String(row.date || "") === date);
+    let memo = $("daily-report-memo") ? $("daily-report-memo").value.trim() : "";
+    let records = [];
+    let repairs = [];
+    if (window.NaepoDailyReport && typeof window.NaepoDailyReport.snapshot === "function") {
+      const snap = window.NaepoDailyReport.snapshot(date);
+      records = snap.records || [];
+      repairs = snap.repairs || [];
+      memo = String(snap.memo || memo).trim();
+    } else {
+      const [recordsPayload, repairsPayload, settlementsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log"), api(`/api/daily-settlements?date=${encodeURIComponent(date)}`)]);
+      const settlement = asArray(settlementsPayload)[0] || {};
+      const excludedRecords = new Set(Array.isArray(settlement.excludedRecordIds) ? settlement.excludedRecordIds.map(String) : []);
+      const excludedRepairs = new Set(Array.isArray(settlement.excludedRepairIds) ? settlement.excludedRepairIds.map(String) : []);
+      records = asArray(recordsPayload).filter((row) => String(row.date || "") === date && !excludedRecords.has(String(row.id)));
+      repairs = asArray(repairsPayload).filter((row) => String(row.date || "") === date && !excludedRepairs.has(String(row.id)));
+    }
     const html = buildEnhancedDailyPrint(date, records, repairs, memo);
     const frame = document.createElement("iframe");
     frame.style.position = "fixed"; frame.style.right = "0"; frame.style.bottom = "0"; frame.style.width = "0"; frame.style.height = "0"; frame.style.border = "0";
@@ -8205,16 +8318,36 @@ function parseEasyInventoryText(text) {
   // 일일정산서 인쇄 시 보고완료 저장
   async function saveDailySettlementBeforePrint() {
     const date = $("daily-report-date")?.value || todayStr();
-    const memo = $("daily-report-memo")?.value || "";
-    const [recordsPayload, repairsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log")]);
-    const records = asArray(recordsPayload).filter((r)=>String(r.date || "") === date);
-    const repairs = asArray(repairsPayload).filter((r)=>String(r.date || "") === date);
+    let memo = $("daily-report-memo")?.value || "";
+    let records = [];
+    let repairs = [];
+    let excludedRecordIds = [];
+    let excludedRepairIds = [];
+    if (window.NaepoDailyReport && typeof window.NaepoDailyReport.snapshot === "function") {
+      const snap = window.NaepoDailyReport.snapshot(date);
+      records = snap.records || [];
+      repairs = snap.repairs || [];
+      excludedRecordIds = snap.excludedRecordIds || [];
+      excludedRepairIds = snap.excludedRepairIds || [];
+      memo = snap.memo || memo;
+    } else {
+      const [recordsPayload, repairsPayload, settlementsPayload] = await Promise.all([api("/api/records"), api("/api/repair-log"), api(`/api/daily-settlements?date=${encodeURIComponent(date)}`)]);
+      const settlement = asArray(settlementsPayload)[0] || {};
+      excludedRecordIds = Array.isArray(settlement.excludedRecordIds) ? settlement.excludedRecordIds : [];
+      excludedRepairIds = Array.isArray(settlement.excludedRepairIds) ? settlement.excludedRepairIds : [];
+      const excludedRecords = new Set(excludedRecordIds.map(String));
+      const excludedRepairs = new Set(excludedRepairIds.map(String));
+      records = asArray(recordsPayload).filter((r)=>String(r.date || "") === date && !excludedRecords.has(String(r.id)));
+      repairs = asArray(repairsPayload).filter((r)=>String(r.date || "") === date && !excludedRepairs.has(String(r.id)));
+    }
     const total = records.reduce((s,r)=>s+recordTotal(r),0);
     const repairTotal = repairs.reduce((s,r)=>s+(Number(r.repairCost)||0),0);
     await api("/api/daily-settlements", {
       method: "POST",
       body: JSON.stringify({
-        date, memo, records, repairs,
+        id: `daily-${date}`,
+        date, memo, records, repairs, excludedRecordIds, excludedRepairIds,
+        status: "보고완료",
         summary: { recordCount: records.length, repairCount: repairs.length, total, repairTotal, savedBy: "print" },
         printedAt: new Date().toISOString(),
       }),
