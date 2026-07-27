@@ -16018,3 +16018,158 @@ tr:hover td{background:#F8FAFC !important;}
 .daily-row-delete-btn:hover{background:#e2e8f0;border-color:#94a3b8}
 .daily-row-delete-btn:disabled{opacity:.6;cursor:wait}
 @media(max-width:760px){.daily-manage-head,.daily-manage-cell{width:104px}.daily-row-delete-btn{min-width:88px;padding:7px 8px}.daily-row-delete-btn i{margin:0}.daily-row-delete-btn{font-size:11px}}
+
+/* ===== v77.5 거래내역 월말정산 PDF ===== */
+.records-monthly-pdf-modal-v775{
+  position:fixed;
+  inset:0;
+  z-index:10080;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.records-monthly-pdf-modal-v775.show{display:flex}
+.records-monthly-pdf-backdrop-v775{
+  position:absolute;
+  inset:0;
+  background:rgba(15,23,42,.58);
+  backdrop-filter:blur(3px);
+}
+.records-monthly-pdf-box-v775{
+  position:relative;
+  width:min(760px,96vw);
+  max-height:90vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:18px;
+  box-shadow:0 28px 70px rgba(15,23,42,.3);
+  padding:22px;
+}
+.records-monthly-pdf-head-v775{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding-bottom:14px;
+  border-bottom:1px solid #e2e8f0;
+}
+.records-monthly-pdf-head-v775 strong{
+  display:block;
+  color:#991b1b;
+  font-size:17px;
+  font-weight:900;
+}
+.records-monthly-pdf-head-v775 small{
+  display:block;
+  color:#64748b;
+  font-size:12px;
+  margin-top:5px;
+}
+.records-monthly-pdf-form-v775{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;
+  margin-top:16px;
+}
+.records-monthly-pdf-form-v775 label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  color:#334155;
+  font-size:12px;
+  font-weight:800;
+}
+.records-monthly-pdf-form-v775 input[type="month"],
+.records-monthly-pdf-form-v775 input[type="date"]{
+  width:100%;
+  min-height:40px;
+  border:1px solid #cbd5e1;
+  border-radius:9px;
+  padding:8px 10px;
+  background:#fff;
+  color:#0f172a;
+}
+.records-monthly-check-v775{
+  grid-column:1/-1;
+  flex-direction:row!important;
+  align-items:center;
+  gap:8px!important;
+  padding:10px 12px;
+  border:1px solid #e2e8f0;
+  border-radius:9px;
+  background:#f8fafc;
+  cursor:pointer;
+}
+.records-monthly-check-v775 input{
+  width:16px;
+  height:16px;
+  accent-color:#991b1b;
+}
+.records-monthly-pdf-note-v775{
+  display:flex;
+  align-items:flex-start;
+  gap:8px;
+  margin-top:12px;
+  padding:11px 12px;
+  border:1px solid #fecaca;
+  border-radius:10px;
+  background:#fff7f7;
+  color:#7f1d1d;
+  font-size:12px;
+  line-height:1.55;
+}
+.records-monthly-pdf-actions-v775{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:16px;
+}
+#record-monthly-status-v775{
+  color:#64748b;
+  font-size:12px;
+}
+@media(max-width:720px){
+  .records-monthly-pdf-form-v775{grid-template-columns:1fr}
+  .records-monthly-check-v775{grid-column:auto}
+  .records-monthly-pdf-actions-v775{align-items:stretch;flex-direction:column}
+  .records-monthly-pdf-actions-v775 .btn{width:100%}
+}
+
+/* ===== v77.6 inventory monthly category filter fix ===== */
+.monthly-source-note-v776{
+  display:flex;
+  align-items:flex-start;
+  gap:7px;
+  margin:0 0 12px;
+  padding:9px 11px;
+  border:1px solid #fcd34d;
+  border-radius:10px;
+  background:#fffbeb;
+  color:#78350f;
+  font-size:12px;
+  line-height:1.5;
+}
+.monthly-source-note-v776 i{margin-top:2px;color:#d97706}
+.monthly-source-badge-v776{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+  padding:2px 7px;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:800;
+}
+.monthly-source-badge-v776.is-log{
+  color:#047857;
+  border-color:#a7f3d0;
+  background:#ecfdf5;
+}
+.monthly-source-badge-v776.is-record{
+  color:#c2410c;
+  border-color:#fed7aa;
+  background:#fff7ed;
+}

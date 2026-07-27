@@ -10464,17 +10464,33 @@ function parseEasyInventoryText(text) {
 })();
 
 
-/* ===== v65-inventory-monthly-settlement-report-20260715 =====
-   재고관리 전체 품목 + 계통/자체 출고까지 월말정산 보고서로 표시
+/* ===== v77.6-inventory-monthly-category-filter-fix-20260727 =====
+   월말정산/재고 보고의 물품구분 필터 보완
+   - 재고 품목의 구형 값(계통/자체)도 계통물품/자체물품으로 정규화
+   - 거래내역의 분류(cat)가 계통/자체이면 출고 분류에 우선 반영
+   - 예전 거래처럼 재고 출고 로그가 없더라도 거래내역 품목을 보완행으로 집계
+   - 실제 재고 원본과 거래내역 원본은 수정하지 않고 보고서 표시만 보완
 */
 (() => {
   const API_BASE = "https://naepo-back.onrender.com";
   const TOKEN_KEY = "npo_session_token";
   const $ = (id) => document.getElementById(id);
-  const token = () => { try { return sessionStorage.getItem(TOKEN_KEY) || ""; } catch (_) { return ""; } };
-  const safe = (v) => String(v == null ? "" : v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  const token = () => {
+    try { return sessionStorage.getItem(TOKEN_KEY) || ""; }
+    catch (_) { return ""; }
+  };
+  const safe = (v) => String(v == null ? "" : v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
   const money = (v) => (Number(v) || 0).toLocaleString("ko-KR");
-  const asArray = (payload) => Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+  const asArray = (payload) => Array.isArray(payload)
+    ? payload
+    : payload && Array.isArray(payload.items)
+      ? payload.items
+      : [];
 
   async function api(path) {
     const headers = {};
@@ -10485,30 +10501,155 @@ function parseEasyInventoryText(text) {
     if (!res.ok) throw new Error((data && data.error) || `서버 오류 (${res.status})`);
     return data;
   }
-  function today() { return new Date().toISOString().slice(0, 10); }
+
+  async function fetchAll(path, limit = 500) {
+    const all = [];
+    const seen = new Set();
+    let page = 1;
+    let pages = 1;
+    do {
+      const join = path.includes("?") ? "&" : "?";
+      const payload = await api(`${path}${join}page=${page}&limit=${limit}`);
+      const rows = asArray(payload);
+      const isPlainArrayPayload = Array.isArray(payload);
+      rows.forEach((row, idx) => {
+        const key = String(row && row.id ? row.id : `${page}|${idx}|${JSON.stringify(row)}`);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(row);
+      });
+      const reportedPages = Number(payload && payload.pages);
+      if (isPlainArrayPayload) pages = page;
+      else if (reportedPages > 0) pages = reportedPages;
+      else pages = rows.length < limit ? page : page + 1;
+      page += 1;
+      if (page > 200) break;
+    } while (page <= pages);
+    return all;
+  }
+
+  function today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   function monthStart() {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-01`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   }
+
+  function normalizeInventoryClass(value, fallback = "일반판매") {
+    const raw = String(value || "").trim();
+    if (!raw) return fallback;
+    if (/계통/.test(raw)) return "계통물품";
+    if (/자체/.test(raw)) return "자체물품";
+    if (/수리/.test(raw)) return "수리부품";
+    if (/보조/.test(raw)) return "보조사업";
+    if (/일반|판매/.test(raw)) return "일반판매";
+    return fallback || raw;
+  }
+
+  function partInventoryClass(part) {
+    if (!part) return "일반판매";
+    return normalizeInventoryClass(
+      part.inventoryClass || part.itemClass || part.saleType || part.classification || part.category,
+      "일반판매",
+    );
+  }
+
+  function recordInventoryClass(record) {
+    if (!record) return "";
+    return normalizeInventoryClass(
+      record.cat || record.category || record.majorCategory || record.saleType || record.partClass,
+      "",
+    );
+  }
+
+
+  function buildInferredPartClasses(parts, records, from, to) {
+    const partMap = new Map(parts.map((part) => [String(part.id), part]));
+    const candidates = new Map();
+    records.forEach((record) => {
+      const date = recordDate(record);
+      if (!date || (from && date < from) || (to && date > to)) return;
+      const cls = recordInventoryClass(record);
+      if (!cls || cls === "일반판매") return;
+      (Array.isArray(record.items) ? record.items : []).forEach((item) => {
+        const part = findPart(parts, partMap, item);
+        const name = exactItemName(item) || String(part && part.name || "").trim();
+        const keys = [];
+        if (part && part.id) keys.push(`id:${part.id}`);
+        if (name) keys.push(`name:${name}`);
+        keys.forEach((key) => {
+          if (!candidates.has(key)) candidates.set(key, new Set());
+          candidates.get(key).add(cls);
+        });
+      });
+    });
+    const inferred = new Map();
+    candidates.forEach((classes, key) => {
+      if (classes.size === 1) inferred.set(key, [...classes][0]);
+    });
+    return inferred;
+  }
+
+  function stripGroupPrefix(value) {
+    return String(value || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+  }
+
+  function exactItemName(item) {
+    return stripGroupPrefix(item && (item.item || item.name || item.partName || ""));
+  }
+
+  function findPart(parts, partMap, itemOrLog) {
+    const partId = String(itemOrLog && itemOrLog.partId || "").trim();
+    if (partId && partMap.has(partId)) return partMap.get(partId);
+    const rawName = String(itemOrLog && (itemOrLog.partName || itemOrLog.item || itemOrLog.name) || "").trim();
+    const baseName = stripGroupPrefix(rawName);
+    return parts.find((p) => String(p.name || "").trim() === rawName)
+      || parts.find((p) => String(p.name || "").trim() === baseName)
+      || null;
+  }
+
+  function recordDate(record) {
+    return String(record && record.date || "").slice(0, 10);
+  }
+
   function customerFromRecord(record, fallback) {
     if (!record) return String(fallback || "미지정").replace(/님$/, "");
     const company = String(record.company || "").trim();
     const name = String(record.name || "").trim();
     const region = String(record.region || "").trim();
     if (company && company !== "-") return company;
-    if (name) return name;
+    if (name && name !== "-") return name;
     return region || String(fallback || "미지정").replace(/님$/, "");
   }
+
+  function rowAmount(row) {
+    if (row && row.amountOverride !== undefined && row.amountOverride !== null) {
+      return Number(row.amountOverride) || 0;
+    }
+    return (Number(row && row.qty) || 0) * (Number(row && row.unitPrice) || 0);
+  }
+
   function groupRows(list, keyFn) {
     const map = new Map();
     list.forEach((r) => {
       const keyObj = keyFn(r);
       const key = typeof keyObj === "string" ? keyObj : keyObj.key;
-      const cur = map.get(key) || Object.assign({ key, count: 0, qty: 0, amount: 0, latest: "", itemSet: new Set(), itemQtyMap: new Map() }, typeof keyObj === "string" ? {} : keyObj);
+      const cur = map.get(key) || Object.assign({
+        key,
+        count: 0,
+        qty: 0,
+        amount: 0,
+        latest: "",
+        itemSet: new Set(),
+        itemQtyMap: new Map(),
+      }, typeof keyObj === "string" ? {} : keyObj);
       const qty = Number(r.qty) || 0;
       cur.count += 1;
       cur.qty += qty;
-      cur.amount += qty * (Number(r.unitPrice) || 0);
+      cur.amount += rowAmount(r);
       if (r.partName) {
         cur.itemSet.add(r.partName);
         cur.itemQtyMap.set(r.partName, (cur.itemQtyMap.get(r.partName) || 0) + qty);
@@ -10518,9 +10659,12 @@ function parseEasyInventoryText(text) {
     });
     return [...map.values()].map((x) => Object.assign(x, {
       itemCount: x.itemSet ? x.itemSet.size : 0,
-      itemSummary: x.itemQtyMap ? [...x.itemQtyMap.entries()].map(([name, qty]) => `${name} ${money(qty)}개`).join(" / ") : "",
+      itemSummary: x.itemQtyMap
+        ? [...x.itemQtyMap.entries()].map(([name, qty]) => `${name} ${money(qty)}개`).join(" / ")
+        : "",
     }));
   }
+
   function ensureModal() {
     let modal = $("inventory-monthly-report-modal-v65");
     if (modal) return modal;
@@ -10540,7 +10684,7 @@ function parseEasyInventoryText(text) {
         <div class="inventory-monthly-filter">
           <label>시작일<input type="date" id="monthly-from-v65"></label>
           <label>종료일<input type="date" id="monthly-to-v65"></label>
-          <label>물품구분<select id="monthly-class-v65"><option value="">전체</option><option>계통물품</option><option>자체물품</option><option>일반판매</option><option>수리부품</option><option>보조사업</option></select></label>
+          <label>물품구분<select id="monthly-class-v65"><option value="">전체</option><option value="계통물품">계통물품</option><option value="자체물품">자체물품</option><option value="일반판매">일반판매</option><option value="수리부품">수리부품</option><option value="보조사업">보조사업</option></select></label>
           <label>농협/거래처<input id="monthly-customer-v65" placeholder="예: 홍성농협"></label>
           <label>품목명<input id="monthly-part-v65" placeholder="예: 분무기"></label>
           <button type="button" class="btn btn-p btn-sm" id="monthly-run-v65"><i class="fa-solid fa-rotate"></i> 조회</button>
@@ -10552,103 +10696,245 @@ function parseEasyInventoryText(text) {
     $("monthly-to-v65").value = today();
     return modal;
   }
+
   function table(title, headers, rows, rowFn) {
-    return `<h4>${safe(title)}</h4><table class="monthly-table"><thead><tr>${headers.map((h)=>`<th>${safe(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map(rowFn).join("") : `<tr><td colspan="${headers.length}" class="empty">내역 없음</td></tr>`}</tbody></table>`;
+    return `<h4>${safe(title)}</h4><table class="monthly-table"><thead><tr>${headers.map((h) => `<th>${safe(h)}</th>`).join("")}</tr></thead><tbody>${rows.length ? rows.map(rowFn).join("") : `<tr><td colspan="${headers.length}" class="empty">내역 없음</td></tr>`}</tbody></table>`;
   }
-  function render(parts, logs, records) {
-    const recordMap = new Map(records.map((r) => [String(r.id), r]));
+
+  function buildActualOutRows(parts, records, logs, from, to) {
     const partMap = new Map(parts.map((p) => [String(p.id), p]));
+    const recordMap = new Map(records.map((r) => [String(r.id), r]));
+    return logs
+      .filter((log) => {
+        if (String(log.type || "") !== "out") return false;
+        const related = recordMap.get(String(log.relatedRecordId || ""));
+        const date = String(log.date || recordDate(related) || "").slice(0, 10);
+        if (from && date < from) return false;
+        if (to && date > to) return false;
+        return true;
+      })
+      .map((log) => {
+        const record = recordMap.get(String(log.relatedRecordId || ""));
+        const part = findPart(parts, partMap, log) || {};
+        const transactionClass = recordInventoryClass(record);
+        const inventoryClass = transactionClass || partInventoryClass(part);
+        return Object.assign({}, log, {
+          date: String(log.date || recordDate(record) || "").slice(0, 10),
+          partName: log.partName || part.name || "-",
+          customer: customerFromRecord(record, log.relatedRecordCustomer),
+          inventoryClass,
+          storageLocation: part.storageLocation || part.location || "",
+          source: "재고 출고기록",
+          sourceType: "inventory-log",
+        });
+      });
+  }
+
+  function buildRecordSupplementRows(parts, records, actualRows, from, to) {
+    const partMap = new Map(parts.map((p) => [String(p.id), p]));
+    const actualQty = new Map();
+    const actualRecordIds = new Set();
+
+    actualRows.forEach((row) => {
+      const recordId = String(row.relatedRecordId || "");
+      if (recordId) actualRecordIds.add(recordId);
+      const part = findPart(parts, partMap, row);
+      const name = stripGroupPrefix(row.partName || part && part.name || "");
+      const identity = String(row.partId || part && part.id || `name:${name}`);
+      if (!recordId || !identity) return;
+      const key = `${recordId}|${identity}`;
+      actualQty.set(key, (actualQty.get(key) || 0) + (Number(row.qty) || 0));
+    });
+
+    const supplement = [];
+    records.forEach((record) => {
+      const date = recordDate(record);
+      if (!date || (from && date < from) || (to && date > to)) return;
+      const recordId = String(record.id || "");
+      const inventoryClass = recordInventoryClass(record);
+      const items = Array.isArray(record.items) ? record.items : [];
+
+      if (items.length) {
+        items.forEach((item) => {
+          const part = findPart(parts, partMap, item);
+          const name = exactItemName(item) || String(part && part.name || "").trim();
+          if (!name) return;
+          const qty = Number(item.qty) || 0;
+          if (qty <= 0) return;
+          const identity = String(item.partId || part && part.id || `name:${name}`);
+          const key = `${recordId}|${identity}`;
+          const loggedQty = actualQty.get(key) || 0;
+          const missingQty = Math.max(0, qty - loggedQty);
+          if (missingQty <= 0) return;
+          actualQty.set(key, loggedQty + missingQty);
+          const unitPrice = Number(item.price) || (Number(item.amount) && qty ? Number(item.amount) / qty : Number(part && part.unitPrice) || 0);
+          const amountOverride = Number(item.amount) && qty ? Number(item.amount) * (missingQty / qty) : missingQty * unitPrice;
+          supplement.push({
+            id: `record-supplement-${recordId}-${identity}`,
+            date,
+            partId: item.partId || part && part.id || "",
+            partName: name,
+            type: "out",
+            qty: missingQty,
+            unitPrice,
+            amountOverride,
+            relatedRecordId: recordId,
+            customer: customerFromRecord(record, ""),
+            inventoryClass: inventoryClass || partInventoryClass(part),
+            storageLocation: part && (part.storageLocation || part.location) || "",
+            note: "재고 출고기록이 없는 거래내역을 보고서에 보완 표시",
+            source: "거래내역 보완",
+            sourceType: "record-supplement",
+          });
+        });
+        return;
+      }
+
+      if (actualRecordIds.has(recordId)) return;
+      const legacyName = stripGroupPrefix(record.part || record.note || "구형 거래기록") || "구형 거래기록";
+      const supplyAmount = Number(record.amount) || 0;
+      supplement.push({
+        id: `record-legacy-${recordId}`,
+        date,
+        partId: "",
+        partName: legacyName,
+        type: "out",
+        qty: 1,
+        unitPrice: supplyAmount,
+        amountOverride: supplyAmount,
+        relatedRecordId: recordId,
+        customer: customerFromRecord(record, ""),
+        inventoryClass: inventoryClass || "일반판매",
+        storageLocation: "",
+        note: "품목 상세/재고 출고기록이 없는 구형 거래내역",
+        source: "구형 거래내역",
+        sourceType: "legacy-record",
+      });
+    });
+    return supplement;
+  }
+
+  function render(parts, logs, records) {
     const cls = $("monthly-class-v65")?.value || "";
     const customerQ = String($("monthly-customer-v65")?.value || "").trim().toLowerCase();
     const partQ = String($("monthly-part-v65")?.value || "").trim().toLowerCase();
     const from = $("monthly-from-v65")?.value || "";
     const to = $("monthly-to-v65")?.value || "";
 
-    const filteredParts = parts.filter((p) => {
-      const pcls = p.inventoryClass || p.itemClass || p.saleType || "일반판매";
-      if (cls && pcls !== cls) return false;
-      if (partQ && !String(p.name || "").toLowerCase().includes(partQ)) return false;
-      return true;
-    });
-
-    const outLogs = logs.filter((l) => {
-      if (l.type !== "out") return false;
-      const d = String(l.date || "").slice(0,10);
-      if (from && d < from) return false;
-      if (to && d > to) return false;
-      return true;
-    }).map((l) => {
-      const part = partMap.get(String(l.partId)) || parts.find((p) => String(p.name || "") === String(l.partName || "")) || {};
-      const record = recordMap.get(String(l.relatedRecordId || ""));
-      const pcls = part.inventoryClass || part.itemClass || part.saleType || "일반판매";
-      const customer = customerFromRecord(record, l.relatedRecordCustomer);
-      return Object.assign({}, l, {
-        date: String(l.date || "").slice(0,10),
-        partName: l.partName || part.name || "-",
-        customer,
-        inventoryClass: pcls,
+    const inferredPartClasses = buildInferredPartClasses(parts, records, from, to);
+    const normalizedParts = parts.map((part) => {
+      const rawClass = String(part.inventoryClass || part.itemClass || part.saleType || part.classification || part.category || "").trim();
+      const explicitClass = partInventoryClass(part);
+      const nameKey = `name:${String(part.name || "").trim()}`;
+      const inferredClass = inferredPartClasses.get(`id:${part.id}`) || inferredPartClasses.get(nameKey) || "";
+      const useInferred = Boolean(inferredClass && (!rawClass || explicitClass === "일반판매"));
+      return Object.assign({}, part, {
+        inventoryClass: useInferred ? inferredClass : explicitClass,
+        inventoryClassInferred: useInferred,
         storageLocation: part.storageLocation || part.location || "",
       });
-    }).filter((l) => {
-      if (cls && l.inventoryClass !== cls) return false;
-      if (customerQ && !String(l.customer || "").toLowerCase().includes(customerQ)) return false;
-      if (partQ && !String(l.partName || "").toLowerCase().includes(partQ)) return false;
+    });
+
+    const filteredParts = normalizedParts.filter((part) => {
+      if (cls && part.inventoryClass !== cls) return false;
+      if (partQ && !String(part.name || "").toLowerCase().includes(partQ)) return false;
       return true;
     });
 
-    const inventoryValue = filteredParts.reduce((s,p)=>s+(Number(p.stock)||0)*(Number(p.unitPrice)||0),0);
-    const outQty = outLogs.reduce((s,l)=>s+(Number(l.qty)||0),0);
-    const outAmount = outLogs.reduce((s,l)=>s+(Number(l.qty)||0)*(Number(l.unitPrice)||0),0);
-    const shortage = filteredParts.filter((p)=>Number(p.minStock)>0 && Number(p.stock)<=Number(p.minStock));
+    const actualRows = buildActualOutRows(normalizedParts, records, logs, from, to);
+    const supplementRows = buildRecordSupplementRows(normalizedParts, records, actualRows, from, to);
+    const outRows = actualRows.concat(supplementRows).filter((row) => {
+      if (cls && row.inventoryClass !== cls) return false;
+      if (customerQ && !String(row.customer || "").toLowerCase().includes(customerQ)) return false;
+      if (partQ && !String(row.partName || "").toLowerCase().includes(partQ)) return false;
+      return true;
+    });
 
-    const byCustomer = groupRows(outLogs, (r)=>r.customer).sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
-    const byDateCustomerPart = groupRows(outLogs, (r)=>({key:`${r.date}|${r.customer}|${r.partName}`, date:r.date, customer:r.customer, partName:r.partName, inventoryClass:r.inventoryClass}))
-      .sort((a,b)=>String(a.date).localeCompare(String(b.date)) || String(a.customer).localeCompare(String(b.customer),"ko-KR") || String(a.partName).localeCompare(String(b.partName),"ko-KR"));
-    const byClass = groupRows(filteredParts.map((p)=>({partName:p.name, qty:Number(p.stock)||0, unitPrice:Number(p.unitPrice)||0, inventoryClass:p.inventoryClass||"일반판매"})), (r)=>r.inventoryClass)
-      .sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
-    const byLocation = groupRows(filteredParts.map((p)=>({partName:p.name, qty:Number(p.stock)||0, unitPrice:Number(p.unitPrice)||0, storageLocation:p.storageLocation||p.location||"미지정"})), (r)=>r.storageLocation)
-      .sort((a,b)=>String(a.key).localeCompare(String(b.key),"ko-KR"));
+    const inventoryValue = filteredParts.reduce((sum, part) => sum + (Number(part.stock) || 0) * (Number(part.unitPrice) || 0), 0);
+    const outQty = outRows.reduce((sum, row) => sum + (Number(row.qty) || 0), 0);
+    const outAmount = outRows.reduce((sum, row) => sum + rowAmount(row), 0);
+    const shortage = filteredParts.filter((part) => Number(part.minStock) > 0 && Number(part.stock) <= Number(part.minStock));
+    const supplementCount = outRows.filter((row) => row.sourceType !== "inventory-log").length;
+
+    const byCustomer = groupRows(outRows, (row) => row.customer)
+      .sort((a, b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+    const byDateCustomerPart = groupRows(outRows, (row) => ({
+      key: `${row.date}|${row.customer}|${row.partName}|${row.inventoryClass}|${row.source}`,
+      date: row.date,
+      customer: row.customer,
+      partName: row.partName,
+      inventoryClass: row.inventoryClass,
+      source: row.source,
+    })).sort((a, b) => String(a.date).localeCompare(String(b.date))
+      || String(a.customer).localeCompare(String(b.customer), "ko-KR")
+      || String(a.partName).localeCompare(String(b.partName), "ko-KR"));
+    const byClass = groupRows(filteredParts.map((part) => ({
+      partName: part.name,
+      qty: Number(part.stock) || 0,
+      unitPrice: Number(part.unitPrice) || 0,
+      inventoryClass: part.inventoryClass,
+    })), (row) => row.inventoryClass).sort((a, b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+    const byLocation = groupRows(filteredParts.map((part) => ({
+      partName: part.name,
+      qty: Number(part.stock) || 0,
+      unitPrice: Number(part.unitPrice) || 0,
+      storageLocation: part.storageLocation || "미지정",
+    })), (row) => row.storageLocation).sort((a, b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
 
     $("inventory-monthly-body-v65").innerHTML = `
       <div class="monthly-cards">
-        <div><span>전체 품목</span><b>${money(filteredParts.length)}개</b></div>
+        <div><span>현재 재고 품목</span><b>${money(filteredParts.length)}개</b></div>
         <div><span>현재 재고가치</span><b>${money(inventoryValue)}원</b></div>
-        <div><span>기간 출고수량</span><b>${money(outQty)}개</b></div>
-        <div><span>기간 출고금액</span><b>${money(outAmount)}원</b></div>
+        <div><span>기간 출고/거래수량</span><b>${money(outQty)}개</b></div>
+        <div><span>기간 출고/거래금액</span><b>${money(outAmount)}원</b></div>
         <div><span>부족품목</span><b>${money(shortage.length)}개</b></div>
       </div>
-      ${table("농협/거래처별 출고 합계", ["농협/거래처","판매품목","품목수","수량","금액","최근출고일"], byCustomer, (r)=>`<tr><td>${safe(r.key)}</td><td>${safe(r.itemSummary || "-")}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td><td>${safe(r.latest || "-")}</td></tr>`)}
-      ${table("날짜 + 농협/거래처 + 품목별 출고", ["날짜","농협/거래처","품목명","구분","수량","금액"], byDateCustomerPart, (r)=>`<tr><td>${safe(r.date)}</td><td>${safe(r.customer)}</td><td>${safe(r.partName)}</td><td>${safe(r.inventoryClass)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
-      ${table("물품구분별 현재 재고", ["물품구분","품목수","현재수량","재고가치"], byClass, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
-      ${table("보관위치별 현재 재고", ["보관위치","품목수","현재수량","재고가치"], byLocation, (r)=>`<tr><td>${safe(r.key)}</td><td class="tr">${money(r.itemCount)}</td><td class="tr">${money(r.qty)}</td><td class="tr">${money(r.amount)}원</td></tr>`)}
-      ${table("부족/최소재고 이하 품목", ["품목명","보관위치","구분","현재","최소","단가"], shortage, (p)=>`<tr><td>${safe(p.name)}</td><td>${safe(p.storageLocation||"-")}</td><td>${safe(p.inventoryClass||"일반판매")}</td><td class="tr">${money(p.stock)}</td><td class="tr">${money(p.minStock)}</td><td class="tr">${money(p.unitPrice)}원</td></tr>`)}
-      ${table("재고 전체 목록", ["품목명","규격","보관위치","구분","단가","현재","최소","재고가치"], filteredParts, (p)=>`<tr><td>${safe(p.name)}</td><td>${safe(p.spec||"-")}</td><td>${safe(p.storageLocation||"-")}</td><td>${safe(p.inventoryClass||"일반판매")}</td><td class="tr">${money(p.unitPrice)}원</td><td class="tr">${money(p.stock)}</td><td class="tr">${money(p.minStock)}</td><td class="tr">${money((Number(p.stock)||0)*(Number(p.unitPrice)||0))}원</td></tr>`)}
+      ${supplementCount ? `<div class="monthly-source-note-v776"><i class="fa-solid fa-circle-info"></i> 재고 출고기록이 없거나 부족한 거래내역 <b>${money(supplementCount)}행</b>을 거래분류(계통/자체 등)와 거래 품목을 기준으로 보완 표시했습니다. 새 물품구분 도입 전 품목은 해당 기간의 거래분류가 한 종류로 일치할 때만 보고서에서 계통/자체로 보완 분류합니다. 원본 재고와 거래내역은 변경하지 않습니다.</div>` : ""}
+      ${table("농협/거래처별 출고 합계", ["농협/거래처", "판매품목", "품목수", "수량", "금액", "최근출고일"], byCustomer, (row) => `<tr><td>${safe(row.key)}</td><td>${safe(row.itemSummary || "-")}</td><td class="tr">${money(row.itemCount)}</td><td class="tr">${money(row.qty)}</td><td class="tr">${money(row.amount)}원</td><td>${safe(row.latest || "-")}</td></tr>`)}
+      ${table("날짜 + 농협/거래처 + 품목별 출고", ["날짜", "농협/거래처", "품목명", "구분", "수량", "금액", "자료기준"], byDateCustomerPart, (row) => `<tr><td>${safe(row.date)}</td><td>${safe(row.customer)}</td><td>${safe(row.partName)}</td><td>${safe(row.inventoryClass)}</td><td class="tr">${money(row.qty)}</td><td class="tr">${money(row.amount)}원</td><td><span class="monthly-source-badge-v776 ${row.source === "재고 출고기록" ? "is-log" : "is-record"}">${safe(row.source)}</span></td></tr>`)}
+      ${table("물품구분별 현재 재고", ["물품구분", "품목수", "현재수량", "재고가치"], byClass, (row) => `<tr><td>${safe(row.key)}</td><td class="tr">${money(row.itemCount)}</td><td class="tr">${money(row.qty)}</td><td class="tr">${money(row.amount)}원</td></tr>`)}
+      ${table("보관위치별 현재 재고", ["보관위치", "품목수", "현재수량", "재고가치"], byLocation, (row) => `<tr><td>${safe(row.key)}</td><td class="tr">${money(row.itemCount)}</td><td class="tr">${money(row.qty)}</td><td class="tr">${money(row.amount)}원</td></tr>`)}
+      ${table("부족/최소재고 이하 품목", ["품목명", "보관위치", "구분", "현재", "최소", "단가"], shortage, (part) => `<tr><td>${safe(part.name)}</td><td>${safe(part.storageLocation || "-")}</td><td>${safe(part.inventoryClass)}</td><td class="tr">${money(part.stock)}</td><td class="tr">${money(part.minStock)}</td><td class="tr">${money(part.unitPrice)}원</td></tr>`)}
+      ${table("재고 전체 목록", ["품목명", "규격", "보관위치", "구분", "단가", "현재", "최소", "재고가치"], filteredParts, (part) => `<tr><td>${safe(part.name)}</td><td>${safe(part.spec || "-")}</td><td>${safe(part.storageLocation || "-")}</td><td>${safe(part.inventoryClass)}</td><td class="tr">${money(part.unitPrice)}원</td><td class="tr">${money(part.stock)}</td><td class="tr">${money(part.minStock)}</td><td class="tr">${money((Number(part.stock) || 0) * (Number(part.unitPrice) || 0))}원</td></tr>`)}
     `;
   }
+
   async function load() {
     const body = $("inventory-monthly-body-v65");
-    body.innerHTML = `<div class="monthly-loading">불러오는 중...</div>`;
+    body.innerHTML = `<div class="monthly-loading">전체 재고·입출고·거래내역을 불러오는 중...</div>`;
     try {
-      const [partsPayload, logsPayload, recordsPayload] = await Promise.all([api("/api/parts"), api("/api/inventory-log"), api("/api/records")]);
-      render(asArray(partsPayload), asArray(logsPayload), asArray(recordsPayload));
-    } catch (e) {
-      body.innerHTML = `<div class="monthly-error">${safe(e.message || "조회 실패")}</div>`;
+      const [parts, logs, records] = await Promise.all([
+        fetchAll("/api/parts", 500),
+        fetchAll("/api/inventory-log", 500),
+        fetchAll("/api/records", 500),
+      ]);
+      render(parts, logs, records);
+    } catch (error) {
+      body.innerHTML = `<div class="monthly-error">${safe(error.message || "조회 실패")}</div>`;
     }
   }
+
   function open() {
     ensureModal().classList.add("show");
     load();
   }
+
   function print() {
     const body = $("inventory-monthly-body-v65")?.innerHTML || "";
+    const from = $("monthly-from-v65")?.value || "";
+    const to = $("monthly-to-v65")?.value || "";
+    const cls = $("monthly-class-v65")?.value || "전체";
+    const customer = $("monthly-customer-v65")?.value || "전체";
+    const part = $("monthly-part-v65")?.value || "전체";
     const win = window.open("", "_blank", "width=1100,height=900");
     if (!win) return alert("팝업이 차단되었습니다.");
     win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>월말정산 재고보고</title><style>
-      body{font-family:'Noto Sans KR',Arial,sans-serif;margin:18px;color:#0f172a}h2{text-align:center;margin:0 0 12px}.monthly-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:14px}.monthly-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:9px}.monthly-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.monthly-cards b{font-size:15px}h4{margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:10.5px}th,td{border:1px solid #cbd5e1;padding:5px 6px}th{background:#f1f5f9}.tr{text-align:right}.empty{text-align:center;color:#94a3b8}@page{size:A4 landscape;margin:8mm}
-    </style></head><body><h2>월말정산 / 재고 보고</h2>${body}</body></html>`);
+      body{font-family:'Noto Sans KR','Malgun Gothic',Arial,sans-serif;margin:18px;color:#0f172a}h2{text-align:center;margin:0 0 5px}.print-meta{text-align:center;color:#64748b;font-size:10px;margin-bottom:12px}.monthly-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}.monthly-cards div{border:1px solid #cbd5e1;border-radius:10px;padding:9px}.monthly-cards span{display:block;color:#64748b;font-size:11px;font-weight:800}.monthly-cards b{font-size:15px}.monthly-source-note-v776{border:1px solid #fcd34d;background:#fffbeb;color:#78350f;border-radius:7px;padding:6px 8px;font-size:9px;margin-bottom:9px}h4{margin:16px 0 8px}table{width:100%;border-collapse:collapse;font-size:9.5px}th,td{border:1px solid #cbd5e1;padding:4px 5px}th{background:#f1f5f9}.tr{text-align:right}.empty{text-align:center;color:#94a3b8}.monthly-source-badge-v776{display:inline-block;border-radius:999px;padding:1px 5px;font-size:8px;font-weight:800;border:1px solid #cbd5e1}.monthly-source-badge-v776.is-log{background:#ecfdf5;color:#047857;border-color:#a7f3d0}.monthly-source-badge-v776.is-record{background:#fff7ed;color:#c2410c;border-color:#fed7aa}@page{size:A4 landscape;margin:7mm}
+    </style></head><body><h2>월말정산 / 재고 보고</h2><div class="print-meta">기간 ${safe(from)} ~ ${safe(to)} · 물품구분 ${safe(cls)} · 거래처 ${safe(customer)} · 품목 ${safe(part)}</div>${body}</body></html>`);
     win.document.close();
-    setTimeout(()=>{ win.focus(); win.print(); }, 250);
+    setTimeout(() => { win.focus(); win.print(); }, 300);
   }
+
   window.addEventListener("click", (ev) => {
     if (ev.target.closest && ev.target.closest("#btn-inventory-out-report")) {
       ev.preventDefault();
@@ -10670,11 +10956,9 @@ function parseEasyInventoryText(text) {
     if (ev.target.closest && ev.target.closest("[data-monthly-close]")) {
       ev.preventDefault();
       $("inventory-monthly-report-modal-v65")?.classList.remove("show");
-      return;
     }
   }, true);
 })();
-
 
 
 /* ===== v70-subsidy-delete-year-uncat-clean-20260716 ===== */
@@ -10774,4 +11058,491 @@ function parseEasyInventoryText(text) {
     interceptUncat(ev);
   },true));
   document.addEventListener("DOMContentLoaded",()=>{clearOldOnce(); ensureUncat(); rebuild(localStorage.getItem(YEAR_KEY)||nowYear()).catch(()=>{}); setInterval(ensureUncat,1200)});
+})();
+
+/* ===== v77.5-records-monthly-pdf-20260727 =====
+   거래내역 원본 기준 월말정산 PDF
+   - 재고 입출고기록과 분리하여 거래내역의 건수/공급가액/세액을 그대로 집계
+   - 품목 상세가 없는 구형 거래내역도 대표품목으로 출력
+*/
+(() => {
+  const API_BASE = "https://naepo-back.onrender.com";
+  const TOKEN_KEY = "npo_session_token";
+  const $ = (id) => document.getElementById(id);
+  const safe = (value) =>
+    String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  const num = (value) => Number(value) || 0;
+  const money = (value) => num(value).toLocaleString("ko-KR");
+  const asArray = (payload) =>
+    Array.isArray(payload) ? payload : payload && Array.isArray(payload.items) ? payload.items : [];
+  const getToken = () => {
+    try {
+      return sessionStorage.getItem(TOKEN_KEY) || "";
+    } catch (_) {
+      return "";
+    }
+  };
+
+  async function api(path) {
+    const headers = { "Content-Type": "application/json" };
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch(API_BASE + path, { headers });
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (_) {}
+    if (!response.ok) throw new Error((data && data.error) || `서버 오류 (${response.status})`);
+    return data;
+  }
+
+  function localDateParts(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return { year, month, day, ym: `${year}-${month}`, ymd: `${year}-${month}-${day}` };
+  }
+
+  function monthRange(ym) {
+    const match = /^(\d{4})-(\d{2})$/.exec(String(ym || ""));
+    if (!match) return null;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    if (month < 1 || month > 12) return null;
+    const last = new Date(year, month, 0).getDate();
+    return {
+      from: `${match[1]}-${match[2]}-01`,
+      to: `${match[1]}-${match[2]}-${String(last).padStart(2, "0")}`,
+    };
+  }
+
+  function initialPeriod() {
+    const current = localDateParts(new Date());
+    const pageFrom = $("fl-sdate")?.value || "";
+    const pageTo = $("fl-edate")?.value || "";
+    if (pageFrom || pageTo) {
+      const from = pageFrom || pageTo;
+      const to = pageTo || pageFrom;
+      const ym = from && to && from.slice(0, 7) === to.slice(0, 7) ? from.slice(0, 7) : "";
+      return { ym, from, to };
+    }
+    const range = monthRange(current.ym);
+    return { ym: current.ym, from: range.from, to: range.to };
+  }
+
+  function ensureModal() {
+    let modal = $("records-monthly-pdf-modal-v775");
+    if (modal) return modal;
+    modal = document.createElement("div");
+    modal.id = "records-monthly-pdf-modal-v775";
+    modal.className = "records-monthly-pdf-modal-v775";
+    modal.innerHTML = `
+      <div class="records-monthly-pdf-backdrop-v775" data-record-monthly-close="1"></div>
+      <div class="records-monthly-pdf-box-v775" role="dialog" aria-modal="true" aria-labelledby="records-monthly-pdf-title-v775">
+        <div class="records-monthly-pdf-head-v775">
+          <div>
+            <strong id="records-monthly-pdf-title-v775"><i class="fa-solid fa-file-pdf"></i> 거래내역 월말정산 PDF</strong>
+            <small>재고 출고기록이 아닌 거래내역 원본의 건수·공급가액·세액을 기준으로 출력합니다.</small>
+          </div>
+          <button type="button" class="btn btn-o btn-sm" data-record-monthly-close="1"><i class="fa-solid fa-xmark"></i> 닫기</button>
+        </div>
+        <div class="records-monthly-pdf-form-v775">
+          <label>정산 월
+            <input type="month" id="record-monthly-month-v775" />
+          </label>
+          <label>시작일
+            <input type="date" id="record-monthly-from-v775" />
+          </label>
+          <label>종료일
+            <input type="date" id="record-monthly-to-v775" />
+          </label>
+          <label class="records-monthly-check-v775">
+            <input type="checkbox" id="record-monthly-use-filters-v775" />
+            <span>현재 거래내역의 검색·지역·분류·상태·결제 필터도 반영</span>
+          </label>
+        </div>
+        <div class="records-monthly-pdf-note-v775">
+          <i class="fa-solid fa-circle-info"></i>
+          7월 1일처럼 품목 상세 기능 도입 전 작성된 기록도 누락하지 않습니다. 구형 기록은 거래내역의 대표품목과 상단 공급가액·세액으로 표시됩니다.
+        </div>
+        <div class="records-monthly-pdf-actions-v775">
+          <span id="record-monthly-status-v775">기간을 확인한 뒤 PDF 출력을 누르세요.</span>
+          <button type="button" class="btn btn-p" id="record-monthly-generate-v775"><i class="fa-solid fa-file-pdf"></i> PDF 출력</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  function openModal() {
+    const modal = ensureModal();
+    const period = initialPeriod();
+    $("record-monthly-month-v775").value = period.ym;
+    $("record-monthly-from-v775").value = period.from;
+    $("record-monthly-to-v775").value = period.to;
+    $("record-monthly-use-filters-v775").checked = false;
+    $("record-monthly-status-v775").textContent = "기간을 확인한 뒤 PDF 출력을 누르세요.";
+    modal.classList.add("show");
+  }
+
+  function closeModal() {
+    $("records-monthly-pdf-modal-v775")?.classList.remove("show");
+  }
+
+  async function fetchAllRecords() {
+    const all = [];
+    const seen = new Set();
+    let page = 1;
+    let pages = 1;
+    do {
+      const payload = await api(`/api/records?page=${page}&limit=500`);
+      const rows = asArray(payload);
+      rows.forEach((row) => {
+        const key = String(row && row.id ? row.id : `${row.date || ""}|${row.createdAt || ""}|${all.length}`);
+        if (seen.has(key)) return;
+        seen.add(key);
+        all.push(row);
+      });
+      pages = payload && Number(payload.pages) > 0 ? Number(payload.pages) : rows.length < 500 ? page : page + 1;
+      page += 1;
+      if (page > 200) break;
+    } while (page <= pages);
+    return all;
+  }
+
+  function recordDate(row) {
+    return String((row && row.date) || "").slice(0, 10);
+  }
+
+  function recordSupply(row) {
+    if (row && Object.prototype.hasOwnProperty.call(row, "amount")) return num(row.amount);
+    return Array.isArray(row && row.items) ? row.items.reduce((sum, item) => sum + num(item.amount), 0) : 0;
+  }
+
+  function recordTax(row) {
+    if (row && Object.prototype.hasOwnProperty.call(row, "tax")) return num(row.tax);
+    return Array.isArray(row && row.items) ? row.items.reduce((sum, item) => sum + num(item.tax), 0) : 0;
+  }
+
+  function customerName(row) {
+    const company = row && row.company && row.company !== "-" ? String(row.company).trim() : "";
+    const name = row && row.name && row.name !== "-" ? String(row.name).trim() : "";
+    return [company, name].filter(Boolean).join(" / ") || "미기재";
+  }
+
+  function itemNames(row) {
+    const names = [];
+    if (Array.isArray(row && row.items)) {
+      row.items.forEach((item) => {
+        const name = String((item && (item.item || item.name)) || "").trim();
+        if (name && !names.includes(name)) names.push(name);
+      });
+    }
+    if (!names.length) {
+      const fallback = String((row && (row.note || row.part)) || "").trim();
+      if (fallback) names.push(fallback);
+    }
+    if (!names.length) return "-";
+    if (names.length <= 3) return names.join(" / ");
+    return `${names.slice(0, 3).join(" / ")} 외 ${names.length - 3}건`;
+  }
+
+  function currentFilterValues() {
+    return {
+      search: String($("fl-search")?.value || "").trim().toLowerCase(),
+      region: String($("fl-region")?.value || "").trim(),
+      cat: String($("fl-cat")?.value || "").trim(),
+      status: String($("fl-status")?.value || "").trim(),
+      payment: String($("fl-payment")?.value || "").trim(),
+    };
+  }
+
+  function matchesCurrentFilters(row, filters) {
+    if (filters.region && String(row.region || "") !== filters.region) return false;
+    if (filters.cat && String(row.cat || "") !== filters.cat) return false;
+    if (filters.status && String(row.status || "done") !== filters.status) return false;
+    if (filters.payment && String(row.payMethod || "미기재") !== filters.payment) return false;
+    if (filters.search) {
+      const haystack = [
+        row.company,
+        row.name,
+        row.phone,
+        row.note,
+        row.author,
+        row.part,
+        row.region,
+        ...(Array.isArray(row.items)
+          ? row.items.flatMap((item) => [item && (item.item || item.name), item && item.spec, item && item.note])
+          : []),
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+      if (!haystack.includes(filters.search)) return false;
+    }
+    return true;
+  }
+
+  function groupRows(rows, keyFn) {
+    const map = new Map();
+    rows.forEach((row) => {
+      const key = keyFn(row);
+      const current = map.get(key) || { key, count: 0, supply: 0, tax: 0, total: 0, rows: [] };
+      const supply = recordSupply(row);
+      const tax = recordTax(row);
+      current.count += 1;
+      current.supply += supply;
+      current.tax += tax;
+      current.total += supply + tax;
+      current.rows.push(row);
+      map.set(key, current);
+    });
+    return [...map.values()];
+  }
+
+  function filterDescription(useFilters, filters) {
+    if (!useFilters) return "기간 내 전체 거래내역";
+    const parts = [];
+    if (filters.search) parts.push(`검색어: ${filters.search}`);
+    if (filters.region) parts.push(`지역: ${filters.region}`);
+    if (filters.cat) parts.push(`분류: ${filters.cat}`);
+    if (filters.status) parts.push(`상태: ${filters.status === "done" ? "완료" : "미완료"}`);
+    if (filters.payment) parts.push(`결제: ${filters.payment}`);
+    return parts.length ? parts.join(" · ") : "현재 필터 없음(기간 내 전체)";
+  }
+
+  function buildReportHtml(rows, from, to, useFilters, filters) {
+    const sorted = [...rows].sort(
+      (a, b) => recordDate(a).localeCompare(recordDate(b)) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")),
+    );
+    const supply = sorted.reduce((sum, row) => sum + recordSupply(row), 0);
+    const tax = sorted.reduce((sum, row) => sum + recordTax(row), 0);
+    const total = supply + tax;
+    const completed = sorted.filter((row) => String(row.status || "done") === "done").length;
+    const pending = sorted.length - completed;
+    const creditUnpaid = sorted
+      .filter((row) => String(row.payMethod || "") === "외상" && !row.collected)
+      .reduce((sum, row) => sum + recordSupply(row) + recordTax(row), 0);
+
+    const byPayment = groupRows(sorted, (row) => String(row.payMethod || "미기재"))
+      .sort((a, b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+    const byCategory = groupRows(sorted, (row) => String(row.cat || row.part || "미분류"))
+      .sort((a, b) => String(a.key).localeCompare(String(b.key), "ko-KR"));
+    const byDate = groupRows(sorted, (row) => recordDate(row) || "날짜 미기재")
+      .sort((a, b) => String(a.key).localeCompare(String(b.key)));
+    const byCustomer = groupRows(sorted, (row) => customerName(row))
+      .map((group) => {
+        const names = [];
+        group.rows.forEach((row) => {
+          const label = itemNames(row);
+          if (label && label !== "-" && !names.includes(label)) names.push(label);
+        });
+        group.itemSummary = names.length > 3 ? `${names.slice(0, 3).join(" / ")} 외 ${names.length - 3}건` : names.join(" / ") || "-";
+        return group;
+      })
+      .sort((a, b) => b.total - a.total || String(a.key).localeCompare(String(b.key), "ko-KR"));
+
+    const itemRows = [];
+    sorted.forEach((record, recordIndex) => {
+      const items = Array.isArray(record.items) && record.items.length ? record.items : null;
+      if (!items) {
+        itemRows.push({
+          record,
+          recordIndex,
+          old: true,
+          name: record.note || record.part || "-",
+          spec: "",
+          qty: "",
+          price: "",
+          amount: recordSupply(record),
+          tax: recordTax(record),
+        });
+        return;
+      }
+      items.forEach((item) => {
+        itemRows.push({
+          record,
+          recordIndex,
+          old: false,
+          name: item.item || item.name || "-",
+          spec: item.spec || "",
+          qty: item.qty == null ? "" : item.qty,
+          price: item.price == null ? "" : item.price,
+          amount: item.amount == null ? "" : item.amount,
+          tax: item.tax == null ? "" : item.tax,
+        });
+      });
+    });
+
+    const paymentRows = byPayment.length
+      ? byPayment.map((row) => `<tr><td>${safe(row.key)}</td><td class="num">${money(row.count)}</td><td class="num">${money(row.supply)}</td><td class="num">${money(row.tax)}</td><td class="num"><strong>${money(row.total)}</strong></td></tr>`).join("")
+      : '<tr><td colspan="5" class="empty">내역 없음</td></tr>';
+    const categoryRows = byCategory.length
+      ? byCategory.map((row) => `<tr><td>${safe(row.key)}</td><td class="num">${money(row.count)}</td><td class="num">${money(row.supply)}</td><td class="num">${money(row.tax)}</td><td class="num"><strong>${money(row.total)}</strong></td></tr>`).join("")
+      : '<tr><td colspan="5" class="empty">내역 없음</td></tr>';
+    const dateRows = byDate.length
+      ? byDate.map((row) => `<tr><td>${safe(row.key)}</td><td class="num">${money(row.count)}</td><td class="num">${money(row.supply)}</td><td class="num">${money(row.tax)}</td><td class="num"><strong>${money(row.total)}</strong></td></tr>`).join("")
+      : '<tr><td colspan="5" class="empty">내역 없음</td></tr>';
+    const customerRows = byCustomer.length
+      ? byCustomer.map((row) => `<tr><td>${safe(row.key)}</td><td>${safe(row.itemSummary)}</td><td class="num">${money(row.count)}</td><td class="num">${money(row.supply)}</td><td class="num">${money(row.tax)}</td><td class="num"><strong>${money(row.total)}</strong></td></tr>`).join("")
+      : '<tr><td colspan="6" class="empty">내역 없음</td></tr>';
+    const detailRows = sorted.length
+      ? sorted.map((row, index) => {
+          const rowSupply = recordSupply(row);
+          const rowTax = recordTax(row);
+          const credit = row.payMethod === "외상" ? (row.collected ? "수금완료" : "미수") : "-";
+          return `<tr>
+            <td class="center">${index + 1}</td>
+            <td>${safe(recordDate(row) || "-")}</td>
+            <td>${safe(customerName(row))}</td>
+            <td>${safe(row.region || "-")}</td>
+            <td>${safe(row.cat || row.part || "미분류")}</td>
+            <td>${safe(itemNames(row))}</td>
+            <td class="center">${safe(row.payMethod || "미기재")}</td>
+            <td class="center">${String(row.status || "done") === "done" ? "완료" : "미완료"}</td>
+            <td class="num">${money(rowSupply)}</td>
+            <td class="num">${money(rowTax)}</td>
+            <td class="num"><strong>${money(rowSupply + rowTax)}</strong></td>
+            <td class="center">${safe(credit)}</td>
+          </tr>`;
+        }).join("")
+      : '<tr><td colspan="12" class="empty">해당 기간 거래내역이 없습니다.</td></tr>';
+    const itemDetailRows = itemRows.length
+      ? itemRows.map((row, index) => `<tr>
+          <td class="center">${index + 1}</td>
+          <td>${safe(recordDate(row.record) || "-")}</td>
+          <td>${safe(customerName(row.record))}</td>
+          <td>${safe(row.name)}</td>
+          <td>${safe(row.spec)}</td>
+          <td class="num">${row.qty === "" ? "" : money(row.qty)}</td>
+          <td class="num">${row.price === "" ? "" : money(row.price)}</td>
+          <td class="num">${row.amount === "" ? "" : money(row.amount)}</td>
+          <td class="num">${row.tax === "" ? "" : money(row.tax)}</td>
+          <td class="center">${row.old ? '<span class="legacy">구형기록</span>' : "품목상세"}</td>
+        </tr>`).join("")
+      : '<tr><td colspan="10" class="empty">품목 상세가 없습니다.</td></tr>';
+
+    const printedAt = new Date().toLocaleString("ko-KR");
+    const titlePeriod = from === to ? from : `${from} ~ ${to}`;
+    return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>거래내역_월말정산_${safe(from)}_${safe(to)}</title><style>
+      *{box-sizing:border-box}body{font-family:'Malgun Gothic',Arial,sans-serif;margin:0;color:#111827;background:#fff}.sheet{padding:8mm 7mm}
+      .head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #991b1b;padding-bottom:7px;margin-bottom:8px}.head h1{margin:0;font-size:24px;letter-spacing:-1px}.head .type{font-size:11px;color:#991b1b;font-weight:900;margin-top:3px}.period{font-size:15px;font-weight:900;color:#991b1b;text-align:right}.filter{font-size:9.5px;color:#64748b;margin-top:3px;max-width:120mm}
+      .notice{border:1px solid #fecaca;background:#fff7f7;border-radius:7px;padding:6px 8px;font-size:9.5px;color:#7f1d1d;margin-bottom:8px}.cards{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:10px}.card{border:1px solid #cbd5e1;border-radius:7px;padding:6px}.card span{display:block;color:#64748b;font-size:9px;font-weight:800}.card b{display:block;font-size:13px;margin-top:2px;white-space:nowrap}
+      h2{font-size:13px;margin:12px 0 5px;padding-left:6px;border-left:4px solid #991b1b;color:#1f2937}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:start}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:8.7px}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border:1px solid #cbd5e1;padding:3.5px 4px;vertical-align:middle;word-break:break-all}th{background:#f8fafc;text-align:center;font-weight:900}.num{text-align:right;font-family:Consolas,'Courier New',monospace}.center{text-align:center}.empty{text-align:center;color:#94a3b8;padding:12px}.legacy{display:inline-block;border:1px solid #f59e0b;color:#92400e;background:#fffbeb;border-radius:999px;padding:1px 5px;font-size:8px;font-weight:800}.page-break{break-before:page;page-break-before:always}.foot{margin-top:8px;text-align:right;font-size:8.5px;color:#64748b}
+      @media print{@page{size:A4 landscape;margin:6mm}.sheet{padding:0}.no-print{display:none!important}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+    </style></head><body><div class="sheet">
+      <div class="head"><div><h1>거래내역 월말정산서</h1><div class="type">내포농기계 · 거래내역 원본 기준</div></div><div><div class="period">${safe(titlePeriod)}</div><div class="filter">${safe(filterDescription(useFilters, filters))}</div></div></div>
+      <div class="notice">총 건수와 금액은 거래내역에 저장된 공급가액·세액을 직접 합산했습니다. 재고 입출고 기록과 다를 수 있으며, 품목 상세가 없는 예전 기록은 대표품목과 거래 금액으로 표시됩니다.</div>
+      <div class="cards">
+        <div class="card"><span>거래 건수</span><b>${money(sorted.length)}건</b></div>
+        <div class="card"><span>공급가액</span><b>${money(supply)}원</b></div>
+        <div class="card"><span>세액</span><b>${money(tax)}원</b></div>
+        <div class="card"><span>총 거래금액</span><b>${money(total)}원</b></div>
+        <div class="card"><span>완료 / 미완료</span><b>${money(completed)} / ${money(pending)}건</b></div>
+        <div class="card"><span>외상 미수금</span><b>${money(creditUnpaid)}원</b></div>
+      </div>
+      <div class="grid2">
+        <section><h2>결제방식별 정산</h2><table><thead><tr><th>결제방식</th><th>건수</th><th>공급가액</th><th>세액</th><th>합계</th></tr></thead><tbody>${paymentRows}</tbody></table></section>
+        <section><h2>거래분류별 정산</h2><table><thead><tr><th>분류</th><th>건수</th><th>공급가액</th><th>세액</th><th>합계</th></tr></thead><tbody>${categoryRows}</tbody></table></section>
+      </div>
+      <div class="grid2">
+        <section><h2>일자별 정산</h2><table><thead><tr><th>일자</th><th>건수</th><th>공급가액</th><th>세액</th><th>합계</th></tr></thead><tbody>${dateRows}</tbody></table></section>
+        <section><h2>거래처별 정산</h2><table><thead><tr><th>거래처</th><th>대표품목</th><th>건수</th><th>공급가액</th><th>세액</th><th>합계</th></tr></thead><tbody>${customerRows}</tbody></table></section>
+      </div>
+      <section class="page-break"><h2>거래내역 상세</h2><table><thead><tr><th style="width:6mm">No</th><th style="width:19mm">일자</th><th style="width:34mm">거래처</th><th style="width:20mm">지역</th><th style="width:18mm">분류</th><th>대표품목</th><th style="width:18mm">결제</th><th style="width:16mm">상태</th><th style="width:22mm">공급가액</th><th style="width:18mm">세액</th><th style="width:23mm">합계</th><th style="width:17mm">외상</th></tr></thead><tbody>${detailRows}</tbody></table></section>
+      <section class="page-break"><h2>품목 상세 / 구형기록 보완표</h2><table><thead><tr><th style="width:7mm">No</th><th style="width:19mm">일자</th><th style="width:35mm">거래처</th><th>품목명</th><th style="width:24mm">규격</th><th style="width:14mm">수량</th><th style="width:20mm">단가</th><th style="width:22mm">공급가액</th><th style="width:18mm">세액</th><th style="width:18mm">구분</th></tr></thead><tbody>${itemDetailRows}</tbody></table></section>
+      <div class="foot">출력일시 ${safe(printedAt)} · 거래내역 월말정산 PDF</div>
+    </div></body></html>`;
+  }
+
+  async function generatePdf() {
+    const from = $("record-monthly-from-v775")?.value || "";
+    const to = $("record-monthly-to-v775")?.value || "";
+    const useFilters = Boolean($("record-monthly-use-filters-v775")?.checked);
+    const status = $("record-monthly-status-v775");
+    const button = $("record-monthly-generate-v775");
+    if (!from || !to) {
+      alert("시작일과 종료일을 선택해주세요.");
+      return;
+    }
+    if (from > to) {
+      alert("시작일은 종료일보다 늦을 수 없습니다.");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank", "width=1280,height=900");
+    if (!printWindow) {
+      alert("팝업이 차단되었습니다. 이 사이트의 팝업을 허용한 뒤 다시 시도해주세요.");
+      return;
+    }
+    printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>월말정산 준비 중</title></head><body style="font-family:Malgun Gothic;padding:30px"><h2>거래내역을 불러오는 중입니다...</h2></body></html>');
+    printWindow.document.close();
+
+    const oldHtml = button ? button.innerHTML : "";
+    if (button) {
+      button.disabled = true;
+      button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 생성 중';
+    }
+    if (status) status.textContent = "전체 거래내역을 불러와 월말정산서를 생성하고 있습니다...";
+
+    try {
+      const filters = currentFilterValues();
+      const allRecords = await fetchAllRecords();
+      const rows = allRecords.filter((row) => {
+        const date = recordDate(row);
+        if (!date || date < from || date > to) return false;
+        if (useFilters && !matchesCurrentFilters(row, filters)) return false;
+        return true;
+      });
+      const html = buildReportHtml(rows, from, to, useFilters, filters);
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      if (status) status.textContent = `${rows.length.toLocaleString("ko-KR")}건의 월말정산서를 생성했습니다.`;
+      setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+      }, 350);
+    } catch (error) {
+      try { printWindow.close(); } catch (_) {}
+      if (status) status.textContent = "월말정산서 생성에 실패했습니다.";
+      alert("월말정산 PDF 생성 실패: " + (error.message || "서버 오류가 발생했습니다."));
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.innerHTML = oldHtml;
+      }
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    const openButton = event.target.closest("#btn-record-monthly-pdf");
+    if (openButton) {
+      event.preventDefault();
+      openModal();
+      return;
+    }
+    if (event.target.closest("[data-record-monthly-close]")) {
+      event.preventDefault();
+      closeModal();
+      return;
+    }
+    if (event.target.closest("#record-monthly-generate-v775")) {
+      event.preventDefault();
+      generatePdf();
+    }
+  });
+
+  document.addEventListener("change", (event) => {
+    if (event.target && event.target.id === "record-monthly-month-v775") {
+      const range = monthRange(event.target.value);
+      if (!range) return;
+      $("record-monthly-from-v775").value = range.from;
+      $("record-monthly-to-v775").value = range.to;
+    }
+  });
 })();
