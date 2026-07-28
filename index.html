@@ -27,7 +27,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=Noto+Serif+KR:wght@600;700;900&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=v77-8-postgres-status-config-20260727" />
+    <link rel="stylesheet" href="styles.css?v=v77-9-inventory-excel-bulk-import-20260728" />
   </head>
   <body>
     <div id="pretty-modal-container">
@@ -1040,7 +1040,11 @@
               <b>품목명과 정확히 일치</b>해야 판매 시 재고가 자동으로
               차감됩니다.
             </p>
-            <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+            <div style="display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+              <button class="btn btn-o btn-sm" id="btn-inventory-excel-import" style="border-color:#86efac;color:#047857">
+                <i class="fa-solid fa-file-excel"></i> 엑셀 재고 일괄등록
+              </button>
+              <input type="file" id="inventory-excel-file" accept=".xlsx,.xls,.csv" hidden />
               <button class="btn btn-o btn-sm" id="btn-easy-inventory-import" style="border-color:#bfdbfe;color:#2563eb">
                 <i class="fa-solid fa-file-import"></i> 텍스트 재고 가져오기
               </button>
@@ -2177,6 +2181,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=v77-8-postgres-status-config-20260727"></script>
+    <script src="app.js?v=v77-9-inventory-excel-bulk-import-20260728"></script>
   </body>
 </html>

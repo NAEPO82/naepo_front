@@ -5938,6 +5938,15 @@ function parseEasyInventoryText(text) {
       text.style.display = "";
       text.value = payload || "";
       setTimeout(() => text.focus(), 50);
+    } else if (mode === "inventory-excel") {
+      title.innerHTML = '<i class="fa-solid fa-file-excel"></i> 엑셀 재고 일괄등록';
+      desc.innerHTML = "엑셀의 <b>ERP_재고등록</b> 시트를 읽어 품목과 그룹을 한 번에 등록합니다. 기존 재고와 같은 품목명은 덮어쓰지 않고 건너뜁니다.";
+      text.value = "";
+      text.style.display = "none";
+      const sampleBtn = document.getElementById("easy-import-sample");
+      const previewBtn = document.getElementById("easy-import-preview");
+      if (sampleBtn) sampleBtn.style.display = "none";
+      if (previewBtn) previewBtn.style.display = "none";
     } else if (mode === "backup") {
       title.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> 백업파일 미리보기';
       desc.textContent = "JSON/SQL 백업 파일 내용을 바로 복원하지 않고 먼저 미리보기합니다.";
@@ -5959,6 +5968,10 @@ function parseEasyInventoryText(text) {
     modal.setAttribute("aria-hidden", "true");
     const text = document.getElementById("easy-import-text");
     if (text) text.style.display = "";
+    const sampleBtn = document.getElementById("easy-import-sample");
+    const previewBtn = document.getElementById("easy-import-preview");
+    if (sampleBtn) sampleBtn.style.display = "";
+    if (previewBtn) previewBtn.style.display = "";
     easyImportMode = "";
     easyImportPreviewData = null;
   }
@@ -6104,6 +6117,201 @@ function parseEasyInventoryText(text) {
     setTimeout(() => location.reload(), 200);
   }
 
+
+
+  function normalizeInventoryExcelHeader(value) {
+    return String(value == null ? "" : value)
+      .trim()
+      .replace(/[\s_()\[\]·]/g, "")
+      .toLocaleLowerCase("ko-KR");
+  }
+
+  function normalizeInventoryExcelName(value) {
+    return String(value == null ? "" : value)
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLocaleLowerCase("ko-KR");
+  }
+
+  function inventoryExcelNumber(value) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    const cleaned = String(value == null ? "" : value).replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+    return cleaned ? Number(cleaned[0]) || 0 : 0;
+  }
+
+  function splitInventoryGroupNames(value) {
+    const source = Array.isArray(value) ? value : String(value == null ? "" : value).split(/[,，\n]+/);
+    return [...new Set(source.map((v) => String(v || "").trim()).filter(Boolean))];
+  }
+
+  function parseInventoryExcelWorkbook(workbook) {
+    if (!workbook || !Array.isArray(workbook.SheetNames) || !workbook.SheetNames.length) {
+      throw new Error("엑셀 시트를 찾을 수 없습니다.");
+    }
+    const sheetName = workbook.SheetNames.includes("ERP_재고등록") ? "ERP_재고등록" : workbook.SheetNames[0];
+    const ws = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
+    let headerRow = -1;
+    let headerMap = {};
+    for (let r = 0; r < Math.min(rows.length, 15); r++) {
+      const candidate = {};
+      (rows[r] || []).forEach((cell, c) => {
+        const key = normalizeInventoryExcelHeader(cell);
+        if (key) candidate[key] = c;
+      });
+      if (candidate["품목명"] !== undefined || candidate["이름"] !== undefined || candidate["재고명"] !== undefined) {
+        headerRow = r;
+        headerMap = candidate;
+        break;
+      }
+    }
+    if (headerRow < 0) throw new Error("품목명 헤더를 찾을 수 없습니다. ERP_재고등록 양식을 사용해주세요.");
+    const col = (...aliases) => {
+      for (const alias of aliases) {
+        const idx = headerMap[normalizeInventoryExcelHeader(alias)];
+        if (idx !== undefined) return idx;
+      }
+      return -1;
+    };
+    const indexes = {
+      name: col("품목명", "이름", "재고명"),
+      spec: col("규격", "품번", "모델명"),
+      location: col("보관위치", "위치", "번호"),
+      inventoryClass: col("물품구분", "구분", "분류"),
+      unitPrice: col("단가", "기본단가", "가격"),
+      stock: col("현재재고", "재고", "수량"),
+      minStock: col("최소재고", "최소재고수량", "경고재고"),
+      groupName: col("그룹명", "그룹", "품목그룹"),
+      note: col("비고", "메모", "참고"),
+    };
+    const allowedClasses = new Set(["일반판매", "계통물품", "자체물품", "수리부품", "보조사업"]);
+    const parts = [];
+    const invalid = [];
+    const seen = new Map();
+    for (let r = headerRow + 1; r < rows.length; r++) {
+      const row = rows[r] || [];
+      const name = indexes.name >= 0 ? String(row[indexes.name] || "").trim().replace(/\s+/g, " ") : "";
+      if (!name) {
+        if (row.some((v) => String(v || "").trim())) invalid.push({ row: r + 1, reason: "품목명 공란" });
+        continue;
+      }
+      const key = normalizeInventoryExcelName(name);
+      const part = {
+        name,
+        spec: indexes.spec >= 0 ? String(row[indexes.spec] || "").trim() : "",
+        storageLocation: indexes.location >= 0 ? String(row[indexes.location] || "").trim() : "",
+        inventoryClass: indexes.inventoryClass >= 0 ? String(row[indexes.inventoryClass] || "").trim() : "일반판매",
+        unitPrice: indexes.unitPrice >= 0 ? inventoryExcelNumber(row[indexes.unitPrice]) : 0,
+        stock: indexes.stock >= 0 ? Math.max(0, Math.trunc(inventoryExcelNumber(row[indexes.stock]))) : 0,
+        minStock: indexes.minStock >= 0 ? Math.max(0, Math.trunc(inventoryExcelNumber(row[indexes.minStock]))) : 0,
+        groupNames: indexes.groupName >= 0 ? splitInventoryGroupNames(row[indexes.groupName]) : [],
+        note: indexes.note >= 0 ? String(row[indexes.note] || "").trim() : "",
+        sourceRow: r + 1,
+        sourceSheet: sheetName,
+        fileDuplicate: false,
+      };
+      if (!allowedClasses.has(part.inventoryClass)) part.inventoryClass = "일반판매";
+      if (seen.has(key)) {
+        part.fileDuplicate = true;
+        invalid.push({ row: r + 1, name, reason: `입력 파일 안에서 품목명 중복 (앞 행 ${seen.get(key)})` });
+      } else {
+        seen.set(key, r + 1);
+      }
+      parts.push(part);
+    }
+    return { sheetName, parts, invalid };
+  }
+
+  async function loadInventoryImportExisting() {
+    const [partData, groupData] = await Promise.all([
+      importApi("/api/parts?limit=500"),
+      importApi("/api/groups?limit=500"),
+    ]);
+    return {
+      parts: Array.isArray(partData) ? partData : Array.isArray(partData.items) ? partData.items : [],
+      groups: Array.isArray(groupData) ? groupData : Array.isArray(groupData.items) ? groupData.items : [],
+    };
+  }
+
+  async function prepareInventoryExcelPreview(parsed) {
+    const current = await loadInventoryImportExisting();
+    const existingMap = new Map(current.parts.map((p) => [normalizeInventoryExcelName(p.name), p]));
+    const previewParts = parsed.parts.map((part) => {
+      const existing = existingMap.get(normalizeInventoryExcelName(part.name));
+      return Object.assign({}, part, {
+        existingDuplicate: Boolean(existing),
+        existingId: existing && existing.id,
+        importStatus: part.fileDuplicate ? "파일중복" : existing ? "기존중복" : "신규",
+      });
+    });
+    return Object.assign({}, parsed, { parts: previewParts, existingParts: current.parts, existingGroups: current.groups });
+  }
+
+  function renderInventoryExcelPreview(data) {
+    const parts = Array.isArray(data.parts) ? data.parts : [];
+    const created = parts.filter((p) => p.importStatus === "신규");
+    const existing = parts.filter((p) => p.importStatus === "기존중복");
+    const fileDup = parts.filter((p) => p.importStatus === "파일중복");
+    const groups = [...new Set(created.flatMap((p) => p.groupNames || []).filter(Boolean))];
+    const statusBadge = (p) => p.importStatus === "신규"
+      ? '<span style="color:#047857;font-weight:800;">신규등록</span>'
+      : p.importStatus === "기존중복"
+        ? '<span style="color:#d97706;font-weight:800;">기존재고 중복 · 건너뜀</span>'
+        : '<span style="color:#dc2626;font-weight:800;">파일 내부 중복 · 건너뜀</span>';
+    document.getElementById("easy-import-result").innerHTML = `
+      <div class="import-summary">
+        읽은 시트: <b>${safeText(data.sheetName)}</b> · 전체 ${parts.length}건 · 신규 ${created.length}건 · 기존재고 중복 ${existing.length}건 · 파일 내부 중복 ${fileDup.length}건 · 생성/연결 그룹 ${groups.length}개<br>
+        <b>중복 품목은 기존 재고를 덮어쓰지 않고 자동으로 건너뜁니다.</b>
+      </div>
+      ${existing.length ? `<div class="import-preview-card"><strong>현재 ERP와 중복된 품목명</strong><div style="margin-top:8px;line-height:1.7;">${existing.map((p) => safeText(p.name)).join(" · ")}</div></div>` : ""}
+      ${data.invalid && data.invalid.length ? `<div class="import-preview-card"><strong>검토/제외 내역</strong><div style="margin-top:8px;line-height:1.7;">${data.invalid.slice(0,30).map((x) => `${x.row}행 ${safeText(x.name || "")}: ${safeText(x.reason)}`).join("<br>")}${data.invalid.length > 30 ? `<br>... 외 ${data.invalid.length - 30}건` : ""}</div></div>` : ""}
+      <div class="import-preview-card" style="max-height:48vh;overflow:auto;">
+        <table><thead><tr><th>상태</th><th>품목명</th><th>규격</th><th>보관위치</th><th>구분</th><th>재고</th><th>최소</th><th>그룹</th></tr></thead>
+        <tbody>${parts.map((p) => `<tr><td>${statusBadge(p)}</td><td>${safeText(p.name)}</td><td>${safeText(p.spec)}</td><td>${safeText(p.storageLocation)}</td><td>${safeText(p.inventoryClass)}</td><td class="tr">${importMoney(p.stock)}</td><td class="tr">${importMoney(p.minStock)}</td><td>${safeText((p.groupNames || []).join(", "))}</td></tr>`).join("")}</tbody></table>
+      </div>`;
+  }
+
+  async function applyInventoryExcelImport(data) {
+    const parts = (Array.isArray(data.parts) ? data.parts : [])
+      .filter((p) => p.importStatus === "신규")
+      .map((p) => ({
+        name: p.name,
+        spec: p.spec,
+        storageLocation: p.storageLocation,
+        inventoryClass: p.inventoryClass,
+        unitPrice: Number(p.unitPrice) || 0,
+        stock: Number(p.stock) || 0,
+        minStock: Number(p.minStock) || 0,
+        groupNames: p.groupNames || [],
+        note: p.note || "",
+      }));
+    if (!parts.length) return importNotify("등록할 품목 없음", "신규 등록 가능한 품목이 없습니다. 중복 내역을 확인해주세요.");
+    const applyBtn = document.getElementById("easy-import-apply");
+    if (applyBtn) {
+      applyBtn.disabled = true;
+      applyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 등록 중...';
+    }
+    try {
+      const result = await importApi("/api/parts/bulk-import", {
+        method: "POST",
+        body: JSON.stringify({ parts, duplicateMode: "skip" }),
+      });
+      closeEasyImport();
+      const duplicateNames = Array.isArray(result.duplicates) ? result.duplicates : [];
+      importNotify(
+        "엑셀 재고 일괄등록 완료",
+        `신규 ${result.created || 0}건 · 기존중복 건너뜀 ${result.skippedExisting || 0}건 · 파일중복 건너뜀 ${result.skippedFile || 0}건 · 그룹 ${result.groupsCreated || 0}개 생성 / ${result.groupsUpdated || 0}개 연결${duplicateNames.length ? `\n\n중복: ${duplicateNames.slice(0,30).join(", ")}` : ""}`
+      );
+      setTimeout(() => location.reload(), 350);
+    } catch (error) {
+      if (applyBtn) {
+        applyBtn.disabled = false;
+        applyBtn.innerHTML = '<i class="fa-solid fa-check"></i> 적용';
+      }
+      importNotify("엑셀 재고 등록 실패", error.message || "일괄등록 처리 중 오류가 발생했습니다.");
+    }
+  }
+
   async function applyBackupPreview(data) {
     const records = Array.isArray(data.records) ? data.records : Array.isArray(data) ? data : [];
     if (!Array.isArray(records)) return importNotify("복원 실패", "records 배열이 있는 JSON/SQL 백업만 복원할 수 있습니다.");
@@ -6139,6 +6347,30 @@ function parseEasyInventoryText(text) {
     const byId = (id) => document.getElementById(id);
     byId("btn-easy-record-import") && byId("btn-easy-record-import").addEventListener("click", () => openEasyImport("records"));
     byId("btn-easy-inventory-import") && byId("btn-easy-inventory-import").addEventListener("click", () => openEasyImport("inventory"));
+    byId("btn-inventory-excel-import") && byId("btn-inventory-excel-import").addEventListener("click", () => {
+      const input = byId("inventory-excel-file");
+      if (input) input.click();
+    });
+    byId("inventory-excel-file") && byId("inventory-excel-file").addEventListener("change", async (event) => {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = "";
+      if (!file) return;
+      if (typeof XLSX === "undefined") return importNotify("엑셀 불러오기 실패", "엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+      try {
+        openEasyImport("inventory-excel");
+        const result = byId("easy-import-result");
+        if (result) result.innerHTML = '<div class="import-summary"><i class="fa-solid fa-spinner fa-spin"></i> 엑셀과 현재 재고를 비교하고 있습니다...</div>';
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "array", cellDates: false });
+        const parsed = parseInventoryExcelWorkbook(workbook);
+        easyImportPreviewData = await prepareInventoryExcelPreview(parsed);
+        renderInventoryExcelPreview(easyImportPreviewData);
+        byId("easy-import-apply").disabled = !easyImportPreviewData.parts.some((p) => p.importStatus === "신규");
+      } catch (error) {
+        importNotify("엑셀 불러오기 실패", error.message || "엑셀을 해석하지 못했습니다.");
+        closeEasyImport();
+      }
+    });
     byId("easy-import-close") && byId("easy-import-close").addEventListener("click", closeEasyImport);
     byId("easy-import-sample") && byId("easy-import-sample").addEventListener("click", () => {
       const text = byId("easy-import-text");
@@ -6173,6 +6405,7 @@ function parseEasyInventoryText(text) {
       if (!easyImportPreviewData) return;
       if (easyImportMode === "records") return applyRecordImport(easyImportPreviewData);
       if (easyImportMode === "inventory") return applyInventoryImport(easyImportPreviewData);
+      if (easyImportMode === "inventory-excel") return applyInventoryExcelImport(easyImportPreviewData);
       if (easyImportMode === "backup") return applyBackupPreview(easyImportPreviewData);
     });
     byId("list-body") && byId("list-body").addEventListener("click", (ev) => {
