@@ -2729,7 +2729,14 @@
         try {
           const result = await adminJson("/api/admin/save-current-data", { method: "POST", body: JSON.stringify({}) });
           const c = result.counts || {};
-          I("현재 데이터 전체저장 완료", `저장 완료\n거래 ${c.records || 0}건 · 거래처 ${c.customers || 0}건 · 재고 ${c.parts || 0}건 · 입출고 ${c.inventoryLog || 0}건 · 보조사업 ${c.subsidyProjects || 0}건\n스냅샷: ${result.snapshotFile || "-"}`);
+          const countsText = `거래 ${c.records || 0}건 · 거래처 ${c.customers || 0}건 · 재고 ${c.parts || 0}건 · 입출고 ${c.inventoryLog || 0}건 · 보조사업 ${c.subsidyProjects || 0}건`;
+          if (result.postgresPending || result.partial) {
+            const pg = result.postgres || {};
+            const retryText = pg.nextRetryAt ? `\n다음 자동 재시도: ${new Date(pg.nextRetryAt).toLocaleString("ko-KR")}` : "";
+            I("JSON 저장 완료 · PostgreSQL 동기화 실패", `JSON 미러와 전체 스냅샷은 안전하게 저장됐습니다.\n하지만 PostgreSQL에는 아직 저장되지 않았습니다.\n\n${countsText}\n스냅샷: ${result.snapshotFile || "-"}\nDB 호스트: ${pg.host || "확인 필요"}\n오류: ${result.postgresError || pg.error || "PostgreSQL 연결 실패"}${retryText}\n\nRender의 DATABASE_URL을 현재 PostgreSQL 연결 주소로 수정한 뒤 다시 전체저장해주세요.`);
+          } else {
+            I("현재 데이터 전체저장 완료", `JSON 미러 + 전체 스냅샷 + PostgreSQL 저장 완료\n${countsText}\n스냅샷: ${result.snapshotFile || "-"}`);
+          }
           await loadAdminActionLog();
         } catch (error) { I("현재 데이터 전체저장 실패", error.message); }
       }, () => {});
